@@ -23,6 +23,7 @@ import { OrderChat } from "@/components/chat/OrderChat";
 import { usePayment } from "@/hooks/usePayment";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import AgentProfileCard from "@/components/order/AgentProfileCard";
 
 interface Order {
   id: string;
@@ -36,6 +37,7 @@ interface Order {
   delivery_fee: number | null;
   created_at: string;
   updated_at: string;
+  agent_id: string | null;
 }
 
 interface OrderItem {
@@ -47,6 +49,13 @@ interface OrderItem {
   actual_price: number | null;
   photo_url: string | null;
   status: string;
+}
+
+interface AgentInfo {
+  full_name: string | null;
+  photo_url: string | null;
+  market_knowledge: string[] | null;
+  experience_description: string | null;
 }
 
 const statusSteps = [
@@ -69,6 +78,8 @@ const OrderDetailPage = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
   const [userEmail, setUserEmail] = useState<string>("");
+  const [agentInfo, setAgentInfo] = useState<AgentInfo | null>(null);
+  const [agentLoading, setAgentLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "chat");
 
@@ -118,6 +129,11 @@ const OrderDetailPage = () => {
       if (orderError) throw orderError;
       setOrder(orderData);
 
+      // Fetch agent info if order has an agent
+      if (orderData.agent_id) {
+        fetchAgentInfo(orderData.agent_id);
+      }
+
       const { data: itemsData, error: itemsError } = await supabase
         .from("order_items")
         .select("*")
@@ -130,6 +146,25 @@ const OrderDetailPage = () => {
       console.error("Error fetching order details:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchAgentInfo = async (agentId: string) => {
+    setAgentLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("agent_applications")
+        .select("full_name, photo_url, market_knowledge, experience_description")
+        .eq("user_id", agentId)
+        .eq("status", "approved")
+        .single();
+
+      if (error) throw error;
+      setAgentInfo(data);
+    } catch (error) {
+      console.error("Error fetching agent info:", error);
+    } finally {
+      setAgentLoading(false);
     }
   };
 
@@ -302,6 +337,11 @@ const OrderDetailPage = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Agent Profile Card */}
+        {(order.agent_id || order.status !== "pending") && (
+          <AgentProfileCard agentInfo={agentInfo} loading={agentLoading} />
+        )}
 
         {/* Order Info */}
         <div className="grid md:grid-cols-2 gap-6">
