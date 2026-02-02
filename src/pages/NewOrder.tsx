@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,20 +20,11 @@ import {
 } from "@/components/ui/select";
 import { Plus, Trash2, MapPin, ShoppingCart, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { portHarcourtLocations } from "@/lib/port-harcourt-stores";
 
+// Port Harcourt stores (primary) + other cities coming soon
 const locations = [
-  { name: "The Palms Mall", type: "mall", city: "Lagos" },
-  { name: "Ikeja City Mall", type: "mall", city: "Lagos" },
-  { name: "Adeniran Ogunsanya Mall", type: "mall", city: "Lagos" },
-  { name: "Balogun Market", type: "market", city: "Lagos" },
-  { name: "Computer Village", type: "market", city: "Lagos" },
-  { name: "Alaba International", type: "market", city: "Lagos" },
-  { name: "Shoprite (Ikeja)", type: "supermarket", city: "Lagos" },
-  { name: "Jabi Lake Mall", type: "mall", city: "Abuja" },
-  { name: "Ceddi Plaza", type: "mall", city: "Abuja" },
-  { name: "Wuse Market", type: "market", city: "Abuja" },
-  { name: "Port Harcourt Mall", type: "mall", city: "Port Harcourt" },
-  { name: "Mile 1 Market", type: "market", city: "Port Harcourt" },
+  ...portHarcourtLocations,
 ];
 
 const orderSchema = z.object({
@@ -56,8 +47,9 @@ type OrderFormData = z.infer<typeof orderSchema>;
 const NewOrderPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+  const preselectedStore = searchParams.get("store");
   const {
     register,
     control,
@@ -68,11 +60,21 @@ const NewOrderPage = () => {
   } = useForm<OrderFormData>({
     resolver: zodResolver(orderSchema),
     defaultValues: {
-      location: "",
+      location: preselectedStore || "",
       notes: "",
       items: [{ name: "", description: "", quantity: 1, estimatedPrice: undefined }],
     },
   });
+
+  // Set preselected store when URL param changes
+  useEffect(() => {
+    if (preselectedStore) {
+      const storeExists = locations.some(l => l.name === preselectedStore);
+      if (storeExists) {
+        setValue("location", preselectedStore);
+      }
+    }
+  }, [preselectedStore, setValue]);
 
   const { fields, append, remove } = useFieldArray({
     control,
