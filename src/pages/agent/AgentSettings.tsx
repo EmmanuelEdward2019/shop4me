@@ -9,6 +9,8 @@ import ProfileInfoSection from "@/components/agent/ProfileInfoSection";
 import BankingSection from "@/components/agent/BankingSection";
 import VehicleSection from "@/components/agent/VehicleSection";
 import AgentStatusSection from "@/components/agent/AgentStatusSection";
+import PhotoUploadSection from "@/components/agent/PhotoUploadSection";
+import MarketKnowledgeSection from "@/components/agent/MarketKnowledgeSection";
 
 interface AgentApplication {
   full_name: string;
@@ -24,6 +26,8 @@ interface AgentApplication {
   has_vehicle: boolean | null;
   vehicle_type: string | null;
   status: string;
+  photo_url: string | null;
+  market_knowledge: string[] | null;
 }
 
 const AgentSettings = () => {
@@ -33,6 +37,7 @@ const AgentSettings = () => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingBanking, setSavingBanking] = useState(false);
   const [savingVehicle, setSavingVehicle] = useState(false);
+  const [savingMarkets, setSavingMarkets] = useState(false);
   const [application, setApplication] = useState<AgentApplication | null>(null);
 
   const [profileData, setProfileData] = useState({
@@ -54,6 +59,9 @@ const AgentSettings = () => {
     has_vehicle: false,
     vehicle_type: "",
   });
+
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [marketKnowledge, setMarketKnowledge] = useState<string[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -90,6 +98,8 @@ const AgentSettings = () => {
         has_vehicle: data.has_vehicle || false,
         vehicle_type: data.vehicle_type || "",
       });
+      setPhotoUrl(data.photo_url || null);
+      setMarketKnowledge(data.market_knowledge || []);
     } catch (error) {
       console.error("Error fetching agent application:", error);
     } finally {
@@ -126,7 +136,6 @@ const AgentSettings = () => {
 
       if (error) throw error;
 
-      // Also update the profiles table
       await supabase
         .from("profiles")
         .update({
@@ -210,6 +219,34 @@ const AgentSettings = () => {
     }
   };
 
+  const handleSaveMarkets = async () => {
+    setSavingMarkets(true);
+    try {
+      const { error } = await supabase
+        .from("agent_applications")
+        .update({
+          market_knowledge: marketKnowledge,
+        })
+        .eq("user_id", user?.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Market Knowledge Updated",
+        description: "Your market expertise has been updated.",
+      });
+    } catch (error) {
+      console.error("Error updating market knowledge:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update market knowledge",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingMarkets(false);
+    }
+  };
+
   return (
     <AgentDashboardLayout>
       <div className="space-y-6 max-w-2xl">
@@ -222,6 +259,14 @@ const AgentSettings = () => {
           </p>
         </div>
 
+        <PhotoUploadSection
+          loading={loading}
+          userId={user?.id || ""}
+          currentPhotoUrl={photoUrl}
+          fullName={profileData.full_name}
+          onPhotoUpdated={setPhotoUrl}
+        />
+
         <ProfileInfoSection
           loading={loading}
           saving={savingProfile}
@@ -229,6 +274,14 @@ const AgentSettings = () => {
           formData={profileData}
           onFormChange={handleProfileChange}
           onSave={handleSaveProfile}
+        />
+
+        <MarketKnowledgeSection
+          loading={loading}
+          saving={savingMarkets}
+          selectedMarkets={marketKnowledge}
+          onMarketsChange={setMarketKnowledge}
+          onSave={handleSaveMarkets}
         />
 
         <BankingSection
