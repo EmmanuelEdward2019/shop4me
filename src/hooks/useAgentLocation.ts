@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { calculateDistance } from "@/lib/eta-calculator";
 
 interface LocationData {
   latitude: number;
@@ -15,17 +16,62 @@ interface UseAgentLocationOptions {
   orderId: string;
   agentId: string;
   enabled?: boolean;
+  deliveryLatitude?: number;
+  deliveryLongitude?: number;
+  buyerId?: string;
 }
 
 export const useAgentLocationSharing = ({
   orderId,
   agentId,
   enabled = true,
+  deliveryLatitude,
+  deliveryLongitude,
+  buyerId,
 }: UseAgentLocationOptions) => {
   const { toast } = useToast();
   const [isSharing, setIsSharing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const watchIdRef = useRef<number | null>(null);
+  const proximityNotifiedRef = useRef(false);
+
+  const sendProximityNotification = useCallback(async () => {
+    if (!buyerId || proximityNotifiedRef.current) return;
+
+    try {
+      // Mark as notified in database
+      await supabase
+        .from("agent_locations")
+        .update({ proximity_notified: true })
+        .eq("order_id", orderId);
+
+      // Create a delivery update
+      await supabase.from("delivery_updates").insert({
+        order_id: orderId,
+        agent_id: agentId,
+        update_type: "arrived_nearby",
+        message: "Agent is approximately 5 minutes away!",
+      });
+
+      // Send push notification
+      await supabase.functions.invoke("send-push-notification", {
+        body: {
+          userId: buyerId,
+          title: "🚗 Almost There!",
+          body: "Your agent is about 5 minutes away from delivering your order.",
+          data: {
+            orderId,
+            type: "proximity_alert",
+          },
+        },
+      });
+
+      proximityNotifiedRef.current = true;
+      console.log("Proximity notification sent successfully");
+    } catch (err) {
+      console.error("Error sending proximity notification:", err);
+    }
+  }, [orderId, agentId, buyerId]);
 
   const updateLocation = useCallback(
     async (position: GeolocationPosition) => {
@@ -49,12 +95,33 @@ export const useAgentLocationSharing = ({
         if (upsertError) {
           console.error("Error updating location:", upsertError);
           setError("Failed to update location");
+          return;
+        }
+
+        // Check proximity for notification (if delivery location is provided)
+        if (
+          deliveryLatitude &&
+          deliveryLongitude &&
+          !proximityNotifiedRef.current
+        ) {
+          const distanceKm = calculateDistance(
+            position.coords.latitude,
+            position.coords.longitude,
+            deliveryLatitude,
+            deliveryLongitude
+          );
+
+          // Approximately 5 minutes away (assuming ~20 km/h average speed in Lagos)
+          // ~1.7 km = 5 min at 20 km/h
+          if (distanceKm <= 1.7) {
+            sendProximityNotification();
+          }
         }
       } catch (err) {
         console.error("Error in updateLocation:", err);
       }
     },
-    [agentId, orderId]
+    [agentId, orderId, deliveryLatitude, deliveryLongitude, sendProximityNotification]
   );
 
   const startSharing = useCallback(() => {
@@ -123,6 +190,23 @@ export const useAgentLocationSharing = ({
       }
     };
   }, [enabled, startSharing]);
+
+  // Check if already notified on mount
+  useEffect(() => {
+    const checkProximityStatus = async () => {
+      const { data } = await supabase
+        .from("agent_locations")
+        .select("proximity_notified")
+        .eq("order_id", orderId)
+        .single();
+
+      if (data?.proximity_notified) {
+        proximityNotifiedRef.current = true;
+      }
+    };
+
+    checkProximityStatus();
+  }, [orderId]);
 
   return {
     isSharing,
