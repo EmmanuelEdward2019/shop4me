@@ -85,6 +85,49 @@ serve(async (req) => {
 
     // If payment successful, handle based on payment type
     if (newStatus === 'success') {
+      // Save card authorization if available
+      if (transaction.authorization && transaction.authorization.reusable) {
+        const auth = transaction.authorization;
+        
+        // Check if card already exists
+        const { data: existingCard } = await supabase
+          .from('payment_cards')
+          .select('id')
+          .eq('user_id', payment.user_id)
+          .eq('last4', auth.last4)
+          .eq('exp_month', auth.exp_month)
+          .eq('exp_year', auth.exp_year)
+          .maybeSingle();
+
+        if (!existingCard) {
+          // Check if user has any cards (for setting default)
+          const { count } = await supabase
+            .from('payment_cards')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', payment.user_id);
+
+          const { error: cardError } = await supabase
+            .from('payment_cards')
+            .insert({
+              user_id: payment.user_id,
+              authorization_code: auth.authorization_code,
+              card_type: auth.card_type || 'unknown',
+              last4: auth.last4,
+              exp_month: auth.exp_month,
+              exp_year: auth.exp_year,
+              bank: auth.bank,
+              brand: auth.brand,
+              is_default: count === 0, // Set as default if first card
+            });
+
+          if (cardError) {
+            console.error('Failed to save card:', cardError);
+          } else {
+            console.log(`Saved new card ending in ${auth.last4} for user ${payment.user_id}`);
+          }
+        }
+      }
+
       if (payment.order_id) {
         // Order payment - update order status
         const { error: orderError } = await supabase
