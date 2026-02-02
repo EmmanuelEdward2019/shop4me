@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AgentProtectedRoute from "@/components/auth/AgentProtectedRoute";
+import AdminProtectedRoute from "@/components/auth/AdminProtectedRoute";
 
 // Public pages
 import Index from "./pages/Index";
@@ -34,6 +35,13 @@ import AgentOrderDetail from "./pages/agent/AgentOrderDetail";
 import AgentEarnings from "./pages/agent/AgentEarnings";
 import AgentSettings from "./pages/agent/AgentSettings";
 import AgentMessagesPage from "./pages/agent/AgentMessages";
+
+// Admin pages
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminUsers from "./pages/admin/AdminUsers";
+import AdminOrders from "./pages/admin/AdminOrders";
+import AdminAgents from "./pages/admin/AdminAgents";
+import AdminSettingsPage from "./pages/admin/AdminSettings";
 
 const queryClient = new QueryClient();
 
@@ -174,6 +182,48 @@ const App = () => (
                 <AgentProtectedRoute>
                   <AgentMessagesPage />
                 </AgentProtectedRoute>
+              }
+            />
+
+            {/* Admin routes */}
+            <Route
+              path="/admin"
+              element={
+                <AdminProtectedRoute>
+                  <AdminDashboard />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <AdminProtectedRoute>
+                  <AdminUsers />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/orders"
+              element={
+                <AdminProtectedRoute>
+                  <AdminOrders />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/agents"
+              element={
+                <AdminProtectedRoute>
+                  <AdminAgents />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <AdminProtectedRoute>
+                  <AdminSettingsPage />
+                </AdminProtectedRoute>
               }
             />
 
