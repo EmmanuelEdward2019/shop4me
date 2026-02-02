@@ -160,6 +160,50 @@ export type Database = {
           },
         ]
       }
+      agent_locations: {
+        Row: {
+          accuracy: number | null
+          agent_id: string
+          heading: number | null
+          id: string
+          latitude: number
+          longitude: number
+          order_id: string
+          speed: number | null
+          updated_at: string
+        }
+        Insert: {
+          accuracy?: number | null
+          agent_id: string
+          heading?: number | null
+          id?: string
+          latitude: number
+          longitude: number
+          order_id: string
+          speed?: number | null
+          updated_at?: string
+        }
+        Update: {
+          accuracy?: number | null
+          agent_id?: string
+          heading?: number | null
+          id?: string
+          latitude?: number
+          longitude?: number
+          order_id?: string
+          speed?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_locations_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_reviews: {
         Row: {
           agent_id: string
