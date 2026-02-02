@@ -14,16 +14,298 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      delivery_addresses: {
+        Row: {
+          address_line1: string
+          address_line2: string | null
+          city: string
+          created_at: string
+          id: string
+          is_default: boolean
+          label: string
+          landmark: string | null
+          state: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address_line1: string
+          address_line2?: string | null
+          city: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          landmark?: string | null
+          state: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address_line1?: string
+          address_line2?: string | null
+          city?: string
+          created_at?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          landmark?: string | null
+          state?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      order_items: {
+        Row: {
+          actual_price: number | null
+          created_at: string
+          description: string | null
+          estimated_price: number | null
+          id: string
+          name: string
+          order_id: string
+          photo_url: string | null
+          quantity: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actual_price?: number | null
+          created_at?: string
+          description?: string | null
+          estimated_price?: number | null
+          id?: string
+          name: string
+          order_id: string
+          photo_url?: string | null
+          quantity?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          actual_price?: number | null
+          created_at?: string
+          description?: string | null
+          estimated_price?: number | null
+          id?: string
+          name?: string
+          order_id?: string
+          photo_url?: string | null
+          quantity?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orders: {
+        Row: {
+          agent_id: string | null
+          created_at: string
+          delivery_address_id: string | null
+          delivery_fee: number | null
+          estimated_total: number | null
+          final_total: number | null
+          id: string
+          location_name: string
+          location_type: string
+          notes: string | null
+          service_fee: number | null
+          status: Database["public"]["Enums"]["order_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string
+          delivery_address_id?: string | null
+          delivery_fee?: number | null
+          estimated_total?: number | null
+          final_total?: number | null
+          id?: string
+          location_name: string
+          location_type: string
+          notes?: string | null
+          service_fee?: number | null
+          status?: Database["public"]["Enums"]["order_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string
+          delivery_address_id?: string | null
+          delivery_fee?: number | null
+          estimated_total?: number | null
+          final_total?: number | null
+          id?: string
+          location_name?: string
+          location_type?: string
+          notes?: string | null
+          service_fee?: number | null
+          status?: Database["public"]["Enums"]["order_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_delivery_address_id_fkey"
+            columns: ["delivery_address_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_addresses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          reference: string | null
+          type: string
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference?: string | null
+          type: string
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          reference?: string | null
+          type?: string
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "buyer" | "agent" | "admin"
+      order_status:
+        | "pending"
+        | "accepted"
+        | "shopping"
+        | "items_confirmed"
+        | "payment_pending"
+        | "paid"
+        | "in_transit"
+        | "delivered"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +432,19 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["buyer", "agent", "admin"],
+      order_status: [
+        "pending",
+        "accepted",
+        "shopping",
+        "items_confirmed",
+        "payment_pending",
+        "paid",
+        "in_transit",
+        "delivered",
+        "cancelled",
+      ],
+    },
   },
 } as const
