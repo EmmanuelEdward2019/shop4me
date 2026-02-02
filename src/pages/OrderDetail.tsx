@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
   MapPin,
@@ -16,7 +17,11 @@ import {
   XCircle,
   Truck,
   ShoppingCart,
+  MessageSquare,
 } from "lucide-react";
+import { OrderChat } from "@/components/chat/OrderChat";
+import { usePayment } from "@/hooks/usePayment";
+import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface Order {
@@ -57,16 +62,48 @@ const statusSteps = [
 
 const OrderDetailPage = () => {
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const { toast } = useToast();
+  const { verifyPayment } = usePayment();
   const [order, setOrder] = useState<Order | null>(null);
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("details");
+
+  // Handle payment callback
+  useEffect(() => {
+    const reference = searchParams.get("reference");
+    if (reference) {
+      verifyPayment(reference).then((result) => {
+        if (result.success && result.status === "success") {
+          toast({
+            title: "Payment Successful",
+            description: "Your order has been paid. The agent will proceed with shopping.",
+          });
+          fetchOrderDetails();
+        }
+      });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (user && id) {
       fetchOrderDetails();
+      fetchUserEmail();
     }
   }, [user, id]);
+
+  const fetchUserEmail = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("user_id", user.id)
+      .single();
+    if (data) setUserEmail(data.email);
+  };
 
   const fetchOrderDetails = async () => {
     setLoading(true);
@@ -169,15 +206,44 @@ const OrderDetailPage = () => {
               <ArrowLeft className="w-5 h-5" />
             </Link>
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-2xl font-display font-bold text-foreground">
-              Order Details
+              {order.location_name}
             </h1>
             <p className="text-sm text-muted-foreground">
-              Order ID: {order.id.slice(0, 8)}...
+              Order #{order.id.slice(0, 8)} • {order.location_type}
             </p>
           </div>
+          <Badge className="capitalize">
+            {order.status.replace("_", " ")}
+          </Badge>
         </div>
+
+        {/* Tabs for Details and Chat */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="details">
+              <Package className="w-4 h-4 mr-2" />
+              Details
+            </TabsTrigger>
+            <TabsTrigger value="chat">
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Chat with Agent
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="chat" className="mt-4">
+            <Card className="h-[500px]">
+              <OrderChat
+                orderId={order.id}
+                orderTotal={order.final_total || undefined}
+                userEmail={userEmail}
+                className="h-full"
+              />
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="details" className="mt-4 space-y-6">
 
         {/* Status Timeline */}
         <Card>
@@ -367,6 +433,8 @@ const OrderDetailPage = () => {
             </div>
           </CardContent>
         </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </DashboardLayout>
   );
