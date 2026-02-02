@@ -5,13 +5,16 @@ import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet as WalletIcon, Plus, ArrowUpRight, ArrowDownLeft, Clock, History, CreditCard, Filter } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownLeft, Clock, History, Filter } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import FundWalletDialog from "@/components/wallet/FundWalletDialog";
 import SavedCardsSection from "@/components/wallet/SavedCardsSection";
 import WalletFundedAnimation from "@/components/wallet/WalletFundedAnimation";
 import TransactionFiltersComponent, { TransactionFilters, TransactionType } from "@/components/wallet/TransactionFilters";
+import TransactionExport from "@/components/wallet/TransactionExport";
+import LowBalanceWarning from "@/components/wallet/LowBalanceWarning";
+import MonthlySpendingSummary from "@/components/wallet/MonthlySpendingSummary";
 import { startOfDay, endOfDay } from "date-fns";
 
 interface WalletData {
@@ -175,6 +178,14 @@ const WalletPage = () => {
           </p>
         </div>
 
+        {/* Low Balance Warning */}
+        {!loading && !verifying && wallet && (
+          <LowBalanceWarning 
+            balance={wallet.balance} 
+            onTopUp={() => setFundDialogOpen(true)} 
+          />
+        )}
+
         {/* Balance Card */}
         <Card className="bg-hero-gradient text-primary-foreground">
           <CardContent className="p-6">
@@ -255,15 +266,21 @@ const WalletPage = () => {
               <CardTitle className="font-display">Transaction History</CardTitle>
               <CardDescription>Your recent wallet activity</CardDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-              className="gap-2"
-            >
-              <Filter className="w-4 h-4" />
-              {showFilters ? "Hide" : "Filter"}
-            </Button>
+            <div className="flex items-center gap-2">
+              <TransactionExport 
+                transactions={filteredTransactions} 
+                disabled={loading}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters(!showFilters)}
+                className="gap-2"
+              >
+                <Filter className="w-4 h-4" />
+                {showFilters ? "Hide" : "Filter"}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {/* Filters */}
@@ -371,6 +388,11 @@ const WalletPage = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Monthly Spending Summary */}
+        {transactions.length > 0 && (
+          <MonthlySpendingSummary transactions={transactions} />
+        )}
 
         {/* Saved Payment Cards */}
         <SavedCardsSection 
