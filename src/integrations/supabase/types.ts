@@ -487,6 +487,51 @@ export type Database = {
           },
         ]
       }
+      payment_cards: {
+        Row: {
+          authorization_code: string
+          bank: string | null
+          brand: string | null
+          card_type: string
+          created_at: string
+          exp_month: string
+          exp_year: string
+          id: string
+          is_default: boolean
+          last4: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          authorization_code: string
+          bank?: string | null
+          brand?: string | null
+          card_type: string
+          created_at?: string
+          exp_month: string
+          exp_year: string
+          id?: string
+          is_default?: boolean
+          last4: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          authorization_code?: string
+          bank?: string | null
+          brand?: string | null
+          card_type?: string
+          created_at?: string
+          exp_month?: string
+          exp_year?: string
+          id?: string
+          is_default?: boolean
+          last4?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payments: {
         Row: {
           amount: number

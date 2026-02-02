@@ -9,6 +9,7 @@ import { Wallet as WalletIcon, Plus, ArrowUpRight, ArrowDownLeft, Clock, History
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import FundWalletDialog from "@/components/wallet/FundWalletDialog";
+import SavedCardsSection from "@/components/wallet/SavedCardsSection";
 
 interface WalletData {
   id: string;
@@ -289,6 +290,9 @@ const WalletPage = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Saved Payment Cards */}
+        <SavedCardsSection />
 
         {/* Fund Wallet Dialog */}
         <FundWalletDialog
