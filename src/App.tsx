@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import ScrollToTop from "@/components/ScrollToTop";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AgentProtectedRoute from "@/components/auth/AgentProtectedRoute";
 import AdminProtectedRoute from "@/components/auth/AdminProtectedRoute";
@@ -22,6 +23,10 @@ import Press from "./pages/Press";
 import HelpCenter from "./pages/HelpCenter";
 import ContactUs from "./pages/ContactUs";
 import Safety from "./pages/Safety";
+import TermsOfService from "./pages/TermsOfService";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import CookiePolicy from "./pages/CookiePolicy";
+import Newsletter from "./pages/Newsletter";
 
 // Protected pages (Buyer)
 import Dashboard from "./pages/Dashboard";
@@ -52,6 +57,7 @@ import AdminApplications from "./pages/admin/AdminApplications";
 import AdminMessages from "./pages/admin/AdminMessages";
 import AdminBlog from "./pages/admin/AdminBlog";
 import AdminSettingsPage from "./pages/admin/AdminSettings";
+import AdminSubmissions from "./pages/admin/AdminSubmissions";
 
 // Blog pages
 import Blog from "./pages/Blog";
@@ -69,6 +75,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <ScrollToTop />
           <Routes>
           {/* Public routes */}
             <Route path="/" element={<Index />} />
@@ -86,6 +93,10 @@ const App = () => (
             <Route path="/help" element={<HelpCenter />} />
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/safety" element={<Safety />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/cookies" element={<CookiePolicy />} />
+            <Route path="/newsletter" element={<Newsletter />} />
 
             {/* Protected routes */}
             <Route
@@ -281,6 +292,14 @@ const App = () => (
               element={
                 <AdminProtectedRoute>
                   <AdminSettingsPage />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/submissions"
+              element={
+                <AdminProtectedRoute>
+                  <AdminSubmissions />
                 </AdminProtectedRoute>
               }
             />
