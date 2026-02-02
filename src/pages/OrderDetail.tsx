@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import AgentProfileCard from "@/components/order/AgentProfileCard";
 import AgentReviewForm from "@/components/order/AgentReviewForm";
 import DeliveryTimeEstimate from "@/components/order/DeliveryTimeEstimate";
+import LiveTrackingCard from "@/components/order/LiveTrackingCard";
 
 interface Order {
   id: string;
@@ -395,6 +396,15 @@ const OrderDetailPage = () => {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Live Tracking */}
+        {order.agent_id && (
+          <LiveTrackingCard
+            orderId={order.id}
+            orderStatus={order.status}
+            agentName={agentInfo?.full_name || undefined}
+          />
         )}
 
         {/* Order Info */}
