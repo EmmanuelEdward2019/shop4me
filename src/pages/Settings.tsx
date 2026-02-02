@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { User, Phone, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { NotificationToggle } from "@/components/notifications/PushNotificationPrompt";
 
 interface Profile {
   id: string;
@@ -181,6 +182,19 @@ const SettingsPage = () => {
                 </Button>
               </form>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Notifications */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display">Notifications</CardTitle>
+            <CardDescription>
+              Manage how you receive notifications
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <NotificationToggle />
           </CardContent>
         </Card>
 

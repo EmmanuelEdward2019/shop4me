@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { PushNotificationPrompt } from "@/components/notifications/PushNotificationPrompt";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -150,6 +151,9 @@ const AgentDashboardLayout = ({ children }: AgentDashboardLayoutProps) => {
         {/* Page content */}
         <main className="p-4 lg:p-8">{children}</main>
       </div>
+      
+      {/* Push Notification Prompt */}
+      <PushNotificationPrompt />
     </div>
   );
 };

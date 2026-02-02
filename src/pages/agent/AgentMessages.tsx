@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,13 +25,7 @@ const AgentMessagesPage = () => {
   const [orders, setOrders] = useState<OrderWithMessages[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      fetchOrdersWithMessages();
-    }
-  }, [user]);
-
-  const fetchOrdersWithMessages = async () => {
+  const fetchOrdersWithMessages = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -90,7 +84,38 @@ const AgentMessagesPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchOrdersWithMessages();
+    }
+  }, [user, fetchOrdersWithMessages]);
+
+  // Real-time subscription for new messages
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel("agent-messages-list-realtime")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "chat_messages",
+        },
+        () => {
+          // Refetch when a new message arrives
+          fetchOrdersWithMessages();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, fetchOrdersWithMessages]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
