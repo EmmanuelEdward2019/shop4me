@@ -72,7 +72,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="text-lg md:text-xl text-primary-foreground/90 mb-8 max-w-xl"
+            className="hidden md:block text-lg md:text-xl text-primary-foreground/90 mb-8 max-w-xl"
           >
             Send your shopping list. Our trusted agents shop for you in real-time 
             from malls, shops, and local markets across Nigeria.
