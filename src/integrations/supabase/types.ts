@@ -14,6 +14,111 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_applications: {
+        Row: {
+          account_name: string
+          account_number: string
+          address: string
+          admin_notes: string | null
+          bank_name: string
+          city: string
+          created_at: string
+          date_of_birth: string
+          email: string
+          experience_description: string | null
+          full_name: string
+          gender: string | null
+          has_smartphone: boolean | null
+          has_vehicle: boolean | null
+          how_heard_about_us: string | null
+          id: string
+          id_document_url: string | null
+          id_number: string
+          id_type: string
+          lga: string | null
+          market_knowledge: string[] | null
+          phone: string
+          photo_url: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          role_type: string
+          state: string
+          status: Database["public"]["Enums"]["application_status"]
+          updated_at: string
+          user_id: string | null
+          vehicle_type: string | null
+        }
+        Insert: {
+          account_name: string
+          account_number: string
+          address: string
+          admin_notes?: string | null
+          bank_name: string
+          city: string
+          created_at?: string
+          date_of_birth: string
+          email: string
+          experience_description?: string | null
+          full_name: string
+          gender?: string | null
+          has_smartphone?: boolean | null
+          has_vehicle?: boolean | null
+          how_heard_about_us?: string | null
+          id?: string
+          id_document_url?: string | null
+          id_number: string
+          id_type: string
+          lga?: string | null
+          market_knowledge?: string[] | null
+          phone: string
+          photo_url?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role_type?: string
+          state: string
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+          user_id?: string | null
+          vehicle_type?: string | null
+        }
+        Update: {
+          account_name?: string
+          account_number?: string
+          address?: string
+          admin_notes?: string | null
+          bank_name?: string
+          city?: string
+          created_at?: string
+          date_of_birth?: string
+          email?: string
+          experience_description?: string | null
+          full_name?: string
+          gender?: string | null
+          has_smartphone?: boolean | null
+          has_vehicle?: boolean | null
+          how_heard_about_us?: string | null
+          id?: string
+          id_document_url?: string | null
+          id_number?: string
+          id_type?: string
+          lga?: string | null
+          market_knowledge?: string[] | null
+          phone?: string
+          photo_url?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role_type?: string
+          state?: string
+          status?: Database["public"]["Enums"]["application_status"]
+          updated_at?: string
+          user_id?: string | null
+          vehicle_type?: string | null
+        }
+        Relationships: []
+      }
       agent_earnings: {
         Row: {
           agent_id: string
@@ -467,6 +572,12 @@ export type Database = {
     }
     Enums: {
       app_role: "buyer" | "agent" | "admin"
+      application_status:
+        | "pending"
+        | "under_review"
+        | "approved"
+        | "rejected"
+        | "suspended"
       message_type:
         | "text"
         | "shopping_list"
@@ -613,6 +724,13 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["buyer", "agent", "admin"],
+      application_status: [
+        "pending",
+        "under_review",
+        "approved",
+        "rejected",
+        "suspended",
+      ],
       message_type: [
         "text",
         "shopping_list",

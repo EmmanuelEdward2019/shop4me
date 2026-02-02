@@ -40,8 +40,13 @@ import AgentMessagesPage from "./pages/agent/AgentMessages";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminUsers from "./pages/admin/AdminUsers";
 import AdminOrders from "./pages/admin/AdminOrders";
+import AdminOrderDetail from "./pages/admin/AdminOrderDetail";
 import AdminAgents from "./pages/admin/AdminAgents";
+import AdminApplications from "./pages/admin/AdminApplications";
 import AdminSettingsPage from "./pages/admin/AdminSettings";
+
+// Agent Application
+import AgentApplication from "./pages/AgentApplication";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +65,7 @@ const App = () => (
             <Route path="/locations" element={<LocationsPage />} />
             <Route path="/faq" element={<FAQPage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/agent-application" element={<AgentApplication />} />
 
             {/* Protected routes */}
             <Route
@@ -211,10 +217,26 @@ const App = () => (
               }
             />
             <Route
+              path="/admin/orders/:id"
+              element={
+                <AdminProtectedRoute>
+                  <AdminOrderDetail />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/agents"
               element={
                 <AdminProtectedRoute>
                   <AdminAgents />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/applications"
+              element={
+                <AdminProtectedRoute>
+                  <AdminApplications />
                 </AdminProtectedRoute>
               }
             />

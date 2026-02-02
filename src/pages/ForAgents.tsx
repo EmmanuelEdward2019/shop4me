@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import { ScrollAnimation, StaggerContainer, StaggerItem } from "@/components/ui/scroll-animation";
@@ -92,9 +93,11 @@ const ForAgentsPage = () => {
                   Turn your market knowledge into income. Help customers shop from anywhere 
                   while earning competitive pay with flexible hours.
                 </p>
-                <Button variant="hero-outline" size="xl">
-                  Apply Now
-                  <ArrowRight className="w-5 h-5" />
+                <Button asChild variant="hero-outline" size="xl">
+                  <Link to="/agent-application">
+                    Apply Now
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
                 </Button>
               </ScrollAnimation>
 
@@ -143,7 +146,9 @@ const ForAgentsPage = () => {
                         <span className="text-primary font-semibold">
                           {role.earnings}
                         </span>
-                        <Button size="sm">Apply</Button>
+                        <Button size="sm" asChild>
+                          <Link to="/agent-application">Apply</Link>
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -210,9 +215,11 @@ const ForAgentsPage = () => {
                   <p className="text-muted-foreground mb-6">
                     Fill out our application form and we'll get back to you within 48 hours.
                   </p>
-                  <Button size="lg" className="w-full">
-                    Start Application
-                    <ArrowRight className="w-5 h-5" />
+                  <Button size="lg" className="w-full" asChild>
+                    <Link to="/agent-application">
+                      Start Application
+                      <ArrowRight className="w-5 h-5" />
+                    </Link>
                   </Button>
                 </div>
               </ScrollAnimation>
