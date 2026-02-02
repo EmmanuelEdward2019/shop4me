@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserRole } from "@/hooks/useUserRole";
+import { getViewAsMode } from "@/hooks/useViewAs";
+import ViewAsBanner from "@/components/dashboard/ViewAsBanner";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -19,13 +21,17 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       return;
     }
 
+    // Check if admin is viewing as another role
+    const viewAsMode = getViewAsMode();
+    
     // Redirect admins and agents to their respective dashboards
+    // unless they're explicitly viewing as buyer
     if (!authLoading && !roleLoading && user) {
-      if (isAdmin) {
+      if (isAdmin && viewAsMode !== "buyer") {
         navigate("/admin", { replace: true });
         return;
       }
-      if (isAgent) {
+      if (isAgent && !isAdmin && viewAsMode !== "buyer") {
         navigate("/agent", { replace: true });
         return;
       }
@@ -44,8 +50,21 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return null;
   }
 
-  // If admin or agent, don't render buyer dashboard (redirect is happening)
-  if (isAdmin || isAgent) {
+  // Check view mode for admins
+  const viewAsMode = getViewAsMode();
+  
+  // If admin viewing as buyer, show the content with banner
+  if (isAdmin && viewAsMode === "buyer") {
+    return (
+      <>
+        <ViewAsBanner />
+        <div className="pt-10">{children}</div>
+      </>
+    );
+  }
+
+  // If admin or agent not in view-as mode, don't render buyer dashboard
+  if ((isAdmin || isAgent) && viewAsMode !== "buyer") {
     return null;
   }
 
