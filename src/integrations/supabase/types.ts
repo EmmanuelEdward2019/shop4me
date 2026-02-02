@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_earnings: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string
+          id: string
+          order_id: string | null
+          paid_at: string | null
+          status: string
+          type: string
+        }
+        Insert: {
+          agent_id: string
+          amount?: number
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          paid_at?: string | null
+          status?: string
+          type: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          paid_at?: string | null
+          status?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_earnings_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_addresses: {
         Row: {
           address_line1: string
@@ -161,6 +202,59 @@ export type Database = {
             columns: ["delivery_address_id"]
             isOneToOne: false
             referencedRelation: "delivery_addresses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string
+          currency: string
+          id: string
+          order_id: string | null
+          payment_method: string | null
+          provider: string
+          provider_reference: string | null
+          provider_response: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          currency?: string
+          id?: string
+          order_id?: string | null
+          payment_method?: string | null
+          provider?: string
+          provider_reference?: string | null
+          provider_response?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          currency?: string
+          id?: string
+          order_id?: string | null
+          payment_method?: string | null
+          provider?: string
+          provider_reference?: string | null
+          provider_response?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
