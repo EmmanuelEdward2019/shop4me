@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator";
 import { User, Phone, Mail, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { NotificationToggle } from "@/components/notifications/PushNotificationPrompt";
 
 interface Profile {
   full_name: string | null;
@@ -170,6 +171,18 @@ const AgentSettings = () => {
                 </Button>
               </>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Notifications</CardTitle>
+            <CardDescription>
+              Manage how you receive notifications from buyers.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <NotificationToggle />
           </CardContent>
         </Card>
 
