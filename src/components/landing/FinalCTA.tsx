@@ -8,10 +8,10 @@ const FinalCTA = () => {
     <section className="py-20 md:py-32 bg-background">
       <div className="container mx-auto px-4">
         <ScrollAnimation>
-          <div className="relative bg-card rounded-3xl border border-border p-8 md:p-16 text-center overflow-hidden">
+          <div className="relative bg-gradient-to-br from-primary/8 via-muted to-secondary/10 rounded-3xl border border-primary/20 p-8 md:p-16 text-center overflow-hidden shadow-soft">
             {/* Decorative Elements */}
-            <div className="absolute top-0 left-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-            <div className="absolute bottom-0 right-0 w-80 h-80 bg-secondary/10 rounded-full blur-3xl translate-x-1/3 translate-y-1/3" />
+            <div className="absolute top-0 left-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute bottom-0 right-0 w-80 h-80 bg-secondary/15 rounded-full blur-3xl translate-x-1/3 translate-y-1/3" />
 
             <div className="relative z-10">
               <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground mb-4">
