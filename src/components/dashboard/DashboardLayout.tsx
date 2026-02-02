@@ -19,6 +19,7 @@ import {
   MapPin,
   Settings,
   LogOut,
+  MessageSquare,
   Menu,
   X,
   Plus,
@@ -31,6 +32,7 @@ interface DashboardLayoutProps {
 const navItems = [
   { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
   { label: "Orders", href: "/dashboard/orders", icon: Package },
+  { label: "Messages", href: "/dashboard/messages", icon: MessageSquare },
   { label: "New Order", href: "/dashboard/new-order", icon: Plus },
   { label: "Wallet", href: "/dashboard/wallet", icon: Wallet },
   { label: "Addresses", href: "/dashboard/addresses", icon: MapPin },

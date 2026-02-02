@@ -21,6 +21,7 @@ import {
   Menu,
   ChevronDown,
   User,
+  MessageSquare,
 } from "lucide-react";
 
 interface AgentDashboardLayoutProps {
@@ -37,6 +38,7 @@ const AgentDashboardLayout = ({ children }: AgentDashboardLayoutProps) => {
     { href: "/agent", label: "Dashboard", icon: Home },
     { href: "/agent/available-orders", label: "Available Orders", icon: Package },
     { href: "/agent/my-orders", label: "My Orders", icon: ShoppingCart },
+    { href: "/agent/messages", label: "Messages", icon: MessageSquare },
     { href: "/agent/earnings", label: "Earnings", icon: Wallet },
     { href: "/agent/settings", label: "Settings", icon: Settings },
   ];
