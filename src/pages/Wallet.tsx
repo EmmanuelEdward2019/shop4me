@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet as WalletIcon, Plus, ArrowUpRight, ArrowDownLeft, Clock } from "lucide-react";
+import { Wallet as WalletIcon, Plus, ArrowUpRight, ArrowDownLeft, Clock, History, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import FundWalletDialog from "@/components/wallet/FundWalletDialog";
 
 interface WalletData {
   id: string;
@@ -23,9 +26,61 @@ interface Transaction {
 
 const WalletPage = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fundDialogOpen, setFundDialogOpen] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+
+  // Check for payment verification on return from Paystack
+  useEffect(() => {
+    const verifyParam = searchParams.get("verify");
+    const reference = searchParams.get("reference") || searchParams.get("trxref");
+    
+    if (verifyParam && reference) {
+      verifyPayment(reference);
+    }
+  }, [searchParams]);
+
+  const verifyPayment = async (reference: string) => {
+    setVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("paystack-verify", {
+        body: { reference },
+      });
+
+      if (error) throw new Error(error.message);
+
+      if (data.status === "success") {
+        toast({
+          title: "Payment Successful! 🎉",
+          description: `₦${data.transaction.amount.toLocaleString()} has been added to your wallet`,
+        });
+        fetchWalletData(); // Refresh wallet data
+      } else {
+        toast({
+          title: "Payment Failed",
+          description: "Your payment could not be verified. Please try again.",
+          variant: "destructive",
+        });
+      }
+
+      // Clear the URL params
+      setSearchParams({});
+    } catch (error: any) {
+      console.error("Verification error:", error);
+      toast({
+        title: "Verification Error",
+        description: error.message || "Failed to verify payment",
+        variant: "destructive",
+      });
+      setSearchParams({});
+    } finally {
+      setVerifying(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -86,7 +141,7 @@ const WalletPage = () => {
         {/* Balance Card */}
         <Card className="bg-hero-gradient text-primary-foreground">
           <CardContent className="p-6">
-            {loading ? (
+            {loading || verifying ? (
               <div className="space-y-2">
                 <Skeleton className="h-4 w-24 bg-primary-foreground/20" />
                 <Skeleton className="h-10 w-40 bg-primary-foreground/20" />
@@ -99,7 +154,11 @@ const WalletPage = () => {
                     {formatCurrency(wallet?.balance || 0)}
                   </p>
                 </div>
-                <Button variant="hero-outline" size="lg">
+                <Button 
+                  variant="hero-outline" 
+                  size="lg"
+                  onClick={() => setFundDialogOpen(true)}
+                >
                   <Plus className="w-5 h-5 mr-2" />
                   Add Funds
                 </Button>
@@ -110,7 +169,10 @@ const WalletPage = () => {
 
         {/* Quick Actions */}
         <div className="grid sm:grid-cols-2 gap-4">
-          <Card className="cursor-pointer hover:shadow-soft transition-shadow">
+          <Card 
+            className="cursor-pointer hover:shadow-soft transition-shadow"
+            onClick={() => setFundDialogOpen(true)}
+          >
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -126,16 +188,22 @@ const WalletPage = () => {
             </CardContent>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-soft transition-shadow">
+          <Card 
+            className="cursor-pointer hover:shadow-soft transition-shadow"
+            onClick={() => {
+              const historySection = document.getElementById('transaction-history');
+              historySection?.scrollIntoView({ behavior: 'smooth' });
+            }}
+          >
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center">
-                  <WalletIcon className="w-6 h-6 text-secondary-foreground" />
+                  <History className="w-6 h-6 text-secondary-foreground" />
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Payment Methods</p>
+                  <p className="font-medium text-foreground">Payment History</p>
                   <p className="text-sm text-muted-foreground">
-                    Manage your saved cards
+                    View all transactions
                   </p>
                 </div>
               </div>
@@ -144,7 +212,7 @@ const WalletPage = () => {
         </div>
 
         {/* Transaction History */}
-        <Card>
+        <Card id="transaction-history">
           <CardHeader>
             <CardTitle className="font-display">Transaction History</CardTitle>
             <CardDescription>Your recent wallet activity</CardDescription>
@@ -221,6 +289,14 @@ const WalletPage = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Fund Wallet Dialog */}
+        <FundWalletDialog
+          open={fundDialogOpen}
+          onOpenChange={setFundDialogOpen}
+          email={user?.email || ""}
+          onSuccess={fetchWalletData}
+        />
       </div>
     </DashboardLayout>
   );
