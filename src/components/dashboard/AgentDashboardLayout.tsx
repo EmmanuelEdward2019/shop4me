@@ -24,6 +24,8 @@ import {
   User,
   MessageSquare,
 } from "lucide-react";
+import DashboardHeaderNav from "./DashboardHeaderNav";
+import DashboardFooter from "./DashboardFooter";
 
 interface AgentDashboardLayoutProps {
   children: React.ReactNode;
@@ -88,7 +90,7 @@ const AgentDashboardLayout = ({ children }: AgentDashboardLayoutProps) => {
       </aside>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 flex flex-col min-h-screen">
         {/* Top bar */}
         <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b border-border bg-card/95 backdrop-blur px-4 lg:px-8">
           {/* Mobile menu */}
@@ -110,6 +112,8 @@ const AgentDashboardLayout = ({ children }: AgentDashboardLayoutProps) => {
           </Sheet>
 
           <div className="flex-1" />
+
+          <DashboardHeaderNav variant="agent" />
 
           {/* User menu */}
           <DropdownMenu>
@@ -149,7 +153,10 @@ const AgentDashboardLayout = ({ children }: AgentDashboardLayoutProps) => {
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-8">{children}</main>
+        <main className="p-4 lg:p-8 flex-1">{children}</main>
+
+        {/* Footer */}
+        <DashboardFooter />
       </div>
       
       {/* Push Notification Prompt */}
