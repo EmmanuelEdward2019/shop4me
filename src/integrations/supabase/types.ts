@@ -499,6 +499,7 @@ export type Database = {
           id: string
           is_default: boolean
           last4: string
+          nickname: string | null
           updated_at: string
           user_id: string
         }
@@ -513,6 +514,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           last4: string
+          nickname?: string | null
           updated_at?: string
           user_id: string
         }
@@ -527,6 +529,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           last4?: string
+          nickname?: string | null
           updated_at?: string
           user_id?: string
         }
