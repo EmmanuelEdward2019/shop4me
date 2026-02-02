@@ -24,6 +24,7 @@ import NewOrderPage from "./pages/NewOrder";
 import WalletPage from "./pages/Wallet";
 import AddressesPage from "./pages/Addresses";
 import SettingsPage from "./pages/Settings";
+import MessagesPage from "./pages/Messages";
 
 // Agent pages
 import AgentDashboard from "./pages/agent/AgentDashboard";
@@ -32,6 +33,7 @@ import AgentMyOrders from "./pages/agent/AgentMyOrders";
 import AgentOrderDetail from "./pages/agent/AgentOrderDetail";
 import AgentEarnings from "./pages/agent/AgentEarnings";
 import AgentSettings from "./pages/agent/AgentSettings";
+import AgentMessagesPage from "./pages/agent/AgentMessages";
 
 const queryClient = new QueryClient();
 
@@ -108,6 +110,14 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/dashboard/messages"
+              element={
+                <ProtectedRoute>
+                  <MessagesPage />
+                </ProtectedRoute>
+              }
+            />
 
             {/* Agent routes */}
             <Route
@@ -155,6 +165,14 @@ const App = () => (
               element={
                 <AgentProtectedRoute>
                   <AgentSettings />
+                </AgentProtectedRoute>
+              }
+            />
+            <Route
+              path="/agent/messages"
+              element={
+                <AgentProtectedRoute>
+                  <AgentMessagesPage />
                 </AgentProtectedRoute>
               }
             />
