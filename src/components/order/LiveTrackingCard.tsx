@@ -1,26 +1,47 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MapPin, Navigation, Clock, Radio } from "lucide-react";
+import { MapPin, Navigation, Clock, Radio, Route, Timer } from "lucide-react";
 import { useAgentLocationTracking } from "@/hooks/useAgentLocation";
+import { calculateETA, type ETAResult } from "@/lib/eta-calculator";
 import { cn } from "@/lib/utils";
+import AgentLocationMap from "./AgentLocationMap";
+
+interface DeliveryLocation {
+  latitude: number;
+  longitude: number;
+}
 
 interface LiveTrackingCardProps {
   orderId: string;
   orderStatus: string;
   agentName?: string;
+  deliveryLocation?: DeliveryLocation;
 }
 
 const LiveTrackingCard = ({
   orderId,
   orderStatus,
   agentName,
+  deliveryLocation,
 }: LiveTrackingCardProps) => {
   const { location, loading } = useAgentLocationTracking(orderId);
   const [lastUpdate, setLastUpdate] = useState<string>("");
 
   const isTrackable = orderStatus === "shopping" || orderStatus === "in_transit";
+
+  // Calculate ETA when we have both agent location and delivery location
+  const eta = useMemo<ETAResult | null>(() => {
+    if (!location || !deliveryLocation) return null;
+    
+    return calculateETA(
+      location.latitude,
+      location.longitude,
+      deliveryLocation.latitude,
+      deliveryLocation.longitude
+    );
+  }, [location, deliveryLocation]);
 
   useEffect(() => {
     if (location?.updated_at) {
@@ -63,7 +84,7 @@ const LiveTrackingCard = ({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Skeleton className="h-32 w-full rounded-lg" />
+          <Skeleton className="h-48 w-full rounded-lg" />
         </CardContent>
       </Card>
     );
@@ -92,46 +113,45 @@ const LiveTrackingCard = ({
       <CardContent className="space-y-4">
         {location ? (
           <>
-            {/* Map placeholder - in a real app, integrate with a map library */}
-            <div className="relative h-40 bg-muted rounded-lg overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10">
-                <div className="text-center space-y-2">
-                  <div className="relative">
-                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
-                      <MapPin className="w-6 h-6 text-primary animate-bounce" />
-                    </div>
-                    <div className="absolute -inset-2 rounded-full border-2 border-primary/30 animate-ping" />
-                  </div>
-                  <p className="text-sm font-medium text-foreground">
-                    {agentName || "Agent"} is active
-                  </p>
-                </div>
-              </div>
-              
-              {/* Location coordinates overlay */}
-              <div className="absolute bottom-2 left-2 right-2 bg-background/90 backdrop-blur-sm rounded-md p-2">
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-1.5 text-muted-foreground">
-                    <Navigation className="w-3.5 h-3.5" />
-                    <span>
-                      {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-                    </span>
-                  </div>
-                  {location.accuracy && (
-                    <span className="text-muted-foreground">
-                      ±{Math.round(location.accuracy)}m
-                    </span>
-                  )}
-                </div>
-              </div>
+            {/* Interactive Map */}
+            <div className="relative h-48 rounded-lg overflow-hidden border border-border">
+              <AgentLocationMap
+                agentLocation={{
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                }}
+                deliveryLocation={deliveryLocation}
+                agentName={agentName}
+              />
             </div>
+
+            {/* ETA Display - Only show for in_transit orders with delivery location */}
+            {orderStatus === "in_transit" && eta && (
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 bg-primary/10 rounded-lg text-center">
+                  <Timer className="w-5 h-5 text-primary mx-auto mb-1" />
+                  <p className="text-lg font-bold text-primary">{eta.etaFormatted}</p>
+                  <p className="text-xs text-muted-foreground">ETA</p>
+                </div>
+                <div className="p-3 bg-muted rounded-lg text-center">
+                  <Route className="w-5 h-5 text-muted-foreground mx-auto mb-1" />
+                  <p className="text-lg font-bold text-foreground">{eta.distanceFormatted}</p>
+                  <p className="text-xs text-muted-foreground">Distance</p>
+                </div>
+                <div className="p-3 bg-muted rounded-lg text-center">
+                  <Clock className="w-5 h-5 text-muted-foreground mx-auto mb-1" />
+                  <p className="text-lg font-bold text-foreground">{eta.arrivalTimeFormatted}</p>
+                  <p className="text-xs text-muted-foreground">Arrival</p>
+                </div>
+              </div>
+            )}
 
             {/* Status info */}
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-sm font-medium text-foreground">
-                  Location Active
+                  {agentName || "Agent"} is active
                 </span>
               </div>
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -149,7 +169,7 @@ const LiveTrackingCard = ({
             )}
           </>
         ) : (
-          <div className="h-40 bg-muted rounded-lg flex items-center justify-center">
+          <div className="h-48 bg-muted rounded-lg flex items-center justify-center">
             <div className="text-center space-y-2">
               <MapPin className="w-8 h-8 text-muted-foreground mx-auto" />
               <p className="text-sm text-muted-foreground">

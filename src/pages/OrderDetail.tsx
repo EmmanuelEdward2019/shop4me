@@ -27,6 +27,7 @@ import AgentProfileCard from "@/components/order/AgentProfileCard";
 import AgentReviewForm from "@/components/order/AgentReviewForm";
 import DeliveryTimeEstimate from "@/components/order/DeliveryTimeEstimate";
 import LiveTrackingCard from "@/components/order/LiveTrackingCard";
+import { getAreaCoordinates } from "@/lib/lagos-locations";
 
 interface Order {
   id: string;
@@ -41,6 +42,12 @@ interface Order {
   created_at: string;
   updated_at: string;
   agent_id: string | null;
+  delivery_address_id: string | null;
+}
+
+interface DeliveryAddress {
+  city: string;
+  state: string;
 }
 
 interface OrderItem {
@@ -86,6 +93,7 @@ const OrderDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "chat");
   const [hasReviewed, setHasReviewed] = useState(false);
+  const [deliveryAddress, setDeliveryAddress] = useState<DeliveryAddress | null>(null);
 
   // Handle payment callback
   useEffect(() => {
@@ -148,6 +156,18 @@ const OrderDetailPage = () => {
       // Fetch agent info if order has an agent
       if (orderData.agent_id) {
         fetchAgentInfo(orderData.agent_id);
+      }
+
+      // Fetch delivery address if exists
+      if (orderData.delivery_address_id) {
+        const { data: addressData } = await supabase
+          .from("delivery_addresses")
+          .select("city, state")
+          .eq("id", orderData.delivery_address_id)
+          .single();
+        if (addressData) {
+          setDeliveryAddress(addressData);
+        }
       }
 
       const { data: itemsData, error: itemsError } = await supabase
@@ -404,6 +424,11 @@ const OrderDetailPage = () => {
             orderId={order.id}
             orderStatus={order.status}
             agentName={agentInfo?.full_name || undefined}
+            deliveryLocation={
+              deliveryAddress
+                ? getAreaCoordinates(deliveryAddress.city)
+                : undefined
+            }
           />
         )}
 
