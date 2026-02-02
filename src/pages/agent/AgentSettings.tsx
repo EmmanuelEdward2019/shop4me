@@ -11,6 +11,7 @@ import VehicleSection from "@/components/agent/VehicleSection";
 import AgentStatusSection from "@/components/agent/AgentStatusSection";
 import PhotoUploadSection from "@/components/agent/PhotoUploadSection";
 import MarketKnowledgeSection from "@/components/agent/MarketKnowledgeSection";
+import ExperienceSection from "@/components/agent/ExperienceSection";
 
 interface AgentApplication {
   full_name: string;
@@ -28,6 +29,7 @@ interface AgentApplication {
   status: string;
   photo_url: string | null;
   market_knowledge: string[] | null;
+  experience_description: string | null;
 }
 
 const AgentSettings = () => {
@@ -38,6 +40,7 @@ const AgentSettings = () => {
   const [savingBanking, setSavingBanking] = useState(false);
   const [savingVehicle, setSavingVehicle] = useState(false);
   const [savingMarkets, setSavingMarkets] = useState(false);
+  const [savingExperience, setSavingExperience] = useState(false);
   const [application, setApplication] = useState<AgentApplication | null>(null);
 
   const [profileData, setProfileData] = useState({
@@ -62,6 +65,7 @@ const AgentSettings = () => {
 
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [marketKnowledge, setMarketKnowledge] = useState<string[]>([]);
+  const [experienceDescription, setExperienceDescription] = useState("");
 
   useEffect(() => {
     if (user) {
@@ -100,6 +104,7 @@ const AgentSettings = () => {
       });
       setPhotoUrl(data.photo_url || null);
       setMarketKnowledge(data.market_knowledge || []);
+      setExperienceDescription(data.experience_description || "");
     } catch (error) {
       console.error("Error fetching agent application:", error);
     } finally {
@@ -247,6 +252,34 @@ const AgentSettings = () => {
     }
   };
 
+  const handleSaveExperience = async () => {
+    setSavingExperience(true);
+    try {
+      const { error } = await supabase
+        .from("agent_applications")
+        .update({
+          experience_description: experienceDescription,
+        })
+        .eq("user_id", user?.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Experience Updated",
+        description: "Your experience description has been updated.",
+      });
+    } catch (error) {
+      console.error("Error updating experience:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update experience",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingExperience(false);
+    }
+  };
+
   return (
     <AgentDashboardLayout>
       <div className="space-y-6 max-w-2xl">
@@ -274,6 +307,14 @@ const AgentSettings = () => {
           formData={profileData}
           onFormChange={handleProfileChange}
           onSave={handleSaveProfile}
+        />
+
+        <ExperienceSection
+          loading={loading}
+          saving={savingExperience}
+          experienceDescription={experienceDescription}
+          onChange={setExperienceDescription}
+          onSave={handleSaveExperience}
         />
 
         <MarketKnowledgeSection
