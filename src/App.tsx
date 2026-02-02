@@ -44,7 +44,12 @@ import AdminOrderDetail from "./pages/admin/AdminOrderDetail";
 import AdminAgents from "./pages/admin/AdminAgents";
 import AdminApplications from "./pages/admin/AdminApplications";
 import AdminMessages from "./pages/admin/AdminMessages";
+import AdminBlog from "./pages/admin/AdminBlog";
 import AdminSettingsPage from "./pages/admin/AdminSettings";
+
+// Blog pages
+import Blog from "./pages/Blog";
+import BlogPostPage from "./pages/BlogPost";
 
 // Agent Application
 import AgentApplication from "./pages/AgentApplication";
@@ -59,12 +64,14 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Public routes */}
+          {/* Public routes */}
             <Route path="/" element={<Index />} />
             <Route path="/how-it-works" element={<HowItWorksPage />} />
             <Route path="/for-agents" element={<ForAgentsPage />} />
             <Route path="/locations" element={<LocationsPage />} />
             <Route path="/faq" element={<FAQPage />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/agent-application" element={<AgentApplication />} />
 
@@ -246,6 +253,14 @@ const App = () => (
               element={
                 <AdminProtectedRoute>
                   <AdminMessages />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/blog"
+              element={
+                <AdminProtectedRoute>
+                  <AdminBlog />
                 </AdminProtectedRoute>
               }
             />

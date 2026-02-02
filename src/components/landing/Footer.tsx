@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ShoppingBag, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import { ShoppingBag, Facebook, Twitter, Instagram, Linkedin, MapPin } from "lucide-react";
 import AppDownloadButtons from "./AppDownloadButtons";
 
 const footerLinks = {
@@ -7,7 +7,7 @@ const footerLinks = {
     { label: "About Us", href: "#" },
     { label: "Careers", href: "#" },
     { label: "Press", href: "#" },
-    { label: "Blog", href: "#" },
+    { label: "Blog", href: "/blog", isRoute: true },
   ],
   support: [
     { label: "Help Center", href: "#" },
@@ -49,10 +49,19 @@ const Footer = () => {
                 Shop<span className="text-secondary">4Me</span>
               </span>
             </Link>
-            <p className="text-background/70 mb-6 max-w-sm">
+            <p className="text-background/70 mb-4 max-w-sm">
               Shop from any market in Nigeria without leaving home. 
               Trusted agents, transparent pricing, doorstep delivery.
             </p>
+
+            {/* Address */}
+            <div className="flex items-start gap-2 text-background/70 mb-6">
+              <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <p className="text-sm">
+                23 Golden Valley Estate,<br />
+                Port Harcourt, Rivers State, Nigeria
+              </p>
+            </div>
 
             {/* App Download Buttons */}
             <div className="mb-6">
@@ -80,12 +89,21 @@ const Footer = () => {
             <ul className="space-y-3">
               {footerLinks.company.map((link) => (
                 <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="text-background/70 hover:text-secondary transition-colors"
-                  >
-                    {link.label}
-                  </a>
+                  {link.isRoute ? (
+                    <Link
+                      to={link.href}
+                      className="text-background/70 hover:text-secondary transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <a
+                      href={link.href}
+                      className="text-background/70 hover:text-secondary transition-colors"
+                    >
+                      {link.label}
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>

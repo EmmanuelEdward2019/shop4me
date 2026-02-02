@@ -24,6 +24,7 @@ import {
   X,
   Shield,
   MessageSquare,
+  FileText,
 } from "lucide-react";
 import AdminViewSwitcher from "./AdminViewSwitcher";
 import DashboardHeaderNav from "./DashboardHeaderNav";
@@ -40,6 +41,7 @@ const navItems = [
   { label: "Agents", href: "/admin/agents", icon: UserCheck },
   { label: "Applications", href: "/admin/applications", icon: ClipboardList },
   { label: "Messages", href: "/admin/messages", icon: MessageSquare },
+  { label: "Blog", href: "/admin/blog", icon: FileText },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
