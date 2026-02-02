@@ -83,20 +83,60 @@ serve(async (req) => {
       console.error('Failed to update payment record:', updateError);
     }
 
-    // If payment successful, update order status
-    if (newStatus === 'success' && payment.order_id) {
-      const { error: orderError } = await supabase
-        .from('orders')
-        .update({ status: 'paid' })
-        .eq('id', payment.order_id);
+    // If payment successful, handle based on payment type
+    if (newStatus === 'success') {
+      if (payment.order_id) {
+        // Order payment - update order status
+        const { error: orderError } = await supabase
+          .from('orders')
+          .update({ status: 'paid' })
+          .eq('id', payment.order_id);
 
-      if (orderError) {
-        console.error('Failed to update order status:', orderError);
+        if (orderError) {
+          console.error('Failed to update order status:', orderError);
+        }
+        console.log(`Payment ${payment.id} successful for order ${payment.order_id}`);
+      } else if (payment.payment_method === 'wallet_topup') {
+        // Wallet topup - credit the user's wallet
+        const { data: wallet, error: walletError } = await supabase
+          .from('wallets')
+          .select('id, balance')
+          .eq('user_id', payment.user_id)
+          .single();
+
+        if (walletError || !wallet) {
+          console.error('Wallet not found for topup:', walletError);
+        } else {
+          const amountInNaira = transaction.amount / 100;
+          
+          // Update wallet balance
+          const { error: updateWalletError } = await supabase
+            .from('wallets')
+            .update({ balance: wallet.balance + amountInNaira })
+            .eq('id', wallet.id);
+
+          if (updateWalletError) {
+            console.error('Failed to update wallet balance:', updateWalletError);
+          }
+
+          // Create wallet transaction record
+          const { error: txError } = await supabase
+            .from('wallet_transactions')
+            .insert({
+              wallet_id: wallet.id,
+              amount: amountInNaira,
+              type: 'credit',
+              description: 'Wallet top-up via Paystack',
+              reference: reference,
+            });
+
+          if (txError) {
+            console.error('Failed to create wallet transaction:', txError);
+          }
+
+          console.log(`Wallet ${wallet.id} credited with ₦${amountInNaira}`);
+        }
       }
-
-      // Add funds to user wallet (if needed for the service)
-      // This could be credit for refunds, etc.
-      console.log(`Payment ${payment.id} successful for order ${payment.order_id}`);
     }
 
     return new Response(
