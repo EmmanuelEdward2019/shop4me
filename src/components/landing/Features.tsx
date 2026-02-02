@@ -1,4 +1,5 @@
 import { Shield, Clock, Receipt, Users, TrendingUp, HeadphonesIcon } from "lucide-react";
+import { ScrollAnimation, StaggerContainer, StaggerItem } from "@/components/ui/scroll-animation";
 
 const features = [
   {
@@ -44,38 +45,39 @@ const Features = () => {
     <section className="py-20 md:py-32 bg-muted/50">
       <div className="container mx-auto px-4">
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-16">
-          <span className="inline-block px-4 py-1.5 rounded-full bg-accent/20 text-accent-foreground text-sm font-semibold mb-4">
-            Why Shop4Me
-          </span>
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground mb-4">
-            Built on{" "}
-            <span className="text-gradient">Trust & Transparency</span>
-          </h2>
-          <p className="text-lg text-muted-foreground">
-            We've reimagined shopping to give you complete control and confidence.
-          </p>
-        </div>
+        <ScrollAnimation>
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <span className="inline-block px-4 py-1.5 rounded-full bg-accent/20 text-accent-foreground text-sm font-semibold mb-4">
+              Why Shop4Me
+            </span>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground mb-4">
+              Built on{" "}
+              <span className="text-gradient">Trust & Transparency</span>
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              We've reimagined shopping to give you complete control and confidence.
+            </p>
+          </div>
+        </ScrollAnimation>
 
         {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <StaggerContainer className="grid md:grid-cols-2 lg:grid-cols-3 gap-6" staggerDelay={0.1}>
           {features.map((feature) => (
-            <div
-              key={feature.title}
-              className="bg-card rounded-2xl p-6 border border-border hover:shadow-soft transition-all duration-300 group"
-            >
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary group-hover:scale-110 transition-all duration-300">
-                <feature.icon className="w-6 h-6 text-primary group-hover:text-primary-foreground transition-colors" />
+            <StaggerItem key={feature.title}>
+              <div className="bg-card rounded-2xl p-6 border border-border hover:shadow-soft transition-all duration-300 group h-full">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary group-hover:scale-110 transition-all duration-300">
+                  <feature.icon className="w-6 h-6 text-primary group-hover:text-primary-foreground transition-colors" />
+                </div>
+                <h3 className="text-lg font-display font-bold text-foreground mb-2">
+                  {feature.title}
+                </h3>
+                <p className="text-muted-foreground">
+                  {feature.description}
+                </p>
               </div>
-              <h3 className="text-lg font-display font-bold text-foreground mb-2">
-                {feature.title}
-              </h3>
-              <p className="text-muted-foreground">
-                {feature.description}
-              </p>
-            </div>
+            </StaggerItem>
           ))}
-        </div>
+        </StaggerContainer>
       </div>
     </section>
   );

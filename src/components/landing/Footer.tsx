@@ -1,4 +1,6 @@
+import { Link } from "react-router-dom";
 import { ShoppingBag, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import AppDownloadButtons from "./AppDownloadButtons";
 
 const footerLinks = {
   company: [
@@ -11,7 +13,12 @@ const footerLinks = {
     { label: "Help Center", href: "#" },
     { label: "Contact Us", href: "#" },
     { label: "Safety", href: "#" },
-    { label: "Disputes", href: "#" },
+    { label: "FAQs", href: "/faq", isRoute: true },
+  ],
+  resources: [
+    { label: "How It Works", href: "/how-it-works", isRoute: true },
+    { label: "For Agents", href: "/for-agents", isRoute: true },
+    { label: "Locations", href: "/locations", isRoute: true },
   ],
   legal: [
     { label: "Terms of Service", href: "#" },
@@ -31,21 +38,28 @@ const Footer = () => {
   return (
     <footer className="bg-foreground text-background">
       <div className="container mx-auto px-4 py-16">
-        <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-12">
+        <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-12">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <a href="/" className="flex items-center gap-2 mb-4">
+            <Link to="/" className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
                 <ShoppingBag className="w-5 h-5 text-primary-foreground" />
               </div>
               <span className="text-xl font-display font-bold">
                 Shop<span className="text-secondary">4Me</span>
               </span>
-            </a>
+            </Link>
             <p className="text-background/70 mb-6 max-w-sm">
               Shop from any market in Nigeria without leaving home. 
               Trusted agents, transparent pricing, doorstep delivery.
             </p>
+
+            {/* App Download Buttons */}
+            <div className="mb-6">
+              <p className="text-sm text-background/50 mb-3">Get the app</p>
+              <AppDownloadButtons variant="dark" />
+            </div>
+
             <div className="flex gap-4">
               {socialLinks.map((social) => (
                 <a
@@ -77,18 +91,53 @@ const Footer = () => {
             </ul>
           </div>
 
+          {/* Resources Links */}
+          <div>
+            <h4 className="font-display font-bold mb-4">Resources</h4>
+            <ul className="space-y-3">
+              {footerLinks.resources.map((link) => (
+                <li key={link.label}>
+                  {link.isRoute ? (
+                    <Link
+                      to={link.href}
+                      className="text-background/70 hover:text-secondary transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <a
+                      href={link.href}
+                      className="text-background/70 hover:text-secondary transition-colors"
+                    >
+                      {link.label}
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+
           {/* Support Links */}
           <div>
             <h4 className="font-display font-bold mb-4">Support</h4>
             <ul className="space-y-3">
               {footerLinks.support.map((link) => (
                 <li key={link.label}>
-                  <a
-                    href={link.href}
-                    className="text-background/70 hover:text-secondary transition-colors"
-                  >
-                    {link.label}
-                  </a>
+                  {link.isRoute ? (
+                    <Link
+                      to={link.href}
+                      className="text-background/70 hover:text-secondary transition-colors"
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
+                    <a
+                      href={link.href}
+                      className="text-background/70 hover:text-secondary transition-colors"
+                    >
+                      {link.label}
+                    </a>
+                  )}
                 </li>
               ))}
             </ul>
