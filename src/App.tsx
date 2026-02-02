@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import AgentProtectedRoute from "@/components/auth/AgentProtectedRoute";
 
 // Public pages
 import Index from "./pages/Index";
@@ -15,7 +16,7 @@ import LocationsPage from "./pages/Locations";
 import FAQPage from "./pages/FAQ";
 import AuthPage from "./pages/Auth";
 
-// Protected pages
+// Protected pages (Buyer)
 import Dashboard from "./pages/Dashboard";
 import OrdersPage from "./pages/Orders";
 import OrderDetailPage from "./pages/OrderDetail";
@@ -23,6 +24,14 @@ import NewOrderPage from "./pages/NewOrder";
 import WalletPage from "./pages/Wallet";
 import AddressesPage from "./pages/Addresses";
 import SettingsPage from "./pages/Settings";
+
+// Agent pages
+import AgentDashboard from "./pages/agent/AgentDashboard";
+import AvailableOrders from "./pages/agent/AvailableOrders";
+import AgentMyOrders from "./pages/agent/AgentMyOrders";
+import AgentOrderDetail from "./pages/agent/AgentOrderDetail";
+import AgentEarnings from "./pages/agent/AgentEarnings";
+import AgentSettings from "./pages/agent/AgentSettings";
 
 const queryClient = new QueryClient();
 
@@ -97,6 +106,56 @@ const App = () => (
                 <ProtectedRoute>
                   <SettingsPage />
                 </ProtectedRoute>
+              }
+            />
+
+            {/* Agent routes */}
+            <Route
+              path="/agent"
+              element={
+                <AgentProtectedRoute>
+                  <AgentDashboard />
+                </AgentProtectedRoute>
+              }
+            />
+            <Route
+              path="/agent/available-orders"
+              element={
+                <AgentProtectedRoute>
+                  <AvailableOrders />
+                </AgentProtectedRoute>
+              }
+            />
+            <Route
+              path="/agent/my-orders"
+              element={
+                <AgentProtectedRoute>
+                  <AgentMyOrders />
+                </AgentProtectedRoute>
+              }
+            />
+            <Route
+              path="/agent/orders/:id"
+              element={
+                <AgentProtectedRoute>
+                  <AgentOrderDetail />
+                </AgentProtectedRoute>
+              }
+            />
+            <Route
+              path="/agent/earnings"
+              element={
+                <AgentProtectedRoute>
+                  <AgentEarnings />
+                </AgentProtectedRoute>
+              }
+            />
+            <Route
+              path="/agent/settings"
+              element={
+                <AgentProtectedRoute>
+                  <AgentSettings />
+                </AgentProtectedRoute>
               }
             />
 
