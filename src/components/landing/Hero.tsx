@@ -1,13 +1,19 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, MapPin, ShoppingCart, Clock } from "lucide-react";
+import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import heroImage from "@/assets/hero-agent.jpg";
+import AppDownloadButtons from "./AppDownloadButtons";
 
 const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
       {/* Background Image with Overlay */}
       <div className="absolute inset-0 z-0">
-        <img
+        <motion.img
+          initial={{ scale: 1.1 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 1.5, ease: "easeOut" }}
           src={heroImage}
           alt="Shop4Me Agent at Nigerian Market"
           className="w-full h-full object-cover"
@@ -19,15 +25,25 @@ const Hero = () => {
       <div className="container mx-auto px-4 relative z-10">
         <div className="max-w-2xl">
           {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-foreground/10 backdrop-blur-sm border border-primary-foreground/20 mb-6 animate-fade-up">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary-foreground/10 backdrop-blur-sm border border-primary-foreground/20 mb-6"
+          >
             <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
             <span className="text-sm font-medium text-primary-foreground">
               Now serving Lagos, Abuja & Port Harcourt
             </span>
-          </div>
+          </motion.div>
 
           {/* Headline */}
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-primary-foreground leading-tight mb-6 animate-fade-up [animation-delay:100ms]">
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-primary-foreground leading-tight mb-6"
+          >
             Shop From{" "}
             <span className="relative inline-block">
               Any Market
@@ -36,7 +52,10 @@ const Hero = () => {
                 viewBox="0 0 200 12"
                 fill="none"
               >
-                <path
+                <motion.path
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ duration: 1, delay: 0.8 }}
                   d="M2 10C50 4 150 4 198 10"
                   stroke="hsl(var(--accent))"
                   strokeWidth="4"
@@ -46,31 +65,60 @@ const Hero = () => {
             </span>
             <br />
             Without Leaving Home
-          </h1>
+          </motion.h1>
 
           {/* Subheadline */}
-          <p className="text-lg md:text-xl text-primary-foreground/90 mb-8 max-w-xl animate-fade-up [animation-delay:200ms]">
+          <motion.p
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="text-lg md:text-xl text-primary-foreground/90 mb-8 max-w-xl"
+          >
             Send your shopping list. Our trusted agents shop for you in real-time 
             from malls, shops, and local markets across Nigeria.
-          </p>
+          </motion.p>
 
           {/* CTAs */}
-          <div className="flex flex-col sm:flex-row gap-4 mb-12 animate-fade-up [animation-delay:300ms]">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="flex flex-col sm:flex-row gap-4 mb-8"
+          >
             <Button variant="hero-outline" size="xl">
               Start Shopping
               <ArrowRight className="w-5 h-5" />
             </Button>
             <Button
+              asChild
               variant="ghost"
               size="xl"
               className="text-primary-foreground hover:bg-primary-foreground/10"
             >
-              Become an Agent
+              <Link to="/for-agents">Become an Agent</Link>
             </Button>
-          </div>
+          </motion.div>
+
+          {/* App Download Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.6 }}
+            className="mb-8"
+          >
+            <p className="text-sm text-primary-foreground/70 mb-3">
+              Download the app
+            </p>
+            <AppDownloadButtons variant="light" />
+          </motion.div>
 
           {/* Trust Indicators */}
-          <div className="flex flex-wrap gap-6 animate-fade-up [animation-delay:400ms]">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.7 }}
+            className="flex flex-wrap gap-6"
+          >
             <div className="flex items-center gap-2 text-primary-foreground/80">
               <MapPin className="w-5 h-5" />
               <span className="text-sm">50+ Markets</span>
@@ -83,7 +131,7 @@ const Hero = () => {
               <Clock className="w-5 h-5" />
               <span className="text-sm">Same-Day Delivery</span>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
 
