@@ -9,6 +9,7 @@ import LocationsCarousel from "@/components/landing/LocationsCarousel";
 import FAQ from "@/components/landing/FAQ";
 import FinalCTA from "@/components/landing/FinalCTA";
 import Footer from "@/components/landing/Footer";
+import WhatsAppButton from "@/components/support/WhatsAppButton";
 
 const Index = () => {
   return (
@@ -26,6 +27,7 @@ const Index = () => {
         <FinalCTA />
       </main>
       <Footer />
+      <WhatsAppButton />
     </div>
   );
 };
