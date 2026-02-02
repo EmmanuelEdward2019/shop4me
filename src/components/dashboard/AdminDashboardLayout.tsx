@@ -23,6 +23,7 @@ import {
   Menu,
   X,
   Shield,
+  MessageSquare,
 } from "lucide-react";
 import AdminViewSwitcher from "./AdminViewSwitcher";
 
@@ -36,6 +37,7 @@ const navItems = [
   { label: "Orders", href: "/admin/orders", icon: Package },
   { label: "Agents", href: "/admin/agents", icon: UserCheck },
   { label: "Applications", href: "/admin/applications", icon: ClipboardList },
+  { label: "Messages", href: "/admin/messages", icon: MessageSquare },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 

@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_announcements: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          sender_id: string
+          title: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          sender_id: string
+          title: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          sender_id?: string
+          title?: string
+        }
+        Relationships: []
+      }
       agent_applications: {
         Row: {
           account_name: string
