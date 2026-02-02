@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, Trash2, Star, AlertCircle } from "lucide-react";
+import { Trash2, Star, AlertCircle, Zap, Pencil, Check, X, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -17,6 +18,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import CardBrandIcon from "./CardBrandIcon";
+import ChargeCardDialog from "./ChargeCardDialog";
 
 interface PaymentCard {
   id: string;
@@ -27,9 +30,14 @@ interface PaymentCard {
   bank: string | null;
   brand: string | null;
   is_default: boolean;
+  nickname: string | null;
 }
 
-const SavedCardsSection = () => {
+interface SavedCardsSectionProps {
+  onCardCharged?: (amount: number) => void;
+}
+
+const SavedCardsSection = ({ onCardCharged }: SavedCardsSectionProps) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [cards, setCards] = useState<PaymentCard[]>([]);
@@ -37,6 +45,10 @@ const SavedCardsSection = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [settingDefaultId, setSettingDefaultId] = useState<string | null>(null);
   const [cardToDelete, setCardToDelete] = useState<PaymentCard | null>(null);
+  const [editingNicknameId, setEditingNicknameId] = useState<string | null>(null);
+  const [nicknameInput, setNicknameInput] = useState("");
+  const [chargeDialogOpen, setChargeDialogOpen] = useState(false);
+  const [cardToCharge, setCardToCharge] = useState<PaymentCard | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -65,13 +77,11 @@ const SavedCardsSection = () => {
   const handleSetDefault = async (cardId: string) => {
     setSettingDefaultId(cardId);
     try {
-      // First, remove default from all cards
       await supabase
         .from("payment_cards")
         .update({ is_default: false })
         .eq("user_id", user?.id);
 
-      // Then set the selected card as default
       const { error } = await supabase
         .from("payment_cards")
         .update({ is_default: true })
@@ -128,22 +138,52 @@ const SavedCardsSection = () => {
     }
   };
 
-  const getCardIcon = (cardType: string) => {
-    // Could be expanded to show actual card brand icons
-    return <CreditCard className="w-8 h-8 text-primary" />;
+  const handleStartEditNickname = (card: PaymentCard) => {
+    setEditingNicknameId(card.id);
+    setNicknameInput(card.nickname || "");
   };
 
-  const getCardBrandColor = (brand: string | null) => {
-    switch (brand?.toLowerCase()) {
-      case "visa":
-        return "bg-blue-500/10 text-blue-600";
-      case "mastercard":
-        return "bg-orange-500/10 text-orange-600";
-      case "verve":
-        return "bg-green-500/10 text-green-600";
-      default:
-        return "bg-muted text-muted-foreground";
+  const handleSaveNickname = async (cardId: string) => {
+    try {
+      const { error } = await supabase
+        .from("payment_cards")
+        .update({ nickname: nicknameInput.trim() || null })
+        .eq("id", cardId);
+
+      if (error) throw error;
+
+      setCards(cards.map(c => 
+        c.id === cardId ? { ...c, nickname: nicknameInput.trim() || null } : c
+      ));
+
+      toast({
+        title: "Card Updated",
+        description: "Card nickname has been saved",
+      });
+    } catch (error) {
+      console.error("Error saving nickname:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save nickname",
+        variant: "destructive",
+      });
+    } finally {
+      setEditingNicknameId(null);
+      setNicknameInput("");
     }
+  };
+
+  const handleChargeCard = (card: PaymentCard) => {
+    setCardToCharge(card);
+    setChargeDialogOpen(true);
+  };
+
+  const handleChargeSuccess = (amount: number) => {
+    toast({
+      title: "Card Charged Successfully! 🎉",
+      description: `₦${amount.toLocaleString()} has been added to your wallet`,
+    });
+    onCardCharged?.(amount);
   };
 
   if (loading) {
@@ -196,37 +236,80 @@ const SavedCardsSection = () => {
               {cards.map((card) => (
                 <div
                   key={card.id}
-                  className="flex items-center gap-4 p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 border border-border rounded-lg hover:bg-muted/50 transition-colors"
                 >
-                  <div className="flex-shrink-0">{getCardIcon(card.card_type)}</div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">
-                        •••• •••• •••• {card.last4}
-                      </span>
-                      {card.brand && (
-                        <Badge
-                          variant="secondary"
-                          className={getCardBrandColor(card.brand)}
-                        >
-                          {card.brand}
-                        </Badge>
-                      )}
-                      {card.is_default && (
-                        <Badge variant="default" className="gap-1">
-                          <Star className="w-3 h-3" />
-                          Default
-                        </Badge>
-                      )}
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="flex-shrink-0">
+                      <CardBrandIcon brand={card.brand} />
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      Expires {card.exp_month}/{card.exp_year}
-                      {card.bank && ` • ${card.bank}`}
-                    </p>
+
+                    <div className="flex-1 min-w-0">
+                      {editingNicknameId === card.id ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={nicknameInput}
+                            onChange={(e) => setNicknameInput(e.target.value)}
+                            placeholder="Enter nickname..."
+                            className="h-8 text-sm max-w-[200px]"
+                            maxLength={30}
+                            autoFocus
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => handleSaveNickname(card.id)}
+                          >
+                            <Check className="w-4 h-4 text-green-600" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={() => setEditingNicknameId(null)}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-foreground">
+                            {card.nickname || `•••• ${card.last4}`}
+                          </span>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-6 w-6"
+                            onClick={() => handleStartEditNickname(card)}
+                          >
+                            <Pencil className="w-3 h-3 text-muted-foreground" />
+                          </Button>
+                          {card.is_default && (
+                            <Badge variant="default" className="gap-1">
+                              <Star className="w-3 h-3" />
+                              Default
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-sm text-muted-foreground">
+                        {card.brand} •••• {card.last4} · Expires {card.exp_month}/{card.exp_year}
+                        {card.bank && ` · ${card.bank}`}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 sm:flex-shrink-0">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleChargeCard(card)}
+                      className="gap-1"
+                    >
+                      <Zap className="w-4 h-4" />
+                      <span className="hidden sm:inline">Quick Top-up</span>
+                      <span className="sm:hidden">Top-up</span>
+                    </Button>
                     {!card.is_default && (
                       <Button
                         variant="outline"
@@ -234,7 +317,7 @@ const SavedCardsSection = () => {
                         onClick={() => handleSetDefault(card.id)}
                         disabled={settingDefaultId === card.id}
                       >
-                        {settingDefaultId === card.id ? "Setting..." : "Set Default"}
+                        {settingDefaultId === card.id ? "..." : "Set Default"}
                       </Button>
                     )}
                     <Button
@@ -263,8 +346,9 @@ const SavedCardsSection = () => {
               Remove Payment Card
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to remove the card ending in{" "}
-              <strong>{cardToDelete?.last4}</strong>? This action cannot be undone.
+              Are you sure you want to remove the card{" "}
+              <strong>{cardToDelete?.nickname || `ending in ${cardToDelete?.last4}`}</strong>? 
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -278,6 +362,15 @@ const SavedCardsSection = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Charge Card Dialog */}
+      <ChargeCardDialog
+        open={chargeDialogOpen}
+        onOpenChange={setChargeDialogOpen}
+        card={cardToCharge}
+        email={user?.email || ""}
+        onSuccess={handleChargeSuccess}
+      />
     </>
   );
 };

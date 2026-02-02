@@ -293,7 +293,13 @@ const WalletPage = () => {
         </Card>
 
         {/* Saved Payment Cards */}
-        <SavedCardsSection />
+        <SavedCardsSection 
+          onCardCharged={(amount) => {
+            setFundedAmount(amount);
+            setShowSuccessAnimation(true);
+            fetchWalletData();
+          }}
+        />
 
         {/* Fund Wallet Dialog */}
         <FundWalletDialog
