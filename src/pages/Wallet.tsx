@@ -1,16 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wallet as WalletIcon, Plus, ArrowUpRight, ArrowDownLeft, Clock, History, CreditCard } from "lucide-react";
+import { Wallet as WalletIcon, Plus, ArrowUpRight, ArrowDownLeft, Clock, History, CreditCard, Filter } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import FundWalletDialog from "@/components/wallet/FundWalletDialog";
 import SavedCardsSection from "@/components/wallet/SavedCardsSection";
 import WalletFundedAnimation from "@/components/wallet/WalletFundedAnimation";
+import TransactionFiltersComponent, { TransactionFilters, TransactionType } from "@/components/wallet/TransactionFilters";
+import { startOfDay, endOfDay } from "date-fns";
 
 interface WalletData {
   id: string;
@@ -32,11 +34,17 @@ const WalletPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [wallet, setWallet] = useState<WalletData | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [fundDialogOpen, setFundDialogOpen] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [fundedAmount, setFundedAmount] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<TransactionFilters>({
+    type: "all",
+    dateRange: undefined,
+  });
 
   // Check for payment verification on return from Paystack
   useEffect(() => {
@@ -103,12 +111,13 @@ const WalletPage = () => {
       setWallet(walletData);
 
       if (walletData) {
+        // Fetch all transactions (we'll filter client-side for flexibility)
         const { data: txData, error: txError } = await supabase
           .from("wallet_transactions")
           .select("*")
           .eq("wallet_id", walletData.id)
           .order("created_at", { ascending: false })
-          .limit(20);
+          .limit(100);
 
         if (txError) throw txError;
         setTransactions(txData || []);
@@ -119,6 +128,32 @@ const WalletPage = () => {
       setLoading(false);
     }
   };
+
+  // Apply filters to transactions
+  const applyFilters = useCallback(() => {
+    let filtered = [...transactions];
+
+    // Filter by type
+    if (filters.type !== "all") {
+      filtered = filtered.filter((tx) => tx.type === filters.type);
+    }
+
+    // Filter by date range
+    if (filters.dateRange?.from) {
+      const fromDate = startOfDay(filters.dateRange.from);
+      filtered = filtered.filter((tx) => new Date(tx.created_at) >= fromDate);
+    }
+    if (filters.dateRange?.to) {
+      const toDate = endOfDay(filters.dateRange.to);
+      filtered = filtered.filter((tx) => new Date(tx.created_at) <= toDate);
+    }
+
+    setFilteredTransactions(filtered);
+  }, [transactions, filters]);
+
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -215,11 +250,32 @@ const WalletPage = () => {
 
         {/* Transaction History */}
         <Card id="transaction-history">
-          <CardHeader>
-            <CardTitle className="font-display">Transaction History</CardTitle>
-            <CardDescription>Your recent wallet activity</CardDescription>
+          <CardHeader className="flex flex-row items-start justify-between gap-4">
+            <div>
+              <CardTitle className="font-display">Transaction History</CardTitle>
+              <CardDescription>Your recent wallet activity</CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className="gap-2"
+            >
+              <Filter className="w-4 h-4" />
+              {showFilters ? "Hide" : "Filter"}
+            </Button>
           </CardHeader>
           <CardContent>
+            {/* Filters */}
+            {showFilters && (
+              <div className="mb-6 pb-4 border-b border-border">
+                <TransactionFiltersComponent
+                  filters={filters}
+                  onFiltersChange={setFilters}
+                />
+              </div>
+            )}
+
             {loading ? (
               <div className="space-y-4">
                 {[...Array(3)].map((_, i) => (
@@ -243,9 +299,31 @@ const WalletPage = () => {
                   Your transaction history will appear here
                 </p>
               </div>
+            ) : filteredTransactions.length === 0 ? (
+              <div className="text-center py-12">
+                <Filter className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground mb-2">No matching transactions</p>
+                <p className="text-sm text-muted-foreground">
+                  Try adjusting your filters
+                </p>
+                <Button
+                  variant="link"
+                  className="mt-2"
+                  onClick={() => setFilters({ type: "all", dateRange: undefined })}
+                >
+                  Clear filters
+                </Button>
+              </div>
             ) : (
               <div className="space-y-4">
-                {transactions.map((tx) => (
+                {/* Filter summary */}
+                {(filters.type !== "all" || filters.dateRange) && (
+                  <p className="text-sm text-muted-foreground">
+                    Showing {filteredTransactions.length} of {transactions.length} transactions
+                  </p>
+                )}
+                
+                {filteredTransactions.map((tx) => (
                   <div
                     key={tx.id}
                     className="flex items-center justify-between p-4 border border-border rounded-lg"
@@ -273,6 +351,8 @@ const WalletPage = () => {
                             day: "numeric",
                             month: "short",
                             year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
                           })}
                         </p>
                       </div>
