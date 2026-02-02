@@ -158,11 +158,8 @@ const AgentApplication = () => {
       return null;
     }
 
-    const { data: urlData } = supabase.storage
-      .from("agent-documents")
-      .getPublicUrl(fileName);
-
-    return urlData.publicUrl;
+    // Return just the file path - the bucket is private so we'll generate signed URLs when viewing
+    return fileName;
   };
 
   const handleSubmit = async () => {
