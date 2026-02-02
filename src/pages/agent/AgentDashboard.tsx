@@ -29,12 +29,33 @@ const AgentDashboard = () => {
   const [stats, setStats] = useState<AgentStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState<string>("");
 
   useEffect(() => {
     if (user) {
       fetchDashboardData();
+      fetchUserProfile();
     }
   }, [user]);
+
+  const fetchUserProfile = async () => {
+    try {
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", user?.id)
+        .maybeSingle();
+
+      if (data?.full_name) {
+        // Extract surname (last word in full name)
+        const nameParts = data.full_name.trim().split(" ");
+        const surname = nameParts.length > 1 ? nameParts[nameParts.length - 1] : nameParts[0];
+        setUserName(surname);
+      }
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -107,7 +128,7 @@ const AgentDashboard = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-display font-bold text-foreground">
-              Agent Dashboard 🛒
+              {userName ? `Hey ${userName}!` : "Agent Dashboard"} 🛒
             </h1>
             <p className="text-muted-foreground">
               Accept orders and start earning today.

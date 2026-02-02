@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import FundWalletDialog from "@/components/wallet/FundWalletDialog";
 import SavedCardsSection from "@/components/wallet/SavedCardsSection";
+import WalletFundedAnimation from "@/components/wallet/WalletFundedAnimation";
 
 interface WalletData {
   id: string;
@@ -34,6 +35,8 @@ const WalletPage = () => {
   const [loading, setLoading] = useState(true);
   const [fundDialogOpen, setFundDialogOpen] = useState(false);
   const [verifying, setVerifying] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [fundedAmount, setFundedAmount] = useState(0);
 
   // Check for payment verification on return from Paystack
   useEffect(() => {
@@ -55,10 +58,8 @@ const WalletPage = () => {
       if (error) throw new Error(error.message);
 
       if (data.status === "success") {
-        toast({
-          title: "Payment Successful! 🎉",
-          description: `₦${data.transaction.amount.toLocaleString()} has been added to your wallet`,
-        });
+        setFundedAmount(data.transaction.amount);
+        setShowSuccessAnimation(true);
         fetchWalletData(); // Refresh wallet data
       } else {
         toast({
@@ -300,6 +301,13 @@ const WalletPage = () => {
           onOpenChange={setFundDialogOpen}
           email={user?.email || ""}
           onSuccess={fetchWalletData}
+        />
+
+        {/* Success Animation */}
+        <WalletFundedAnimation
+          show={showSuccessAnimation}
+          amount={fundedAmount}
+          onComplete={() => setShowSuccessAnimation(false)}
         />
       </div>
     </DashboardLayout>
