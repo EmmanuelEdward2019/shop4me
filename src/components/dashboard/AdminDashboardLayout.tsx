@@ -17,6 +17,7 @@ import {
   Users,
   Package,
   UserCheck,
+  ClipboardList,
   Settings,
   LogOut,
   Menu,
@@ -33,6 +34,7 @@ const navItems = [
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Orders", href: "/admin/orders", icon: Package },
   { label: "Agents", href: "/admin/agents", icon: UserCheck },
+  { label: "Applications", href: "/admin/applications", icon: ClipboardList },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
