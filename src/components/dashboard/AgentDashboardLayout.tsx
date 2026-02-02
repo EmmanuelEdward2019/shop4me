@@ -137,12 +137,6 @@ const AgentDashboardLayout = ({ children }: AgentDashboardLayoutProps) => {
                   Profile
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link to="/dashboard" className="flex items-center">
-                  <Package className="mr-2 h-4 w-4" />
-                  Switch to Buyer
-                </Link>
-              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                 <LogOut className="mr-2 h-4 w-4" />
