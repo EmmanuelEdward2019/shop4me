@@ -1,0 +1,93 @@
+import { MapPin, ListChecks, Camera, Truck } from "lucide-react";
+
+const steps = [
+  {
+    icon: MapPin,
+    title: "Choose Your Location",
+    description:
+      "Select from malls, supermarkets, or local markets across Nigeria. We've got agents stationed everywhere.",
+    color: "bg-primary",
+  },
+  {
+    icon: ListChecks,
+    title: "Submit Your List",
+    description:
+      "Tell us what you need - groceries, electronics, fashion, anything! No fixed catalog means unlimited choices.",
+    color: "bg-secondary",
+  },
+  {
+    icon: Camera,
+    title: "Approve Before Purchase",
+    description:
+      "Your agent confirms prices and sends photos. You approve each item before payment. Full transparency.",
+    color: "bg-accent",
+  },
+  {
+    icon: Truck,
+    title: "Receive Your Items",
+    description:
+      "Track your order in real-time. We deliver to your doorstep with digital receipts and proof of delivery.",
+    color: "bg-primary",
+  },
+];
+
+const HowItWorks = () => {
+  return (
+    <section id="how-it-works" className="py-20 md:py-32 bg-background">
+      <div className="container mx-auto px-4">
+        {/* Section Header */}
+        <div className="text-center max-w-2xl mx-auto mb-16">
+          <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
+            How It Works
+          </span>
+          <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground mb-4">
+            Shopping Made{" "}
+            <span className="text-gradient">Effortless</span>
+          </h2>
+          <p className="text-lg text-muted-foreground">
+            Four simple steps to get anything from any market delivered to your door.
+          </p>
+        </div>
+
+        {/* Steps Grid */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {steps.map((step, index) => (
+            <div
+              key={step.title}
+              className="relative group"
+            >
+              {/* Connection Line */}
+              {index < steps.length - 1 && (
+                <div className="hidden lg:block absolute top-12 left-[60%] w-full h-0.5 bg-gradient-to-r from-border to-transparent" />
+              )}
+
+              <div className="bg-card rounded-2xl p-6 border border-border hover:shadow-glow transition-all duration-300 hover:-translate-y-1">
+                {/* Step Number */}
+                <span className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-bold text-muted-foreground border border-border">
+                  {index + 1}
+                </span>
+
+                {/* Icon */}
+                <div
+                  className={`w-14 h-14 rounded-xl ${step.color} flex items-center justify-center mb-4`}
+                >
+                  <step.icon className="w-7 h-7 text-primary-foreground" />
+                </div>
+
+                {/* Content */}
+                <h3 className="text-xl font-display font-bold text-foreground mb-2">
+                  {step.title}
+                </h3>
+                <p className="text-muted-foreground leading-relaxed">
+                  {step.description}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default HowItWorks;
