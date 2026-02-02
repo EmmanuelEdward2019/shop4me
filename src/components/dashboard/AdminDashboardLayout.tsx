@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -25,6 +26,7 @@ import {
   Shield,
   MessageSquare,
   FileText,
+  Inbox,
 } from "lucide-react";
 import AdminViewSwitcher from "./AdminViewSwitcher";
 import DashboardHeaderNav from "./DashboardHeaderNav";
@@ -42,12 +44,14 @@ const navItems = [
   { label: "Applications", href: "/admin/applications", icon: ClipboardList },
   { label: "Messages", href: "/admin/messages", icon: MessageSquare },
   { label: "Blog", href: "/admin/blog", icon: FileText },
+  { label: "Submissions", href: "/admin/submissions", icon: Inbox },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
 
 const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { getSurname, getInitials } = useUserProfile();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -56,7 +60,7 @@ const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
     navigate("/");
   };
 
-  const initials = user?.email?.slice(0, 2).toUpperCase() || "A";
+  const initials = getInitials();
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -91,7 +95,7 @@ const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
+              <DropdownMenuLabel>{getSurname()}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="w-4 h-4 mr-2" />
@@ -182,7 +186,7 @@ const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm">{user?.email}</span>
+                  <span className="text-sm">{getSurname()}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">

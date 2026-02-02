@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { PushNotificationPrompt } from "@/components/notifications/PushNotificationPrompt";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -45,6 +46,7 @@ const navItems = [
 const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const { user, signOut } = useAuth();
+  const { getSurname, getInitials } = useUserProfile();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -53,7 +55,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
     navigate("/");
   };
 
-  const initials = user?.email?.slice(0, 2).toUpperCase() || "U";
+  const initials = getInitials();
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -88,7 +90,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>{user?.email}</DropdownMenuLabel>
+              <DropdownMenuLabel>{getSurname()}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut}>
                 <LogOut className="w-4 h-4 mr-2" />
@@ -179,7 +181,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                       {initials}
                     </AvatarFallback>
                   </Avatar>
-                  <span className="text-sm">{user?.email}</span>
+                  <span className="text-sm">{getSurname()}</span>
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">

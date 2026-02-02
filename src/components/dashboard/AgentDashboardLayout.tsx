@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import { PushNotificationPrompt } from "@/components/notifications/PushNotificationPrompt";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -33,6 +34,7 @@ interface AgentDashboardLayoutProps {
 
 const AgentDashboardLayout = ({ children }: AgentDashboardLayoutProps) => {
   const { user, signOut } = useAuth();
+  const { getSurname, getInitials } = useUserProfile();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -121,11 +123,11 @@ const AgentDashboardLayout = ({ children }: AgentDashboardLayoutProps) => {
               <Button variant="ghost" className="gap-2">
                 <Avatar className="h-8 w-8">
                   <AvatarFallback className="bg-primary/10 text-primary">
-                    {user?.email?.charAt(0).toUpperCase() || "A"}
+                    {getInitials()}
                   </AvatarFallback>
                 </Avatar>
                 <span className="hidden sm:inline-block text-sm">
-                  {user?.email?.split("@")[0]}
+                  {getSurname()}
                 </span>
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </Button>
