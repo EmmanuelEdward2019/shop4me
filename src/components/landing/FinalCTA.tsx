@@ -1,0 +1,42 @@
+import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
+
+const FinalCTA = () => {
+  return (
+    <section className="py-20 md:py-32 bg-background">
+      <div className="container mx-auto px-4">
+        <div className="relative bg-card rounded-3xl border border-border p-8 md:p-16 text-center overflow-hidden">
+          {/* Decorative Elements */}
+          <div className="absolute top-0 left-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-80 h-80 bg-secondary/10 rounded-full blur-3xl translate-x-1/3 translate-y-1/3" />
+
+          <div className="relative z-10">
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-bold text-foreground mb-4">
+              Ready to Start Shopping?
+            </h2>
+            <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
+              Join thousands of Nigerians who are already shopping smarter. 
+              Your first order is on us – get ₦500 off!
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button variant="hero" size="xl">
+                Get Started Free
+                <ArrowRight className="w-5 h-5" />
+              </Button>
+              <Button variant="outline" size="xl">
+                Talk to Sales
+              </Button>
+            </div>
+
+            <p className="text-sm text-muted-foreground mt-6">
+              No credit card required • Start in under 2 minutes
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default FinalCTA;
