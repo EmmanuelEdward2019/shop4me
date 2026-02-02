@@ -160,6 +160,47 @@ export type Database = {
           },
         ]
       }
+      agent_reviews: {
+        Row: {
+          agent_id: string
+          buyer_id: string
+          created_at: string
+          id: string
+          order_id: string
+          rating: number
+          review_text: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          buyer_id: string
+          created_at?: string
+          id?: string
+          order_id: string
+          rating: number
+          review_text?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          buyer_id?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+          rating?: number
+          review_text?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chat_messages: {
         Row: {
           content: string | null

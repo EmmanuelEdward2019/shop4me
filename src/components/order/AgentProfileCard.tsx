@@ -1,8 +1,11 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Star, User } from "lucide-react";
+import { MapPin, User } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import AgentRatingDisplay from "./AgentRatingDisplay";
+import { ExperienceBadge } from "./ExperienceBadge";
+import { useAgentStats } from "@/hooks/useAgentStats";
 
 const MARKET_LABELS: Record<string, string> = {
   "balogun-market": "Balogun Market",
@@ -36,10 +39,13 @@ interface AgentInfo {
 
 interface AgentProfileCardProps {
   agentInfo: AgentInfo | null;
+  agentId?: string | null;
   loading?: boolean;
 }
 
-const AgentProfileCard = ({ agentInfo, loading }: AgentProfileCardProps) => {
+const AgentProfileCard = ({ agentInfo, agentId, loading }: AgentProfileCardProps) => {
+  const { completedOrders, averageRating, reviewCount, loading: statsLoading } = useAgentStats(agentId || null);
+
   if (loading) {
     return (
       <Card>
@@ -120,14 +126,24 @@ const AgentProfileCard = ({ agentInfo, loading }: AgentProfileCardProps) => {
               {getInitials(agentInfo.full_name)}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1">
-            <h3 className="font-semibold text-foreground text-lg">
-              {agentInfo.full_name || "Agent"}
-            </h3>
-            <div className="flex items-center gap-1 text-sm text-muted-foreground">
-              <Star className="w-4 h-4 text-primary fill-primary" />
-              <span>Verified Agent</span>
+          <div className="flex-1 space-y-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="font-semibold text-foreground text-lg">
+                {agentInfo.full_name || "Agent"}
+              </h3>
+              {!statsLoading && (
+                <ExperienceBadge completedOrders={completedOrders} size="sm" />
+              )}
             </div>
+            {!statsLoading && reviewCount > 0 ? (
+              <AgentRatingDisplay
+                rating={averageRating}
+                reviewCount={reviewCount}
+                size="sm"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">New agent • No reviews yet</p>
+            )}
           </div>
         </div>
 

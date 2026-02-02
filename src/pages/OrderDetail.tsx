@@ -24,6 +24,8 @@ import { usePayment } from "@/hooks/usePayment";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import AgentProfileCard from "@/components/order/AgentProfileCard";
+import AgentReviewForm from "@/components/order/AgentReviewForm";
+import DeliveryTimeEstimate from "@/components/order/DeliveryTimeEstimate";
 
 interface Order {
   id: string;
@@ -82,6 +84,7 @@ const OrderDetailPage = () => {
   const [agentLoading, setAgentLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "chat");
+  const [hasReviewed, setHasReviewed] = useState(false);
 
   // Handle payment callback
   useEffect(() => {
@@ -103,8 +106,20 @@ const OrderDetailPage = () => {
     if (user && id) {
       fetchOrderDetails();
       fetchUserEmail();
+      checkExistingReview();
     }
   }, [user, id]);
+
+  const checkExistingReview = async () => {
+    if (!user || !id) return;
+    const { data } = await supabase
+      .from("agent_reviews")
+      .select("id")
+      .eq("order_id", id)
+      .eq("buyer_id", user.id)
+      .single();
+    setHasReviewed(!!data);
+  };
 
   const fetchUserEmail = async () => {
     if (!user) return;
@@ -340,7 +355,46 @@ const OrderDetailPage = () => {
 
         {/* Agent Profile Card */}
         {(order.agent_id || order.status !== "pending") && (
-          <AgentProfileCard agentInfo={agentInfo} loading={agentLoading} />
+          <AgentProfileCard agentInfo={agentInfo} agentId={order.agent_id} loading={agentLoading} />
+        )}
+
+        {/* Delivery Time Estimate - show before delivery */}
+        {!isCancelled && order.status !== "delivered" && items.length > 0 && (
+          <Card>
+            <CardContent className="pt-6">
+              <DeliveryTimeEstimate
+                locationType={order.location_type}
+                itemCount={items.length}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Review Form - show after delivery */}
+        {order.status === "delivered" && order.agent_id && !hasReviewed && (
+          <AgentReviewForm
+            orderId={order.id}
+            agentId={order.agent_id}
+            buyerId={user?.id || ""}
+            onReviewSubmitted={() => setHasReviewed(true)}
+          />
+        )}
+
+        {/* Review Submitted Confirmation */}
+        {order.status === "delivered" && hasReviewed && (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3 p-4 bg-primary/10 rounded-lg">
+                <CheckCircle className="w-6 h-6 text-primary" />
+                <div>
+                  <p className="font-medium text-foreground">Review Submitted</p>
+                  <p className="text-sm text-muted-foreground">
+                    Thank you for rating your shopping experience!
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Order Info */}
