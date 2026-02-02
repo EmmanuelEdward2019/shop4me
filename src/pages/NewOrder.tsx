@@ -124,6 +124,23 @@ const NewOrderPage = () => {
 
       if (itemsError) throw itemsError;
 
+      // Send shopping list as initial chat message
+      await supabase.from("chat_messages").insert({
+        order_id: order.id,
+        sender_id: user.id,
+        message_type: "shopping_list",
+        content: `Shopping list for ${data.location}`,
+        metadata: {
+          items: data.items.map((item, idx) => ({
+            id: crypto.randomUUID(),
+            name: item.name,
+            quantity: item.quantity,
+            estimatedPrice: item.estimatedPrice,
+            description: item.description,
+          })),
+        },
+      });
+
       toast.success("Order created successfully!");
       navigate(`/dashboard/orders/${order.id}`);
     } catch (error) {

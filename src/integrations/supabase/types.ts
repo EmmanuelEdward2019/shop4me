@@ -55,6 +55,53 @@ export type Database = {
           },
         ]
       }
+      chat_messages: {
+        Row: {
+          content: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message_type: Database["public"]["Enums"]["message_type"]
+          metadata: Json | null
+          order_id: string | null
+          photo_url: string | null
+          receiver_id: string | null
+          sender_id: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_type?: Database["public"]["Enums"]["message_type"]
+          metadata?: Json | null
+          order_id?: string | null
+          photo_url?: string | null
+          receiver_id?: string | null
+          sender_id: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message_type?: Database["public"]["Enums"]["message_type"]
+          metadata?: Json | null
+          order_id?: string | null
+          photo_url?: string | null
+          receiver_id?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       delivery_addresses: {
         Row: {
           address_line1: string
@@ -390,6 +437,14 @@ export type Database = {
     }
     Enums: {
       app_role: "buyer" | "agent" | "admin"
+      message_type:
+        | "text"
+        | "shopping_list"
+        | "invoice"
+        | "invoice_response"
+        | "photo"
+        | "status_update"
+        | "system"
       order_status:
         | "pending"
         | "accepted"
@@ -528,6 +583,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["buyer", "agent", "admin"],
+      message_type: [
+        "text",
+        "shopping_list",
+        "invoice",
+        "invoice_response",
+        "photo",
+        "status_update",
+        "system",
+      ],
       order_status: [
         "pending",
         "accepted",
