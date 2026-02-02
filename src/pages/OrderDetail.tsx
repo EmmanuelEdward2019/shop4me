@@ -70,7 +70,7 @@ const OrderDetailPage = () => {
   const [items, setItems] = useState<OrderItem[]>([]);
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "chat");
 
   // Handle payment callback
   useEffect(() => {

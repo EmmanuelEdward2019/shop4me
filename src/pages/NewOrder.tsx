@@ -142,7 +142,7 @@ const NewOrderPage = () => {
       });
 
       toast.success("Order created successfully!");
-      navigate(`/dashboard/orders/${order.id}`);
+      navigate(`/dashboard/orders/${order.id}?tab=chat`);
     } catch (error) {
       console.error("Error creating order:", error);
       toast.error("Failed to create order. Please try again.");
