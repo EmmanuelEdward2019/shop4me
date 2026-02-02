@@ -25,6 +25,8 @@ import {
   X,
   Plus,
 } from "lucide-react";
+import DashboardHeaderNav from "./DashboardHeaderNav";
+import DashboardFooter from "./DashboardFooter";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -158,44 +160,51 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       )}
 
       {/* Main Content */}
-      <main className="lg:ml-64 pt-16 lg:pt-0 min-h-screen">
+      <main className="lg:ml-64 pt-16 lg:pt-0 min-h-screen flex flex-col">
         {/* Desktop Header */}
         <header className="hidden lg:flex h-16 items-center justify-between px-6 border-b border-border bg-background">
           <h1 className="text-lg font-display font-semibold text-foreground">
             {navItems.find((item) => item.href === location.pathname)?.label || "Dashboard"}
           </h1>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src="" />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                    {initials}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-sm">{user?.email}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link to="/dashboard/settings">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleSignOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-6">
+            <DashboardHeaderNav variant="buyer" />
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="gap-2">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src="" />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm">{user?.email}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/dashboard/settings">
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Log out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </header>
 
         {/* Page Content */}
-        <div className="p-6">{children}</div>
+        <div className="p-6 flex-1">{children}</div>
+
+        {/* Footer */}
+        <DashboardFooter />
       </main>
       
       {/* Push Notification Prompt */}

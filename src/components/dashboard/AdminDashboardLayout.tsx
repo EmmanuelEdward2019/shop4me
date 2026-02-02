@@ -26,6 +26,8 @@ import {
   MessageSquare,
 } from "lucide-react";
 import AdminViewSwitcher from "./AdminViewSwitcher";
+import DashboardHeaderNav from "./DashboardHeaderNav";
+import DashboardFooter from "./DashboardFooter";
 
 interface AdminDashboardLayoutProps {
   children: React.ReactNode;
@@ -159,7 +161,7 @@ const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
       )}
 
       {/* Main Content */}
-      <main className="lg:ml-64 pt-16 lg:pt-0 min-h-screen">
+      <main className="lg:ml-64 pt-16 lg:pt-0 min-h-screen flex flex-col">
         {/* Desktop Header */}
         <header className="hidden lg:flex h-16 items-center justify-between px-6 border-b border-border bg-background">
           <h1 className="text-lg font-display font-semibold text-foreground">
@@ -167,6 +169,7 @@ const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
           </h1>
 
           <div className="flex items-center gap-4">
+            <DashboardHeaderNav variant="admin" />
             <AdminViewSwitcher />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -199,7 +202,10 @@ const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
         </header>
 
         {/* Page Content */}
-        <div className="p-6">{children}</div>
+        <div className="p-6 flex-1">{children}</div>
+
+        {/* Footer */}
+        <DashboardFooter />
       </main>
     </div>
   );
