@@ -4,15 +4,15 @@ import AppDownloadButtons from "./AppDownloadButtons";
 
 const footerLinks = {
   company: [
-    { label: "About Us", href: "#" },
-    { label: "Careers", href: "#" },
-    { label: "Press", href: "#" },
+    { label: "About Us", href: "/about", isRoute: true },
+    { label: "Careers", href: "/careers", isRoute: true },
+    { label: "Press", href: "/press", isRoute: true },
     { label: "Blog", href: "/blog", isRoute: true },
   ],
   support: [
-    { label: "Help Center", href: "#" },
-    { label: "Contact Us", href: "#" },
-    { label: "Safety", href: "#" },
+    { label: "Help Center", href: "/help", isRoute: true },
+    { label: "Contact Us", href: "/contact", isRoute: true },
+    { label: "Safety", href: "/safety", isRoute: true },
     { label: "FAQs", href: "/faq", isRoute: true },
   ],
   resources: [

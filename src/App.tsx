@@ -16,6 +16,12 @@ import ForAgentsPage from "./pages/ForAgents";
 import LocationsPage from "./pages/Locations";
 import FAQPage from "./pages/FAQ";
 import AuthPage from "./pages/Auth";
+import AboutUs from "./pages/AboutUs";
+import Careers from "./pages/Careers";
+import Press from "./pages/Press";
+import HelpCenter from "./pages/HelpCenter";
+import ContactUs from "./pages/ContactUs";
+import Safety from "./pages/Safety";
 
 // Protected pages (Buyer)
 import Dashboard from "./pages/Dashboard";
@@ -74,6 +80,12 @@ const App = () => (
             <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/agent-application" element={<AgentApplication />} />
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/careers" element={<Careers />} />
+            <Route path="/press" element={<Press />} />
+            <Route path="/help" element={<HelpCenter />} />
+            <Route path="/contact" element={<ContactUs />} />
+            <Route path="/safety" element={<Safety />} />
 
             {/* Protected routes */}
             <Route

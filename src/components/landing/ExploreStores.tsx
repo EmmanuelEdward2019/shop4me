@@ -2,8 +2,10 @@ import { Link } from "react-router-dom";
 import { ScrollAnimation } from "@/components/ui/scroll-animation";
 import { portHarcourtStores, StoreLocation } from "@/lib/port-harcourt-stores";
 import { MapPin } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useEffect, useRef } from "react";
 
-const StoreCard = ({ store }: { store: StoreLocation }) => {
+const StoreCard = ({ store, compact = false }: { store: StoreLocation; compact?: boolean }) => {
   const Icon = store.icon;
   
   const typeColors = {
@@ -23,33 +25,103 @@ const StoreCard = ({ store }: { store: StoreLocation }) => {
   return (
     <Link
       to={`/dashboard/orders/new?store=${encodeURIComponent(store.name)}`}
-      className="group flex flex-col items-center p-4 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-glow transition-all duration-300 cursor-pointer"
+      className={`group flex flex-col items-center rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-glow transition-all duration-300 cursor-pointer flex-shrink-0 ${
+        compact ? "p-3 w-32" : "p-4"
+      }`}
     >
       {/* Icon */}
-      <div className={`w-14 h-14 rounded-xl ${iconBgColors[store.type]} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300 shadow-soft`}>
-        <Icon className="w-7 h-7" />
+      <div className={`rounded-xl ${iconBgColors[store.type]} flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300 shadow-soft ${
+        compact ? "w-10 h-10" : "w-14 h-14 mb-3"
+      }`}>
+        <Icon className={compact ? "w-5 h-5" : "w-7 h-7"} />
       </div>
       
       {/* Name */}
-      <h4 className="text-sm font-semibold text-foreground text-center leading-tight mb-1 group-hover:text-primary transition-colors">
+      <h4 className={`font-semibold text-foreground text-center leading-tight mb-1 group-hover:text-primary transition-colors ${
+        compact ? "text-xs" : "text-sm"
+      }`}>
         {store.name}
       </h4>
       
       {/* Area */}
-      <span className="text-xs text-muted-foreground flex items-center gap-1">
-        <MapPin className="w-3 h-3" />
+      <span className={`text-muted-foreground flex items-center gap-1 ${compact ? "text-[10px]" : "text-xs"}`}>
+        <MapPin className={compact ? "w-2.5 h-2.5" : "w-3 h-3"} />
         {store.area}
       </span>
       
-      {/* Type Badge */}
-      <span className={`mt-2 text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full border ${typeColors[store.type]}`}>
-        {store.type}
-      </span>
+      {/* Type Badge - hide on compact */}
+      {!compact && (
+        <span className={`mt-2 text-[10px] font-medium uppercase tracking-wide px-2 py-0.5 rounded-full border ${typeColors[store.type]}`}>
+          {store.type}
+        </span>
+      )}
     </Link>
   );
 };
 
+const AutoScrollRow = ({ stores, direction }: { stores: StoreLocation[]; direction: "left" | "right" }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<number>();
+  
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+    
+    const speed = 0.5;
+    let scrollPosition = direction === "left" ? 0 : container.scrollWidth / 2;
+    
+    const animate = () => {
+      if (!container) return;
+      
+      if (direction === "left") {
+        scrollPosition += speed;
+        if (scrollPosition >= container.scrollWidth / 2) {
+          scrollPosition = 0;
+        }
+      } else {
+        scrollPosition -= speed;
+        if (scrollPosition <= 0) {
+          scrollPosition = container.scrollWidth / 2;
+        }
+      }
+      
+      container.scrollLeft = scrollPosition;
+      animationRef.current = requestAnimationFrame(animate);
+    };
+    
+    animationRef.current = requestAnimationFrame(animate);
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [direction]);
+  
+  // Duplicate stores for infinite scroll effect
+  const duplicatedStores = [...stores, ...stores];
+  
+  return (
+    <div 
+      ref={scrollRef}
+      className="flex gap-3 overflow-hidden"
+      style={{ scrollBehavior: "auto" }}
+    >
+      {duplicatedStores.map((store, index) => (
+        <StoreCard key={`${store.id}-${index}`} store={store} compact />
+      ))}
+    </div>
+  );
+};
+
 const ExploreStores = () => {
+  const isMobile = useIsMobile();
+  
+  // Split stores into two rows for mobile
+  const halfLength = Math.ceil(portHarcourtStores.length / 2);
+  const topRowStores = portHarcourtStores.slice(0, halfLength);
+  const bottomRowStores = portHarcourtStores.slice(halfLength);
+  
   return (
     <section id="explore-stores" className="py-20 md:py-28 bg-muted/30">
       <div className="container mx-auto px-4">
@@ -69,13 +141,20 @@ const ExploreStores = () => {
           </div>
         </ScrollAnimation>
 
-        {/* Stores Grid */}
+        {/* Stores Display */}
         <ScrollAnimation delay={0.1}>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {portHarcourtStores.map((store) => (
-              <StoreCard key={store.id} store={store} />
-            ))}
-          </div>
+          {isMobile ? (
+            <div className="space-y-4 -mx-4 px-0">
+              <AutoScrollRow stores={topRowStores} direction="right" />
+              <AutoScrollRow stores={bottomRowStores} direction="left" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {portHarcourtStores.map((store) => (
+                <StoreCard key={store.id} store={store} />
+              ))}
+            </div>
+          )}
         </ScrollAnimation>
 
         {/* Expansion Notice */}
