@@ -8,44 +8,44 @@ import { MapPin, Building2, Store } from "lucide-react";
 const mallImages = [
   {
     src: mallPalms,
-    alt: "The Palms Shopping Mall Lagos",
-    title: "The Palms Mall",
-    subtitle: "Lekki, Lagos",
+    alt: "Port Harcourt Mall",
+    title: "Port Harcourt Mall",
+    subtitle: "Azikiwe Road, PH",
   },
   {
     src: mallIkeja,
-    alt: "Ikeja City Mall",
-    title: "Ikeja City Mall",
-    subtitle: "Ikeja, Lagos",
+    alt: "Genesis Deluxe Cinemas",
+    title: "Genesis Deluxe",
+    subtitle: "GRA Phase 2, PH",
   },
 ];
 
 const marketImages = [
   {
     src: marketBalogun,
-    alt: "Balogun Market Lagos",
-    title: "Balogun Market",
-    subtitle: "Lagos Island",
+    alt: "Mile 1 Market Port Harcourt",
+    title: "Mile 1 Market",
+    subtitle: "Port Harcourt",
   },
 ];
 
 const locations = [
   {
-    city: "Lagos",
-    malls: ["The Palms", "Ikeja City Mall", "Adeniran Ogunsanya Mall", "Circle Mall"],
-    markets: ["Balogun Market", "Computer Village", "Alaba International", "Mile 12"],
+    city: "GRA & Woji",
+    malls: ["Port Harcourt Mall", "Genesis Deluxe", "Spar Woji"],
+    markets: ["Rumuokoro Market", "Choba Market"],
     icon: Building2,
   },
   {
-    city: "Abuja",
-    malls: ["Jabi Lake Mall", "Ceddi Plaza", "Silverbird Galleria"],
-    markets: ["Wuse Market", "Garki Market", "Utako Market"],
+    city: "Trans Amadi & D/Line",
+    malls: ["Market Square", "Everyday Supermarket"],
+    markets: ["Mile 1 Market", "Oil Mill Market", "Creek Road Market"],
     icon: Store,
   },
   {
-    city: "Port Harcourt",
-    malls: ["Port Harcourt Mall", "Genesis Deluxe", "Spar"],
-    markets: ["Mile 1 Market", "Oil Mill Market", "Creek Road Market"],
+    city: "Old GRA & Town",
+    malls: ["Spar Harbour Road", "Next Cash & Carry"],
+    markets: ["Mile 3 Market", "Rumuwoji Market", "Borokiri Market"],
     icon: MapPin,
   },
 ];
