@@ -113,11 +113,11 @@ const ImageCarousel = ({
         </AnimatePresence>
       </div>
 
-      {/* Navigation Arrows */}
+      {/* Navigation Arrows - Hidden on mobile */}
       <Button
         variant="ghost"
         size="icon"
-        className="absolute left-4 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background text-foreground rounded-full z-10"
+        className="hidden md:flex absolute left-4 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background text-foreground rounded-full z-10"
         onClick={() => paginate(-1)}
       >
         <ChevronLeft className="w-5 h-5" />
@@ -125,7 +125,7 @@ const ImageCarousel = ({
       <Button
         variant="ghost"
         size="icon"
-        className="absolute right-4 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background text-foreground rounded-full z-10"
+        className="hidden md:flex absolute right-4 top-1/2 -translate-y-1/2 bg-background/80 hover:bg-background text-foreground rounded-full z-10"
         onClick={() => paginate(1)}
       >
         <ChevronRight className="w-5 h-5" />
