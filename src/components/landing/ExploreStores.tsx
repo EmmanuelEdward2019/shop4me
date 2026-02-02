@@ -10,9 +10,9 @@ const StoreCard = ({ store, compact = false }: { store: StoreLocation; compact?:
   
   const typeColors = {
     mall: "bg-primary/10 text-primary border-primary/20",
-    supermarket: "bg-secondary/20 text-secondary-foreground border-secondary/30",
-    market: "bg-accent/15 text-accent-foreground border-accent/25",
-    plaza: "bg-muted text-foreground border-border",
+    supermarket: "bg-primary/10 text-primary border-primary/20",
+    market: "bg-primary/10 text-primary border-primary/20",
+    plaza: "bg-primary/10 text-primary border-primary/20",
   };
   
   const iconBgColors = {
