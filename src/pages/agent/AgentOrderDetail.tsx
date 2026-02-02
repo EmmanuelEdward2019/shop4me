@@ -27,6 +27,7 @@ import { useChat } from "@/hooks/useChat";
 import { OrderChat } from "@/components/chat/OrderChat";
 import { AgentInvoiceForm } from "@/components/chat/AgentInvoiceForm";
 import LocationSharingToggle from "@/components/agent/LocationSharingToggle";
+import DeliveryStatusUpdater from "@/components/agent/DeliveryStatusUpdater";
 import type { Database } from "@/integrations/supabase/types";
 import type { ShoppingListItem, ShoppingListMetadata, InvoiceMetadata } from "@/types/chat";
 
@@ -442,6 +443,15 @@ const AgentOrderDetail = () => {
             {/* Location Sharing Toggle */}
             {user && (
               <LocationSharingToggle
+                orderId={order.id}
+                agentId={user.id}
+                orderStatus={order.status}
+              />
+            )}
+
+            {/* Delivery Status Updater - for in_transit orders */}
+            {user && (
+              <DeliveryStatusUpdater
                 orderId={order.id}
                 agentId={user.id}
                 orderStatus={order.status}

@@ -1,14 +1,20 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// Fix for default marker icons in Leaflet with bundlers
+// Fix for default marker icons
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
   iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
   shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
+
+interface RouteStep {
+  instruction: string;
+  distance: number;
+  duration: number;
+}
 
 interface AgentLocationMapProps {
   agentLocation: {
@@ -20,6 +26,8 @@ interface AgentLocationMapProps {
     longitude: number;
   };
   agentName?: string;
+  routeGeometry?: [number, number][];
+  routeSteps?: RouteStep[];
   className?: string;
 }
 
@@ -81,6 +89,7 @@ const AgentLocationMap = ({
   agentLocation,
   deliveryLocation,
   agentName = "Agent",
+  routeGeometry,
   className = "",
 }: AgentLocationMapProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -89,16 +98,15 @@ const AgentLocationMap = ({
   const deliveryMarkerRef = useRef<L.Marker | null>(null);
   const routeLineRef = useRef<L.Polyline | null>(null);
 
+  // Initialize map
   useEffect(() => {
     if (!mapRef.current || mapInstanceRef.current) return;
 
-    // Initialize map
     const map = L.map(mapRef.current, {
       zoomControl: true,
       attributionControl: true,
     }).setView([agentLocation.latitude, agentLocation.longitude], 15);
 
-    // Add OpenStreetMap tiles
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       maxZoom: 19,
@@ -123,21 +131,7 @@ const AgentLocationMap = ({
         .addTo(map)
         .bindPopup("<strong>Delivery Address</strong>");
 
-      // Draw route line
-      routeLineRef.current = L.polyline(
-        [
-          [agentLocation.latitude, agentLocation.longitude],
-          [deliveryLocation.latitude, deliveryLocation.longitude],
-        ],
-        {
-          color: "hsl(221, 83%, 53%)",
-          weight: 3,
-          opacity: 0.7,
-          dashArray: "10, 10",
-        }
-      ).addTo(map);
-
-      // Fit bounds to show both markers
+      // Fit bounds
       const bounds = L.latLngBounds([
         [agentLocation.latitude, agentLocation.longitude],
         [deliveryLocation.latitude, deliveryLocation.longitude],
@@ -153,23 +147,48 @@ const AgentLocationMap = ({
     };
   }, []);
 
-  // Update agent marker position when location changes
+  // Update agent marker position
   useEffect(() => {
     if (!mapInstanceRef.current || !agentMarkerRef.current) return;
-
     agentMarkerRef.current.setLatLng([agentLocation.latitude, agentLocation.longitude]);
+  }, [agentLocation.latitude, agentLocation.longitude]);
 
-    // Update route line if delivery location exists
-    if (routeLineRef.current && deliveryLocation) {
-      routeLineRef.current.setLatLngs([
-        [agentLocation.latitude, agentLocation.longitude],
-        [deliveryLocation.latitude, deliveryLocation.longitude],
-      ]);
+  // Update route line when geometry changes
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    // Remove existing route
+    if (routeLineRef.current) {
+      routeLineRef.current.remove();
+      routeLineRef.current = null;
     }
 
-    // Optionally pan to agent location
-    // mapInstanceRef.current.panTo([agentLocation.latitude, agentLocation.longitude]);
-  }, [agentLocation.latitude, agentLocation.longitude, deliveryLocation]);
+    // Draw new route if geometry provided
+    if (routeGeometry && routeGeometry.length > 0) {
+      // OpenRouteService returns [lng, lat], Leaflet needs [lat, lng]
+      const latLngs = routeGeometry.map(([lng, lat]) => [lat, lng] as [number, number]);
+      
+      routeLineRef.current = L.polyline(latLngs, {
+        color: "hsl(221, 83%, 53%)",
+        weight: 4,
+        opacity: 0.8,
+      }).addTo(mapInstanceRef.current);
+    } else if (deliveryLocation) {
+      // Fallback to straight line
+      routeLineRef.current = L.polyline(
+        [
+          [agentLocation.latitude, agentLocation.longitude],
+          [deliveryLocation.latitude, deliveryLocation.longitude],
+        ],
+        {
+          color: "hsl(221, 83%, 53%)",
+          weight: 3,
+          opacity: 0.7,
+          dashArray: "10, 10",
+        }
+      ).addTo(mapInstanceRef.current);
+    }
+  }, [routeGeometry, deliveryLocation, agentLocation]);
 
   return (
     <div

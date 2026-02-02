@@ -169,6 +169,7 @@ export type Database = {
           latitude: number
           longitude: number
           order_id: string
+          proximity_notified: boolean | null
           speed: number | null
           updated_at: string
         }
@@ -180,6 +181,7 @@ export type Database = {
           latitude: number
           longitude: number
           order_id: string
+          proximity_notified?: boolean | null
           speed?: number | null
           updated_at?: string
         }
@@ -191,6 +193,7 @@ export type Database = {
           latitude?: number
           longitude?: number
           order_id?: string
+          proximity_notified?: boolean | null
           speed?: number | null
           updated_at?: string
         }
@@ -333,6 +336,47 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      delivery_updates: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          message: string | null
+          order_id: string
+          update_type: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          message?: string | null
+          order_id: string
+          update_type: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          message?: string | null
+          order_id?: string
+          update_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_updates_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_items: {
         Row: {
