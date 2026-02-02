@@ -1,0 +1,375 @@
+import { useEffect, useState } from "react";
+import { useParams, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  ArrowLeft,
+  MapPin,
+  Clock,
+  Package,
+  CheckCircle,
+  XCircle,
+  Truck,
+  ShoppingCart,
+} from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+
+interface Order {
+  id: string;
+  location_name: string;
+  location_type: string;
+  status: string;
+  notes: string | null;
+  estimated_total: number | null;
+  final_total: number | null;
+  service_fee: number | null;
+  delivery_fee: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface OrderItem {
+  id: string;
+  name: string;
+  description: string | null;
+  quantity: number;
+  estimated_price: number | null;
+  actual_price: number | null;
+  photo_url: string | null;
+  status: string;
+}
+
+const statusSteps = [
+  { key: "pending", label: "Order Placed", icon: ShoppingCart },
+  { key: "accepted", label: "Agent Assigned", icon: CheckCircle },
+  { key: "shopping", label: "Shopping", icon: Package },
+  { key: "items_confirmed", label: "Items Confirmed", icon: CheckCircle },
+  { key: "payment_pending", label: "Payment Pending", icon: Clock },
+  { key: "paid", label: "Paid", icon: CheckCircle },
+  { key: "in_transit", label: "In Transit", icon: Truck },
+  { key: "delivered", label: "Delivered", icon: CheckCircle },
+];
+
+const OrderDetailPage = () => {
+  const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const [order, setOrder] = useState<Order | null>(null);
+  const [items, setItems] = useState<OrderItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user && id) {
+      fetchOrderDetails();
+    }
+  }, [user, id]);
+
+  const fetchOrderDetails = async () => {
+    setLoading(true);
+    try {
+      const { data: orderData, error: orderError } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("id", id)
+        .eq("user_id", user?.id)
+        .single();
+
+      if (orderError) throw orderError;
+      setOrder(orderData);
+
+      const { data: itemsData, error: itemsError } = await supabase
+        .from("order_items")
+        .select("*")
+        .eq("order_id", id)
+        .order("created_at", { ascending: true });
+
+      if (itemsError) throw itemsError;
+      setItems(itemsData || []);
+    } catch (error) {
+      console.error("Error fetching order details:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+    }).format(amount);
+  };
+
+  const getStatusIndex = (status: string) => {
+    return statusSteps.findIndex((step) => step.key === status);
+  };
+
+  const getItemStatusColor = (status: string) => {
+    switch (status) {
+      case "purchased":
+      case "approved":
+        return "bg-primary/10 text-primary";
+      case "found":
+        return "bg-secondary/10 text-secondary-foreground";
+      case "not_found":
+      case "rejected":
+        return "bg-destructive/10 text-destructive";
+      default:
+        return "bg-muted text-muted-foreground";
+    }
+  };
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-48" />
+          <Card>
+            <CardContent className="p-6">
+              <Skeleton className="h-32 w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!order) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">
+          <XCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-xl font-display font-bold text-foreground mb-2">
+            Order Not Found
+          </h2>
+          <p className="text-muted-foreground mb-4">
+            This order doesn't exist or you don't have access to it.
+          </p>
+          <Button asChild>
+            <Link to="/dashboard/orders">Back to Orders</Link>
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const currentStatusIndex = getStatusIndex(order.status);
+  const isCancelled = order.status === "cancelled";
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center gap-4">
+          <Button asChild variant="ghost" size="icon">
+            <Link to="/dashboard/orders">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-2xl font-display font-bold text-foreground">
+              Order Details
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Order ID: {order.id.slice(0, 8)}...
+            </p>
+          </div>
+        </div>
+
+        {/* Status Timeline */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display">Order Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isCancelled ? (
+              <div className="flex items-center gap-3 p-4 bg-destructive/10 rounded-lg">
+                <XCircle className="w-6 h-6 text-destructive" />
+                <div>
+                  <p className="font-medium text-destructive">Order Cancelled</p>
+                  <p className="text-sm text-muted-foreground">
+                    This order has been cancelled
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex overflow-x-auto pb-4">
+                {statusSteps.map((step, index) => {
+                  const isCompleted = index <= currentStatusIndex;
+                  const isCurrent = index === currentStatusIndex;
+                  const StepIcon = step.icon;
+
+                  return (
+                    <div key={step.key} className="flex items-center">
+                      <div className="flex flex-col items-center min-w-[100px]">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                            isCompleted
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-muted text-muted-foreground"
+                          } ${isCurrent ? "ring-2 ring-primary ring-offset-2" : ""}`}
+                        >
+                          <StepIcon className="w-5 h-5" />
+                        </div>
+                        <p
+                          className={`text-xs mt-2 text-center ${
+                            isCompleted ? "text-foreground font-medium" : "text-muted-foreground"
+                          }`}
+                        >
+                          {step.label}
+                        </p>
+                      </div>
+                      {index < statusSteps.length - 1 && (
+                        <div
+                          className={`h-0.5 w-8 flex-shrink-0 ${
+                            index < currentStatusIndex ? "bg-primary" : "bg-muted"
+                          }`}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Order Info */}
+        <div className="grid md:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display">Location</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                  <MapPin className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">{order.location_name}</p>
+                  <p className="text-sm text-muted-foreground capitalize">
+                    {order.location_type}
+                  </p>
+                </div>
+              </div>
+              {order.notes && (
+                <div className="mt-4 p-3 bg-muted rounded-lg">
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-medium">Notes:</span> {order.notes}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-display">Order Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Order Date</span>
+                <span className="text-foreground">
+                  {new Date(order.created_at).toLocaleDateString("en-NG", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
+              {order.estimated_total && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Estimated Total</span>
+                  <span className="text-foreground">
+                    {formatCurrency(order.estimated_total)}
+                  </span>
+                </div>
+              )}
+              {order.service_fee && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Service Fee</span>
+                  <span className="text-foreground">
+                    {formatCurrency(order.service_fee)}
+                  </span>
+                </div>
+              )}
+              {order.delivery_fee && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Delivery Fee</span>
+                  <span className="text-foreground">
+                    {formatCurrency(order.delivery_fee)}
+                  </span>
+                </div>
+              )}
+              {order.final_total && (
+                <>
+                  <Separator />
+                  <div className="flex justify-between font-medium">
+                    <span>Final Total</span>
+                    <span className="text-primary">
+                      {formatCurrency(order.final_total)}
+                    </span>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Items */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-display">
+              Items ({items.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {items.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-border rounded-lg gap-4"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium text-foreground">{item.name}</p>
+                      <Badge className={getItemStatusColor(item.status)}>
+                        {item.status.replace("_", " ")}
+                      </Badge>
+                    </div>
+                    {item.description && (
+                      <p className="text-sm text-muted-foreground mb-1">
+                        {item.description}
+                      </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      Qty: {item.quantity}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    {item.actual_price ? (
+                      <p className="font-medium text-foreground">
+                        {formatCurrency(item.actual_price * item.quantity)}
+                      </p>
+                    ) : item.estimated_price ? (
+                      <p className="text-muted-foreground">
+                        Est. {formatCurrency(item.estimated_price * item.quantity)}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">Price TBD</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
+  );
+};
+
+export default OrderDetailPage;
