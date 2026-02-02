@@ -91,6 +91,8 @@ const AdminApplications = () => {
   const [rejectionReason, setRejectionReason] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [signedDocUrl, setSignedDocUrl] = useState<string | null>(null);
+  const [signedPhotoUrl, setSignedPhotoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchApplications();
@@ -289,10 +291,31 @@ const AdminApplications = () => {
     }
   };
 
-  const openViewDialog = (app: AgentApplication) => {
+  const openViewDialog = async (app: AgentApplication) => {
     setSelectedApp(app);
     setAdminNotes(app.admin_notes || "");
+    setSignedDocUrl(null);
+    setSignedPhotoUrl(null);
     setIsViewOpen(true);
+
+    // Generate signed URLs for private documents
+    if (app.id_document_url) {
+      const { data } = await supabase.storage
+        .from("agent-documents")
+        .createSignedUrl(app.id_document_url, 3600); // 1 hour expiry
+      if (data?.signedUrl) {
+        setSignedDocUrl(data.signedUrl);
+      }
+    }
+
+    if (app.photo_url) {
+      const { data } = await supabase.storage
+        .from("agent-documents")
+        .createSignedUrl(app.photo_url, 3600);
+      if (data?.signedUrl) {
+        setSignedPhotoUrl(data.signedUrl);
+      }
+    }
   };
 
   const filteredApplications = applications.filter((app) => {
@@ -519,11 +542,18 @@ const AdminApplications = () => {
                       </div>
                     </div>
                     {selectedApp.id_document_url && (
-                      <Button variant="outline" size="sm" className="mt-2" asChild>
-                        <a href={selectedApp.id_document_url} target="_blank" rel="noopener noreferrer">
-                          View ID Document
-                        </a>
-                      </Button>
+                      signedDocUrl ? (
+                        <Button variant="outline" size="sm" className="mt-2" asChild>
+                          <a href={signedDocUrl} target="_blank" rel="noopener noreferrer">
+                            View ID Document
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button variant="outline" size="sm" className="mt-2" disabled>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Loading Document...
+                        </Button>
+                      )
                     )}
                   </div>
 
