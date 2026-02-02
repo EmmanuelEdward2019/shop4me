@@ -43,6 +43,7 @@ import AdminOrders from "./pages/admin/AdminOrders";
 import AdminOrderDetail from "./pages/admin/AdminOrderDetail";
 import AdminAgents from "./pages/admin/AdminAgents";
 import AdminApplications from "./pages/admin/AdminApplications";
+import AdminMessages from "./pages/admin/AdminMessages";
 import AdminSettingsPage from "./pages/admin/AdminSettings";
 
 // Agent Application
@@ -237,6 +238,14 @@ const App = () => (
               element={
                 <AdminProtectedRoute>
                   <AdminApplications />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/messages"
+              element={
+                <AdminProtectedRoute>
+                  <AdminMessages />
                 </AdminProtectedRoute>
               }
             />
