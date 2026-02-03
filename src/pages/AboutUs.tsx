@@ -3,6 +3,7 @@ import Footer from "@/components/landing/Footer";
 import WhatsAppButton from "@/components/support/WhatsAppButton";
 import { ScrollAnimation } from "@/components/ui/scroll-animation";
 import { Users, Target, Heart, Zap } from "lucide-react";
+import aboutTeamImage from "@/assets/about-team.jpg";
 
 const values = [
   {
@@ -83,11 +84,14 @@ const AboutUs = () => {
               </ScrollAnimation>
               <ScrollAnimation delay={0.2}>
                 <div className="relative">
-                  <div className="aspect-square rounded-3xl bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="text-6xl font-display font-bold text-primary mb-2">2024</div>
-                      <p className="text-muted-foreground">Founded in Port Harcourt</p>
-                    </div>
+                  <img 
+                    src={aboutTeamImage} 
+                    alt="Shop4Me team collaborating in our office" 
+                    className="w-full aspect-[4/3] object-cover rounded-3xl"
+                  />
+                  <div className="absolute bottom-4 left-4 right-4 bg-background/90 backdrop-blur-sm rounded-xl p-4 text-center">
+                    <div className="text-3xl font-display font-bold text-primary mb-1">2024</div>
+                    <p className="text-sm text-muted-foreground">Founded in Port Harcourt</p>
                   </div>
                 </div>
               </ScrollAnimation>

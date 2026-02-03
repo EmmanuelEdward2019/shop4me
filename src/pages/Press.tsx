@@ -4,6 +4,7 @@ import WhatsAppButton from "@/components/support/WhatsAppButton";
 import { ScrollAnimation } from "@/components/ui/scroll-animation";
 import { Button } from "@/components/ui/button";
 import { FileText, Download, Mail, ExternalLink } from "lucide-react";
+import pressMediaImage from "@/assets/press-media.jpg";
 
 const pressReleases = [
   {
@@ -32,7 +33,7 @@ const Press = () => {
         <section className="pt-32 pb-16 md:pt-40 md:pb-24 bg-gradient-to-b from-primary/5 to-background">
           <div className="container mx-auto px-4">
             <ScrollAnimation>
-              <div className="text-center max-w-3xl mx-auto">
+              <div className="text-center max-w-3xl mx-auto mb-12">
                 <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
                   Press & Media
                 </span>
@@ -43,6 +44,13 @@ const Press = () => {
                   Latest news, press releases, and media resources about Shop4Me.
                 </p>
               </div>
+            </ScrollAnimation>
+            <ScrollAnimation delay={0.2}>
+              <img 
+                src={pressMediaImage} 
+                alt="Press conference and media" 
+                className="w-full max-w-4xl mx-auto aspect-[21/9] object-cover rounded-3xl"
+              />
             </ScrollAnimation>
           </div>
         </section>

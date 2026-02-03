@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { MapPin, Phone, Mail, Clock, MessageCircle, CheckCircle } from "lucide-react";
+import contactSupportImage from "@/assets/contact-support.jpg";
 
 const contactInfo = [
   {
@@ -116,19 +117,28 @@ const ContactUs = () => {
         {/* Hero Section */}
         <section className="pt-32 pb-16 md:pt-40 md:pb-24 bg-gradient-to-b from-primary/5 to-background">
           <div className="container mx-auto px-4">
-            <ScrollAnimation>
-              <div className="text-center max-w-3xl mx-auto">
-                <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
-                  Contact Us
-                </span>
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6">
-                  Get in <span className="text-gradient">Touch</span>
-                </h1>
-                <p className="text-lg md:text-xl text-muted-foreground">
-                  Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
-                </p>
-              </div>
-            </ScrollAnimation>
+            <div className="grid lg:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+              <ScrollAnimation>
+                <div className="text-center lg:text-left">
+                  <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
+                    Contact Us
+                  </span>
+                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6">
+                    Get in <span className="text-gradient">Touch</span>
+                  </h1>
+                  <p className="text-lg md:text-xl text-muted-foreground">
+                    Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
+                  </p>
+                </div>
+              </ScrollAnimation>
+              <ScrollAnimation delay={0.2}>
+                <img 
+                  src={contactSupportImage} 
+                  alt="Our friendly support team ready to help" 
+                  className="w-full aspect-[16/9] object-cover rounded-3xl shadow-lg"
+                />
+              </ScrollAnimation>
+            </div>
           </div>
         </section>
 
