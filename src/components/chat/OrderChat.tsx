@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useChat } from "@/hooks/useChat";
 import { ChatBubble } from "./ChatBubble";
@@ -6,7 +6,7 @@ import { ChatInput } from "./ChatInput";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare } from "lucide-react";
-import { usePayment } from "@/hooks/usePayment";
+import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
 import type { InvoiceMetadata } from "@/types/chat";
 
 interface OrderChatProps {
@@ -19,8 +19,9 @@ interface OrderChatProps {
 export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderChatProps) => {
   const { user } = useAuth();
   const { messages, loading, sending, sendMessage, uploadPhoto } = useChat({ orderId });
-  const { redirectToPayment, loading: paymentLoading } = usePayment();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState(0);
 
   useEffect(() => {
     // Scroll to bottom when new messages arrive
@@ -45,13 +46,9 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
     changes?: any
   ) => {
     if (action === "approve" && orderTotal && userEmail) {
-      // Redirect to payment
-      await redirectToPayment({
-        orderId,
-        amount: changes?.approvedTotal || orderTotal,
-        email: userEmail,
-        callbackUrl: `${window.location.origin}/orders/${orderId}`,
-      });
+      // Show payment method selection dialog
+      setPaymentAmount(changes?.approvedTotal || orderTotal);
+      setShowPaymentDialog(true);
     } else if (action === "edit") {
       // Send invoice response message
       await sendMessage(
@@ -82,36 +79,47 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
   }
 
   return (
-    <div className={`flex flex-col h-full ${className}`}>
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center py-12">
-            <MessageSquare className="w-12 h-12 text-muted-foreground mb-3" />
-            <p className="text-muted-foreground">No messages yet</p>
-            <p className="text-sm text-muted-foreground">
-              Start the conversation!
-            </p>
-          </div>
-        ) : (
-          messages.map((message) => (
-            <ChatBubble
-              key={message.id}
-              message={message}
-              isOwn={message.sender_id === user?.id}
-              onInvoiceAction={
-                message.message_type === "invoice" && message.sender_id !== user?.id
-                  ? handleInvoiceAction
-                  : undefined
-              }
-            />
-          ))
-        )}
-      </ScrollArea>
-      <ChatInput
-        onSend={handleSendMessage}
-        onPhotoUpload={handlePhotoUpload}
-        disabled={sending || paymentLoading}
+    <>
+      <div className={`flex flex-col h-full ${className}`}>
+        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-center py-12">
+              <MessageSquare className="w-12 h-12 text-muted-foreground mb-3" />
+              <p className="text-muted-foreground">No messages yet</p>
+              <p className="text-sm text-muted-foreground">
+                Start the conversation!
+              </p>
+            </div>
+          ) : (
+            messages.map((message) => (
+              <ChatBubble
+                key={message.id}
+                message={message}
+                isOwn={message.sender_id === user?.id}
+                onInvoiceAction={
+                  message.message_type === "invoice" && message.sender_id !== user?.id
+                    ? handleInvoiceAction
+                    : undefined
+                }
+              />
+            ))
+          )}
+        </ScrollArea>
+        <ChatInput
+          onSend={handleSendMessage}
+          onPhotoUpload={handlePhotoUpload}
+          disabled={sending}
+        />
+      </div>
+
+      {/* Payment Method Selection Dialog */}
+      <PaymentMethodDialog
+        open={showPaymentDialog}
+        onOpenChange={setShowPaymentDialog}
+        orderId={orderId}
+        amount={paymentAmount}
+        email={userEmail || ""}
       />
-    </div>
+    </>
   );
 };

@@ -8,3 +8,15 @@ verify_jwt = false
 
 [functions.paystack-webhook]
 verify_jwt = false
+
+[functions.paystack-charge-card]
+verify_jwt = false
+
+[functions.paystack-wallet-topup]
+verify_jwt = false
+
+[functions.pay-with-wallet]
+verify_jwt = false
+
+[functions.send-push-notification]
+verify_jwt = false
