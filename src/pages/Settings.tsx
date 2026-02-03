@@ -10,10 +10,21 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { User, Phone, Loader2 } from "lucide-react";
+import { User, Phone, Loader2, AlertTriangle } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { NotificationToggle } from "@/components/notifications/PushNotificationPrompt";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface Profile {
   id: string;
@@ -35,6 +46,8 @@ const SettingsPage = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [confirmEmail, setConfirmEmail] = useState("");
 
   const form = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -94,6 +107,39 @@ const SettingsPage = () => {
       toast.error("Failed to update profile");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user || confirmEmail !== profile?.email) {
+      toast.error("Please enter your email correctly to confirm deletion");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      // Call the delete_user_account database function
+      const { data, error } = await supabase.rpc("delete_user_account", {
+        p_user_id: user.id,
+      });
+
+      if (error) throw error;
+
+      const result = data as { success: boolean; error?: string } | null;
+      if (result && !result.success) {
+        throw new Error(result.error || "Failed to delete account");
+      }
+
+      toast.success("Account deletion initiated. You will be signed out.");
+      
+      // Sign out the user
+      await signOut();
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to delete account");
+    } finally {
+      setIsDeleting(false);
+      setConfirmEmail("");
     }
   };
 
@@ -228,9 +274,61 @@ const SettingsPage = () => {
                   Permanently delete your account and all data
                 </p>
               </div>
-              <Button variant="destructive" disabled>
-                Delete Account
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    Delete Account
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertTriangle className="w-5 h-5 text-destructive" />
+                      Delete Account
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="space-y-3">
+                      <p>
+                        This action cannot be undone. This will permanently delete your
+                        account and remove all your data from our servers.
+                      </p>
+                      <p>
+                        Your order history will be anonymized but retained for record-keeping.
+                      </p>
+                      <div className="pt-2">
+                        <Label htmlFor="confirm-email" className="text-foreground">
+                          Type <span className="font-mono font-bold">{profile?.email}</span> to confirm
+                        </Label>
+                        <Input
+                          id="confirm-email"
+                          value={confirmEmail}
+                          onChange={(e) => setConfirmEmail(e.target.value)}
+                          placeholder="Enter your email"
+                          className="mt-2"
+                        />
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setConfirmEmail("")}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteAccount}
+                      disabled={isDeleting || confirmEmail !== profile?.email}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {isDeleting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        "Delete Account"
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </CardContent>
         </Card>

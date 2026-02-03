@@ -69,6 +69,7 @@ serve(async (req) => {
       case 'charge.success': {
         const transaction = event.data;
         const reference = transaction.reference;
+        const metadata = transaction.metadata || {};
         
         console.log(`Processing successful charge for reference: ${reference}`);
 
@@ -81,12 +82,34 @@ serve(async (req) => {
             provider_response: transaction,
           })
           .eq('provider_reference', reference)
-          .select('order_id, user_id')
+          .select('order_id, user_id, amount, payment_method')
           .single();
 
         if (paymentError) {
           console.error('Failed to update payment:', paymentError);
           break;
+        }
+
+        // Handle wallet topup using atomic function
+        if (payment?.payment_method === 'wallet_topup' && metadata.type === 'wallet_topup') {
+          console.log(`Processing wallet topup for user ${payment.user_id}, amount: ${payment.amount}`);
+          
+          const { data: walletResult, error: walletError } = await supabase.rpc(
+            'update_wallet_balance',
+            {
+              p_user_id: payment.user_id,
+              p_amount: payment.amount,
+              p_type: 'credit',
+              p_description: 'Wallet topup via Paystack',
+              p_reference: reference,
+            }
+          );
+
+          if (walletError) {
+            console.error('Failed to update wallet balance:', walletError);
+          } else {
+            console.log(`Wallet credited successfully, new balance: ${walletResult?.new_balance}`);
+          }
         }
 
         // Update order status to paid
