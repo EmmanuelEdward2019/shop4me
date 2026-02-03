@@ -14,6 +14,7 @@ import {
   CheckCircle,
   CreditCard
 } from "lucide-react";
+import safetyVerificationImage from "@/assets/safety-verification.jpg";
 
 const safetyFeatures = [
   {
@@ -135,10 +136,15 @@ const Safety = () => {
               </ScrollAnimation>
 
               <ScrollAnimation delay={0.2}>
-                <div className="p-8 rounded-3xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20">
-                  <div className="text-center">
-                    <div className="text-5xl font-display font-bold text-primary mb-2">100%</div>
-                    <p className="text-muted-foreground">Verified Agents</p>
+                <div className="space-y-6">
+                  <img 
+                    src={safetyVerificationImage} 
+                    alt="Verified agent with ID badge ensuring safe delivery" 
+                    className="w-full aspect-[16/9] object-cover rounded-3xl"
+                  />
+                  <div className="p-6 rounded-2xl bg-gradient-to-br from-primary/10 to-secondary/10 border border-primary/20 text-center">
+                    <div className="text-4xl font-display font-bold text-primary mb-1">100%</div>
+                    <p className="text-muted-foreground text-sm">Verified Agents</p>
                   </div>
                 </div>
               </ScrollAnimation>

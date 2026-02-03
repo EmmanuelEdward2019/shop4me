@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Calendar, Clock, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
+import blogWritingImage from "@/assets/blog-writing.jpg";
 
 interface BlogPost {
   id: string;
@@ -41,17 +42,26 @@ const Blog = () => {
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="py-16 md:py-24 bg-gradient-to-b from-primary/5 to-background">
-          <div className="container mx-auto px-4 text-center">
-            <Badge variant="secondary" className="mb-4">
-              Our Blog
-            </Badge>
-            <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">
-              Stories, Tips & Updates
-            </h1>
-            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-              Stay informed with the latest news, shopping tips, and updates from Shop4Me.
-            </p>
+        <section className="pt-32 pb-16 md:pt-40 md:pb-24 bg-gradient-to-b from-primary/5 to-background">
+          <div className="container mx-auto px-4">
+            <div className="grid lg:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+              <div className="text-center lg:text-left">
+                <Badge variant="secondary" className="mb-4">
+                  Our Blog
+                </Badge>
+                <h1 className="text-4xl md:text-5xl font-display font-bold mb-4">
+                  Stories, Tips & Updates
+                </h1>
+                <p className="text-muted-foreground text-lg">
+                  Stay informed with the latest news, shopping tips, and updates from Shop4Me.
+                </p>
+              </div>
+              <img 
+                src={blogWritingImage} 
+                alt="Content creation workspace" 
+                className="w-full aspect-[16/9] object-cover rounded-3xl shadow-lg"
+              />
+            </div>
           </div>
         </section>
 

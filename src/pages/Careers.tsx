@@ -5,6 +5,7 @@ import { ScrollAnimation } from "@/components/ui/scroll-animation";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { Briefcase, MapPin, Clock, Users, Heart, Zap, TrendingUp, Shield } from "lucide-react";
+import careersOfficeImage from "@/assets/careers-office.jpg";
 
 const openPositions = [
   {
@@ -48,23 +49,32 @@ const Careers = () => {
         {/* Hero Section */}
         <section className="pt-32 pb-16 md:pt-40 md:pb-24 bg-gradient-to-b from-primary/5 to-background">
           <div className="container mx-auto px-4">
-            <ScrollAnimation>
-              <div className="text-center max-w-3xl mx-auto">
-                <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
-                  Careers
-                </span>
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6">
-                  Build the Future of <span className="text-gradient">Commerce</span>
-                </h1>
-                <p className="text-lg md:text-xl text-muted-foreground mb-8">
-                  Join our team and help transform how Nigerians shop. 
-                  We're looking for passionate people to shape the future of personal shopping.
-                </p>
-                <Button size="lg" asChild>
-                  <a href="#positions">View Open Positions</a>
-                </Button>
-              </div>
-            </ScrollAnimation>
+            <div className="grid lg:grid-cols-2 gap-12 items-center max-w-6xl mx-auto">
+              <ScrollAnimation>
+                <div className="text-center lg:text-left">
+                  <span className="inline-block px-4 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-4">
+                    Careers
+                  </span>
+                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-foreground mb-6">
+                    Build the Future of <span className="text-gradient">Commerce</span>
+                  </h1>
+                  <p className="text-lg md:text-xl text-muted-foreground mb-8">
+                    Join our team and help transform how Nigerians shop. 
+                    We're looking for passionate people to shape the future of personal shopping.
+                  </p>
+                  <Button size="lg" asChild>
+                    <a href="#positions">View Open Positions</a>
+                  </Button>
+                </div>
+              </ScrollAnimation>
+              <ScrollAnimation delay={0.2}>
+                <img 
+                  src={careersOfficeImage} 
+                  alt="Our vibrant office environment" 
+                  className="w-full aspect-[16/9] object-cover rounded-3xl shadow-lg"
+                />
+              </ScrollAnimation>
+            </div>
           </div>
         </section>
 
