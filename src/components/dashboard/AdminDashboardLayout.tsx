@@ -13,7 +13,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  ShoppingBag,
   LayoutDashboard,
   Users,
   Package,
@@ -27,7 +26,9 @@ import {
   MessageSquare,
   FileText,
   Inbox,
+  Home,
 } from "lucide-react";
+import logo from "@/assets/logo.png";
 import AdminViewSwitcher from "./AdminViewSwitcher";
 import DashboardHeaderNav from "./DashboardHeaderNav";
 import DashboardFooter from "./DashboardFooter";
@@ -152,7 +153,7 @@ const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
             to="/"
             className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
-            <ShoppingBag className="w-5 h-5" />
+            <Home className="w-5 h-5" />
             <span className="font-medium">Back to Home</span>
           </Link>
         </div>

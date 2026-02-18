@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  ShoppingBag,
   LayoutDashboard,
   Package,
   Wallet,
@@ -25,7 +24,9 @@ import {
   Menu,
   X,
   Plus,
+  Home,
 } from "lucide-react";
+import logo from "@/assets/logo.png";
 import DashboardHeaderNav from "./DashboardHeaderNav";
 import DashboardFooter from "./DashboardFooter";
 
@@ -68,13 +69,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           {isSidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
 
-        <Link to="/dashboard" className="flex items-center gap-2 ml-4">
-          <div className="w-8 h-8 rounded-lg bg-hero-gradient flex items-center justify-center">
-            <ShoppingBag className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="text-lg font-display font-bold">
-            Shop<span className="text-primary">4Me</span>
-          </span>
+        <Link to="/dashboard" className="flex items-center ml-4">
+          <img src={logo} alt="Shop4Me" className="h-8" />
         </Link>
 
         <div className="ml-auto">
@@ -109,13 +105,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       >
         {/* Logo */}
         <div className="h-16 flex items-center px-6 border-b border-border">
-          <Link to="/dashboard" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-hero-gradient flex items-center justify-center">
-              <ShoppingBag className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-display font-bold">
-              Shop<span className="text-primary">4Me</span>
-            </span>
+          <Link to="/dashboard" className="flex items-center">
+            <img src={logo} alt="Shop4Me" className="h-10" />
           </Link>
         </div>
 
@@ -147,7 +138,7 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             to="/"
             className="flex items-center gap-3 px-4 py-3 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
-            <ShoppingBag className="w-5 h-5" />
+            <Home className="w-5 h-5" />
             <span className="font-medium">Back to Home</span>
           </Link>
         </div>

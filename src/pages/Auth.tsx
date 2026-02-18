@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ShoppingBag, Mail, Lock, User, ArrowLeft, Loader2 } from "lucide-react";
+import { Mail, Lock, User, ArrowLeft, Loader2 } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 
 const loginSchema = z.object({
@@ -137,13 +138,8 @@ const AuthPage = () => {
         <div className="w-full max-w-md">
           {/* Logo */}
           <div className="text-center mb-8">
-            <Link to="/" className="inline-flex items-center gap-2">
-              <div className="w-12 h-12 rounded-xl bg-hero-gradient flex items-center justify-center">
-                <ShoppingBag className="w-6 h-6 text-primary-foreground" />
-              </div>
-              <span className="text-2xl font-display font-bold text-foreground">
-                Shop<span className="text-primary">4Me</span>
-              </span>
+            <Link to="/">
+              <img src={logo} alt="Shop4Me" className="h-12" />
             </Link>
           </div>
 
