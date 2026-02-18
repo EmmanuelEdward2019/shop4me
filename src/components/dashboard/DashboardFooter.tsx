@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { ShoppingBag, Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import { Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import logo from "@/assets/logo.png";
 
 const footerLinks = {
   resources: [
@@ -32,13 +33,8 @@ const DashboardFooter = () => {
         <div className="grid md:grid-cols-4 gap-8">
           {/* Brand */}
           <div>
-            <Link to="/" className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <ShoppingBag className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="text-lg font-display font-bold">
-                Shop<span className="text-secondary">4Me</span>
-              </span>
+            <Link to="/" className="flex items-center mb-3">
+              <img src={logo} alt="Shop4Me" className="h-8 brightness-0 invert" />
             </Link>
             <p className="text-background/70 text-sm mb-4">
               Shop from any market in Nigeria without leaving home.

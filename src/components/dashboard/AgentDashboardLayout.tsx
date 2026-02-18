@@ -25,6 +25,7 @@ import {
   User,
   MessageSquare,
 } from "lucide-react";
+import logo from "@/assets/logo.png";
 import DashboardHeaderNav from "./DashboardHeaderNav";
 import DashboardFooter from "./DashboardFooter";
 
@@ -82,7 +83,7 @@ const AgentDashboardLayout = ({ children }: AgentDashboardLayoutProps) => {
       <aside className="hidden lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-64 lg:flex-col border-r border-border bg-card">
         <div className="p-6 border-b border-border">
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl font-display font-bold text-primary">Shop4Me</span>
+            <img src={logo} alt="Shop4Me" className="h-9" />
             <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">Agent</span>
           </Link>
         </div>
@@ -105,7 +106,7 @@ const AgentDashboardLayout = ({ children }: AgentDashboardLayoutProps) => {
             <SheetContent side="left" className="w-64 p-0">
               <div className="p-6 border-b border-border">
                 <Link to="/" className="flex items-center gap-2">
-                  <span className="text-2xl font-display font-bold text-primary">Shop4Me</span>
+                  <img src={logo} alt="Shop4Me" className="h-9" />
                   <span className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">Agent</span>
                 </Link>
               </div>
