@@ -26,7 +26,7 @@ const contactInfo = [
   {
     icon: Mail,
     title: "Email",
-    details: ["support@shop4me.ng", "business@shop4me.ng"],
+    details: ["Support@shop4meng.com", "Business@shop4meng.com"],
   },
   {
     icon: Clock,
