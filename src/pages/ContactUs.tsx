@@ -21,7 +21,7 @@ const contactInfo = [
   {
     icon: Phone,
     title: "Phone",
-    details: ["+234 800 000 0000"],
+    details: ["+234 704 700 8850 (Customer Service)", "+234 704 700 8840 (WhatsApp)"],
   },
   {
     icon: Mail,
@@ -261,7 +261,7 @@ const ContactUs = () => {
                       Get instant support through our WhatsApp chat
                     </p>
                     <Button variant="outline" asChild>
-                      <a href="https://wa.me/2348000000000" target="_blank" rel="noopener noreferrer">
+                      <a href="https://wa.me/2347047008840" target="_blank" rel="noopener noreferrer">
                         Chat on WhatsApp
                       </a>
                     </Button>
