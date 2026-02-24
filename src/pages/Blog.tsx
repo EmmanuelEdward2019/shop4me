@@ -29,6 +29,7 @@ const Blog = () => {
         .from("blog_posts")
         .select("id, title, slug, excerpt, cover_image_url, published_at, created_at")
         .eq("is_published", true)
+        .eq("category", "blog")
         .order("published_at", { ascending: false });
 
       if (error) throw error;

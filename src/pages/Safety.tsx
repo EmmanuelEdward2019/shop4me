@@ -196,7 +196,7 @@ const Safety = () => {
                 </p>
                 <div className="flex flex-col sm:flex-row gap-4 justify-center">
                   <Button size="lg" asChild>
-                    <a href="https://wa.me/2348000000000" target="_blank" rel="noopener noreferrer">
+                    <a href="https://wa.me/2347047008840?text=I%20want%20to%20report%20a%20safety%20concern%20on%20Shop4Me." target="_blank" rel="noopener noreferrer">
                       <MessageCircle className="w-4 h-4 mr-2" />
                       Report on WhatsApp
                     </a>
