@@ -76,6 +76,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             .eq("user_id", newUser.id);
         }
       }, 0);
+
+      // Send welcome email (fire-and-forget)
+      supabase.functions
+        .invoke("send-notification-email", {
+          body: { type: "welcome", data: { email, name: fullName } },
+        })
+        .catch((err) => console.error("Welcome email failed:", err));
     }
 
     return { error: error as Error | null };
@@ -94,9 +101,23 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const resetPassword = async (email: string) => {
+    const redirectTo = `${window.location.origin}/auth/reset-password`;
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`,
+      redirectTo,
     });
+
+    if (!error) {
+      // Send branded password reset email (fire-and-forget)
+      supabase.functions
+        .invoke("send-notification-email", {
+          body: {
+            type: "password_reset",
+            data: { email, name: "", resetLink: redirectTo },
+          },
+        })
+        .catch((err) => console.error("Password reset email failed:", err));
+    }
+
     return { error: error as Error | null };
   };
 

@@ -64,6 +64,35 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+
+    // Helper to send notification emails (fire-and-forget)
+    async function sendNotificationEmail(type: string, data: Record<string, any>) {
+      if (!RESEND_API_KEY) {
+        console.warn('RESEND_API_KEY not set, skipping email notification');
+        return;
+      }
+      try {
+        const url = `${supabaseUrl}/functions/v1/send-notification-email`;
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+          body: JSON.stringify({ type, data }),
+        });
+        const result = await res.json();
+        if (!res.ok) console.error(`Email notification (${type}) failed:`, result);
+        else console.log(`Email notification (${type}) sent successfully`);
+      } catch (e) {
+        console.error(`Email notification (${type}) error:`, e);
+      }
+    }
+
+    // Helper to get profile
+    async function getProfile(userId: string) {
+      const { data } = await supabase.from('profiles').select('full_name, email').eq('user_id', userId).single();
+      return data;
+    }
+
     // Handle different event types
     switch (event.event) {
       case 'charge.success': {
@@ -90,6 +119,9 @@ serve(async (req) => {
           break;
         }
 
+        // Get buyer profile for emails
+        const buyerProfile = payment ? await getProfile(payment.user_id) : null;
+
         // Handle wallet topup using atomic function
         if (payment?.payment_method === 'wallet_topup' && metadata.type === 'wallet_topup') {
           console.log(`Processing wallet topup for user ${payment.user_id}, amount: ${payment.amount}`);
@@ -109,17 +141,80 @@ serve(async (req) => {
             console.error('Failed to update wallet balance:', walletError);
           } else {
             console.log(`Wallet credited successfully, new balance: ${walletResult?.new_balance}`);
+            // Send wallet topup email
+            if (buyerProfile?.email) {
+              sendNotificationEmail('wallet_topup', {
+                email: buyerProfile.email,
+                name: buyerProfile.full_name,
+                amount: payment.amount,
+                newBalance: walletResult?.new_balance,
+                reference,
+              });
+            }
           }
         }
 
         // Update order status to paid
         if (payment?.order_id) {
+          // Get order details for email
+          const { data: order } = await supabase
+            .from('orders')
+            .select('location_name, agent_id')
+            .eq('id', payment.order_id)
+            .single();
+
           await supabase
             .from('orders')
             .update({ status: 'paid' })
             .eq('id', payment.order_id);
           
           console.log(`Order ${payment.order_id} marked as paid`);
+
+          // Send payment success email to buyer
+          if (buyerProfile?.email) {
+            sendNotificationEmail('payment_success', {
+              email: buyerProfile.email,
+              name: buyerProfile.full_name,
+              amount: payment.amount,
+              orderId: payment.order_id,
+              locationName: order?.location_name,
+              reference,
+            });
+          }
+
+          // Send email to agent
+          if (order?.agent_id) {
+            const agentProfile = await getProfile(order.agent_id);
+            if (agentProfile?.email) {
+              sendNotificationEmail('order_paid_agent', {
+                email: agentProfile.email,
+                name: agentProfile.full_name,
+                amount: payment.amount,
+                orderId: payment.order_id,
+                locationName: order.location_name,
+                buyerName: buyerProfile?.full_name || 'A buyer',
+              });
+            }
+          }
+
+          // Send email to admin(s)
+          const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
+          if (adminRoles && adminRoles.length > 0) {
+            for (const admin of adminRoles) {
+              const adminProfile = await getProfile(admin.user_id);
+              if (adminProfile?.email) {
+                const agentProfile = order?.agent_id ? await getProfile(order.agent_id) : null;
+                sendNotificationEmail('order_paid_admin', {
+                  email: adminProfile.email,
+                  amount: payment.amount,
+                  orderId: payment.order_id,
+                  locationName: order?.location_name,
+                  buyerName: buyerProfile?.full_name,
+                  agentName: agentProfile?.full_name,
+                });
+              }
+            }
+          }
         }
         break;
       }
@@ -130,13 +225,28 @@ serve(async (req) => {
         
         console.log(`Processing failed charge for reference: ${reference}`);
 
-        await supabase
+        const { data: failedPayment } = await supabase
           .from('payments')
           .update({
             status: 'failed',
             provider_response: transaction,
           })
-          .eq('provider_reference', reference);
+          .eq('provider_reference', reference)
+          .select('user_id, amount')
+          .single();
+
+        // Send failure email to buyer
+        if (failedPayment) {
+          const failedBuyer = await getProfile(failedPayment.user_id);
+          if (failedBuyer?.email) {
+            sendNotificationEmail('payment_failed', {
+              email: failedBuyer.email,
+              name: failedBuyer.full_name,
+              amount: failedPayment.amount,
+              reference,
+            });
+          }
+        }
         break;
       }
 
