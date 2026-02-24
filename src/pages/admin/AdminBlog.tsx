@@ -6,7 +6,7 @@ import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import MDEditor from "@uiw/react-md-editor";
+import MDEditor, { commands } from "@uiw/react-md-editor";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -27,7 +27,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Eye, FileText, Newspaper, Search, Upload, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, FileText, Newspaper, Search, Upload, X, ImagePlus } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -76,14 +76,11 @@ const AdminBlog = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [uploading, setUploading] = useState(false);
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadImageToStorage = async (file: File): Promise<string | null> => {
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file");
-      return;
+      return null;
     }
-    setUploading(true);
     try {
       const ext = file.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
@@ -94,13 +91,46 @@ const AdminBlog = () => {
       const { data: { publicUrl } } = supabase.storage
         .from("blog-images")
         .getPublicUrl(fileName);
-      setFormData((prev) => ({ ...prev, cover_image_url: publicUrl }));
-      toast.success("Image uploaded");
+      return publicUrl;
     } catch (err: any) {
       toast.error(err.message || "Upload failed");
-    } finally {
-      setUploading(false);
+      return null;
     }
+  };
+
+  const insertImageCommand: commands.ICommand = {
+    name: "insert-image",
+    keyCommand: "insert-image",
+    buttonProps: { "aria-label": "Insert image", title: "Insert inline image" },
+    icon: <ImagePlus className="h-3 w-3" />,
+    execute: (_state, api) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = async () => {
+        const file = input.files?.[0];
+        if (!file) return;
+        toast.info("Uploading image...");
+        const url = await uploadImageToStorage(file);
+        if (url) {
+          api.replaceSelection(`![${file.name}](${url})`);
+          toast.success("Image inserted");
+        }
+      };
+      input.click();
+    },
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const url = await uploadImageToStorage(file);
+    if (url) {
+      setFormData((prev) => ({ ...prev, cover_image_url: url }));
+      toast.success("Image uploaded");
+    }
+    setUploading(false);
   };
 
   const { data: posts, isLoading } = useQuery({
@@ -304,6 +334,11 @@ const AdminBlog = () => {
                     preview="edit"
                     height={350}
                     textareaProps={{ placeholder: "Write your content using Markdown..." }}
+                    commands={[
+                      ...commands.getCommands(),
+                      commands.divider,
+                      insertImageCommand,
+                    ]}
                   />
                 </div>
 
