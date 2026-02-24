@@ -76,17 +76,57 @@ const AdminBlog = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [uploading, setUploading] = useState(false);
 
+  const MAX_FILE_SIZE_MB = 10;
+  const MAX_DIMENSION = 1920;
+  const COMPRESSION_QUALITY = 0.8;
+
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      if (file.size <= 500 * 1024) return resolve(file); // skip if <500KB
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+          const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) return reject(new Error("Compression failed"));
+            resolve(new File([blob], file.name.replace(/\.\w+$/, ".webp"), { type: "image/webp" }));
+          },
+          "image/webp",
+          COMPRESSION_QUALITY
+        );
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("Invalid image")); };
+      img.src = url;
+    });
+  };
+
   const uploadImageToStorage = async (file: File): Promise<string | null> => {
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file");
       return null;
     }
+    if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+      toast.error(`File too large. Maximum size is ${MAX_FILE_SIZE_MB}MB`);
+      return null;
+    }
     try {
-      const ext = file.name.split(".").pop();
+      const compressed = await compressImage(file);
+      const ext = compressed.name.split(".").pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("blog-images")
-        .upload(fileName, file);
+        .upload(fileName, compressed);
       if (uploadError) throw uploadError;
       const { data: { publicUrl } } = supabase.storage
         .from("blog-images")
