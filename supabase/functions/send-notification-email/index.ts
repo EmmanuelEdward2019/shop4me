@@ -195,7 +195,24 @@ Deno.serve(async (req) => {
 
       // ─── Invoice Created (Buyer) ──────────────────────────
       case "invoice_created": {
-        const { email, name, invoiceNumber, locationName, subtotal, serviceFee, deliveryFee, discount, total } = data;
+        let { email, name, invoiceNumber, locationName, subtotal, serviceFee, deliveryFee, discount, total, invoiceId } = data;
+        // Resolve buyer email from invoice if not provided
+        if (!email && invoiceId) {
+          const { data: inv } = await supabase.from("invoices").select("buyer_id, order_id, invoice_number, subtotal, service_fee, delivery_fee, discount, total").eq("id", invoiceId).single();
+          if (inv) {
+            invoiceNumber = invoiceNumber || inv.invoice_number;
+            subtotal = subtotal ?? inv.subtotal;
+            serviceFee = serviceFee ?? inv.service_fee;
+            deliveryFee = deliveryFee ?? inv.delivery_fee;
+            discount = discount ?? inv.discount;
+            total = total ?? inv.total;
+            const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("user_id", inv.buyer_id).single();
+            if (profile) { email = profile.email; name = name || profile.full_name; }
+            const { data: order } = await supabase.from("orders").select("location_name").eq("id", inv.order_id).single();
+            if (order) { locationName = locationName || order.location_name; }
+          }
+        }
+        if (!email) { return new Response(JSON.stringify({ error: "Buyer email not found" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
         to = email;
         subject = `Invoice ${invoiceNumber} - ${locationName}`;
         body = emailLayout(
