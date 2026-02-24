@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Play, Pause, Volume2, VolumeX } from "lucide-react";
 import { ScrollAnimation } from "@/components/ui/scroll-animation";
 import howItWorksVideo from "@/assets/how-it-works.mp4";
+import logo from "@/assets/logo.png";
 
 const VideoSection = () => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -57,6 +58,13 @@ const VideoSection = () => {
               <source src={howItWorksVideo} type="video/mp4" />
               Your browser does not support the video tag.
             </video>
+
+            {/* Branded logo watermark */}
+            <div className="absolute top-4 left-4 pointer-events-none z-10">
+              <div className="flex items-center gap-2 bg-background/70 backdrop-blur-sm rounded-lg px-3 py-1.5 shadow-md">
+                <img src={logo} alt="Shop4Me" className="h-6 w-auto" />
+              </div>
+            </div>
 
             {/* Play/Pause Overlay */}
             <div
