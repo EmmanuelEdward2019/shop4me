@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useChat } from "@/hooks/useChat";
 import { useInvoice } from "@/hooks/useInvoice";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import { OrderChat } from "@/components/chat/OrderChat";
 import { AgentInvoiceForm } from "@/components/chat/AgentInvoiceForm";
 import { PostDeliveryInvoiceForm } from "@/components/invoice/PostDeliveryInvoiceForm";
@@ -78,6 +79,7 @@ const AgentOrderDetail = () => {
   
   const { messages, sendMessage, uploadPhoto } = useChat({ orderId: id });
   const { invoice, loading: invoiceLoading, creating: invoiceCreating, createInvoice } = useInvoice({ orderId: id || "" });
+  const { fees: platformFees } = usePlatformSettings();
 
   useEffect(() => {
     if (id) {
@@ -415,13 +417,33 @@ const AgentOrderDetail = () => {
                   actual_price: item.actual_price,
                   estimated_price: item.estimated_price,
                 }))}
-                serviceFee={order.service_fee || 0}
-                deliveryFee={order.delivery_fee || 0}
+                serviceFee={order.service_fee || platformFees.defaultServiceFee}
+                deliveryFee={order.delivery_fee || platformFees.defaultDeliveryFee}
                 onSubmit={async (data) => {
-                  await createInvoice({
+                  const newInvoice = await createInvoice({
                     buyerId: order.user_id,
                     ...data,
                   });
+                  if (newInvoice) {
+                    await sendMessage(
+                      `Final Invoice ${newInvoice.invoice_number} for ${order.location_name} — Total: ₦${newInvoice.total.toLocaleString()}`,
+                      "invoice",
+                      {
+                        items: newInvoice.items.map((item: any) => ({
+                          id: item.name,
+                          name: item.name,
+                          quantity: item.quantity,
+                          actualPrice: item.unit_price,
+                          status: "found" as const,
+                        })),
+                        itemsTotal: newInvoice.subtotal,
+                        serviceFee: newInvoice.service_fee,
+                        deliveryFee: newInvoice.delivery_fee,
+                        finalTotal: newInvoice.total,
+                        notes: newInvoice.notes || undefined,
+                      }
+                    );
+                  }
                 }}
                 disabled={invoiceCreating}
               />
