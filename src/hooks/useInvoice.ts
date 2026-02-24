@@ -119,34 +119,15 @@ export const useInvoice = ({ orderId }: UseInvoiceOptions) => {
       };
       setInvoice(newInvoice);
 
-      // Send email notification to buyer (fire-and-forget)
+      // Send email notification to buyer (fire-and-forget, resolved server-side)
       supabase.functions
         .invoke("send-notification-email", {
           body: {
             type: "invoice_created",
-            data: {
-              email: "", // Will be resolved server-side
-              invoiceNumber,
-              subtotal: invoiceInput.subtotal,
-              serviceFee: invoiceInput.serviceFee,
-              deliveryFee: invoiceInput.deliveryFee,
-              discount: invoiceInput.discount,
-              total: invoiceInput.total,
-            },
+            data: { invoiceId: data.id },
           },
         })
         .catch((err) => console.error("Failed to send invoice email:", err));
-
-      // Also call the legacy invoice email for full details
-      supabase.functions
-        .invoke("send-invoice-email", {
-          body: { invoiceId: data.id },
-        })
-        .then(({ error: emailError }) => {
-          if (emailError) {
-            console.error("Failed to send invoice email:", emailError);
-          }
-        });
 
       toast({
         title: "Invoice Created",
