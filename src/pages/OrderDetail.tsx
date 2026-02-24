@@ -18,8 +18,11 @@ import {
   Truck,
   ShoppingCart,
   MessageSquare,
+  Receipt,
 } from "lucide-react";
 import { OrderChat } from "@/components/chat/OrderChat";
+import { useInvoice } from "@/hooks/useInvoice";
+import { InvoiceView } from "@/components/invoice/InvoiceView";
 import { usePayment } from "@/hooks/usePayment";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,6 +97,7 @@ const OrderDetailPage = () => {
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "chat");
   const [hasReviewed, setHasReviewed] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState<DeliveryAddress | null>(null);
+  const { invoice } = useInvoice({ orderId: id || "" });
 
   // Handle payment callback
   useEffect(() => {
@@ -292,7 +296,7 @@ const OrderDetailPage = () => {
 
         {/* Tabs for Details and Chat */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className={`grid w-full ${invoice ? "grid-cols-3" : "grid-cols-2"}`}>
             <TabsTrigger value="details">
               <Package className="w-4 h-4 mr-2" />
               Details
@@ -301,6 +305,12 @@ const OrderDetailPage = () => {
               <MessageSquare className="w-4 h-4 mr-2" />
               Chat with Agent
             </TabsTrigger>
+            {invoice && (
+              <TabsTrigger value="invoice">
+                <Receipt className="w-4 h-4 mr-2" />
+                Invoice
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="chat" className="mt-4">
@@ -313,6 +323,17 @@ const OrderDetailPage = () => {
               />
             </Card>
           </TabsContent>
+
+          {/* Final Invoice Tab */}
+          {invoice && (
+            <TabsContent value="invoice" className="mt-4">
+              <InvoiceView
+                invoice={invoice}
+                customerName={undefined}
+                locationName={order.location_name}
+              />
+            </TabsContent>
+          )}
 
           <TabsContent value="details" className="mt-4 space-y-6">
 

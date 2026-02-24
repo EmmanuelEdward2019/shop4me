@@ -486,6 +486,74 @@ export type Database = {
           },
         ]
       }
+      invoices: {
+        Row: {
+          agent_id: string
+          buyer_id: string
+          created_at: string
+          delivery_fee: number
+          discount: number
+          extra_items: Json | null
+          id: string
+          invoice_number: string
+          items: Json
+          notes: string | null
+          order_id: string
+          pdf_url: string | null
+          service_fee: number
+          status: string
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          buyer_id: string
+          created_at?: string
+          delivery_fee?: number
+          discount?: number
+          extra_items?: Json | null
+          id?: string
+          invoice_number: string
+          items?: Json
+          notes?: string | null
+          order_id: string
+          pdf_url?: string | null
+          service_fee?: number
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          buyer_id?: string
+          created_at?: string
+          delivery_fee?: number
+          discount?: number
+          extra_items?: Json | null
+          id?: string
+          invoice_number?: string
+          items?: Json
+          notes?: string | null
+          order_id?: string
+          pdf_url?: string | null
+          service_fee?: number
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invoices_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       newsletter_subscriptions: {
         Row: {
           email: string
@@ -875,6 +943,7 @@ export type Database = {
     }
     Functions: {
       delete_user_account: { Args: { p_user_id: string }; Returns: Json }
+      generate_invoice_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
