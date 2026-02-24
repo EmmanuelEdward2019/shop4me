@@ -27,7 +27,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Eye, FileText, Newspaper, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye, FileText, Newspaper, Search, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -74,6 +74,34 @@ const AdminBlog = () => {
   const [formData, setFormData] = useState<PostFormData>(initialFormData);
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("blog-images")
+        .upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from("blog-images")
+        .getPublicUrl(fileName);
+      setFormData((prev) => ({ ...prev, cover_image_url: publicUrl }));
+      toast.success("Image uploaded");
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const { data: posts, isLoading } = useQuery({
     queryKey: ["admin-blog-posts"],
@@ -280,13 +308,35 @@ const AdminBlog = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="cover_image">Cover Image URL</Label>
-                  <Input
-                    id="cover_image"
-                    value={formData.cover_image_url}
-                    onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })}
-                    placeholder="https://example.com/image.jpg"
-                  />
+                  <Label>Cover Image</Label>
+                  {formData.cover_image_url ? (
+                    <div className="relative rounded-lg overflow-hidden border">
+                      <img src={formData.cover_image_url} alt="Cover" className="w-full h-40 object-cover" />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 h-7 w-7"
+                        onClick={() => setFormData({ ...formData, cover_image_url: "" })}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary/50 transition-colors">
+                      <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                      <span className="text-sm text-muted-foreground">
+                        {uploading ? "Uploading..." : "Click to upload cover image"}
+                      </span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                        disabled={uploading}
+                      />
+                    </label>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">
