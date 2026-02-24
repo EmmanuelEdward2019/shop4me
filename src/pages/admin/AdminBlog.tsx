@@ -326,14 +326,53 @@ const AdminBlog = () => {
                   />
                 </div>
 
-                <div className="space-y-2" data-color-mode="light">
+                <div
+                  className="space-y-2"
+                  data-color-mode="light"
+                  onDrop={async (e) => {
+                    const file = e.dataTransfer?.files?.[0];
+                    if (!file || !file.type.startsWith("image/")) return;
+                    e.preventDefault();
+                    toast.info("Uploading dropped image...");
+                    const url = await uploadImageToStorage(file);
+                    if (url) {
+                      setFormData((prev) => ({
+                        ...prev,
+                        content: prev.content + `\n![${file.name}](${url})\n`,
+                      }));
+                      toast.success("Image inserted");
+                    }
+                  }}
+                  onDragOver={(e) => e.preventDefault()}
+                  onPaste={async (e) => {
+                    const items = e.clipboardData?.items;
+                    if (!items) return;
+                    for (const item of Array.from(items)) {
+                      if (item.type.startsWith("image/")) {
+                        e.preventDefault();
+                        const file = item.getAsFile();
+                        if (!file) return;
+                        toast.info("Uploading pasted image...");
+                        const url = await uploadImageToStorage(file);
+                        if (url) {
+                          setFormData((prev) => ({
+                            ...prev,
+                            content: prev.content + `\n![pasted-image](${url})\n`,
+                          }));
+                          toast.success("Image inserted");
+                        }
+                        break;
+                      }
+                    }
+                  }}
+                >
                   <Label htmlFor="content">Content (Markdown)</Label>
                   <MDEditor
                     value={formData.content}
                     onChange={(val) => setFormData({ ...formData, content: val || "" })}
                     preview="edit"
                     height={350}
-                    textareaProps={{ placeholder: "Write your content using Markdown..." }}
+                    textareaProps={{ placeholder: "Write your content using Markdown... (drag & drop or paste images here)" }}
                     commands={[
                       ...commands.getCommands(),
                       commands.divider,
