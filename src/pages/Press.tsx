@@ -1,30 +1,41 @@
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 import WhatsAppButton from "@/components/support/WhatsAppButton";
 import { ScrollAnimation } from "@/components/ui/scroll-animation";
 import { Button } from "@/components/ui/button";
-import { FileText, Download, Mail, ExternalLink } from "lucide-react";
+import { FileText, Download, Mail, ExternalLink, Calendar } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { format } from "date-fns";
 import pressMediaImage from "@/assets/press-media.jpg";
 
-const pressReleases = [
-  {
-    date: "January 2024",
-    title: "Shop4Me Launches in Port Harcourt",
-    excerpt: "Revolutionary personal shopping platform connects customers with local market experts.",
-  },
-  {
-    date: "February 2024",
-    title: "Shop4Me Reaches 500 Active Agents",
-    excerpt: "Growing network of verified agents now serving all major markets in Port Harcourt.",
-  },
-  {
-    date: "March 2024",
-    title: "Shop4Me Partners with Major Supermarket Chains",
-    excerpt: "Strategic partnerships expand shopping options for customers across the city.",
-  },
-];
+interface PressRelease {
+  id: string;
+  title: string;
+  slug: string;
+  excerpt: string | null;
+  published_at: string | null;
+  created_at: string;
+}
 
 const Press = () => {
+  const { data: pressReleases, isLoading } = useQuery({
+    queryKey: ["press-releases"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("blog_posts")
+        .select("id, title, slug, excerpt, published_at, created_at")
+        .eq("is_published", true)
+        .eq("category", "press")
+        .order("published_at", { ascending: false });
+
+      if (error) throw error;
+      return data as PressRelease[];
+    },
+  });
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -67,18 +78,40 @@ const Press = () => {
             </ScrollAnimation>
 
             <div className="max-w-3xl mx-auto space-y-6">
-              {pressReleases.map((release, index) => (
-                <ScrollAnimation key={release.title} delay={index * 0.1}>
-                  <div className="p-6 rounded-2xl bg-card border border-border hover:border-primary/40 transition-all">
-                    <span className="text-sm text-primary font-medium">{release.date}</span>
-                    <h3 className="text-xl font-semibold text-foreground mt-2 mb-3">{release.title}</h3>
-                    <p className="text-muted-foreground mb-4">{release.excerpt}</p>
-                    <Button variant="ghost" size="sm" className="gap-2">
-                      Read More <ExternalLink className="w-4 h-4" />
-                    </Button>
+              {isLoading ? (
+                [1, 2, 3].map((i) => (
+                  <div key={i} className="p-6 rounded-2xl bg-card border border-border">
+                    <Skeleton className="h-4 w-24 mb-2" />
+                    <Skeleton className="h-6 w-3/4 mb-3" />
+                    <Skeleton className="h-4 w-full mb-4" />
+                    <Skeleton className="h-8 w-24" />
                   </div>
-                </ScrollAnimation>
-              ))}
+                ))
+              ) : pressReleases && pressReleases.length > 0 ? (
+                pressReleases.map((release, index) => (
+                  <ScrollAnimation key={release.id} delay={index * 0.1}>
+                    <div className="p-6 rounded-2xl bg-card border border-border hover:border-primary/40 transition-all">
+                      <span className="inline-flex items-center gap-1.5 text-sm text-primary font-medium">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {format(new Date(release.published_at || release.created_at), "MMMM yyyy")}
+                      </span>
+                      <h3 className="text-xl font-semibold text-foreground mt-2 mb-3">{release.title}</h3>
+                      {release.excerpt && (
+                        <p className="text-muted-foreground mb-4">{release.excerpt}</p>
+                      )}
+                      <Button variant="ghost" size="sm" className="gap-2" asChild>
+                        <Link to={`/blog/${release.slug}`}>
+                          Read More <ExternalLink className="w-4 h-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </ScrollAnimation>
+                ))
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  No press releases available yet.
+                </div>
+              )}
             </div>
           </div>
         </section>
