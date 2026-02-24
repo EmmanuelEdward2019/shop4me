@@ -119,6 +119,17 @@ export const useInvoice = ({ orderId }: UseInvoiceOptions) => {
       };
       setInvoice(newInvoice);
 
+      // Send email notification to buyer (fire-and-forget)
+      supabase.functions
+        .invoke("send-invoice-email", {
+          body: { invoiceId: data.id },
+        })
+        .then(({ error: emailError }) => {
+          if (emailError) {
+            console.error("Failed to send invoice email:", emailError);
+          }
+        });
+
       toast({
         title: "Invoice Created",
         description: `Invoice ${invoiceNumber} has been sent to the buyer`,
