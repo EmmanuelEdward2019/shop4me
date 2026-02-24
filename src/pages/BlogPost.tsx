@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Calendar, Clock, Share2 } from "lucide-react";
 import { format } from "date-fns";
+import ReactMarkdown from "react-markdown";
 
 interface BlogPost {
   id: string;
@@ -153,10 +154,7 @@ const BlogPostPage = () => {
 
             {/* Content */}
             <div className="prose prose-lg max-w-none dark:prose-invert prose-headings:font-display prose-a:text-primary">
-              {/* Render content - in a real app, this would be rich text/markdown */}
-              {post.content.split("\n\n").map((paragraph, index) => (
-                <p key={index}>{paragraph}</p>
-              ))}
+              <ReactMarkdown>{post.content}</ReactMarkdown>
             </div>
           </div>
         </article>

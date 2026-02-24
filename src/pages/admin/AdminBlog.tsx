@@ -6,6 +6,7 @@ import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import MDEditor from "@uiw/react-md-editor";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -267,15 +268,14 @@ const AdminBlog = () => {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="content">Content</Label>
-                  <Textarea
-                    id="content"
+                <div className="space-y-2" data-color-mode="light">
+                  <Label htmlFor="content">Content (Markdown)</Label>
+                  <MDEditor
                     value={formData.content}
-                    onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                    placeholder="Write your content..."
-                    rows={10}
-                    required
+                    onChange={(val) => setFormData({ ...formData, content: val || "" })}
+                    preview="edit"
+                    height={350}
+                    textareaProps={{ placeholder: "Write your content using Markdown..." }}
                   />
                 </div>
 
