@@ -24,8 +24,11 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useChat } from "@/hooks/useChat";
+import { useInvoice } from "@/hooks/useInvoice";
 import { OrderChat } from "@/components/chat/OrderChat";
 import { AgentInvoiceForm } from "@/components/chat/AgentInvoiceForm";
+import { PostDeliveryInvoiceForm } from "@/components/invoice/PostDeliveryInvoiceForm";
+import { InvoiceView } from "@/components/invoice/InvoiceView";
 import LocationSharingToggle from "@/components/agent/LocationSharingToggle";
 import DeliveryStatusUpdater from "@/components/agent/DeliveryStatusUpdater";
 import type { Database } from "@/integrations/supabase/types";
@@ -74,6 +77,7 @@ const AgentOrderDetail = () => {
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
   
   const { messages, sendMessage, uploadPhoto } = useChat({ orderId: id });
+  const { invoice, loading: invoiceLoading, creating: invoiceCreating, createInvoice } = useInvoice({ orderId: id || "" });
 
   useEffect(() => {
     if (id) {
@@ -291,7 +295,7 @@ const AgentOrderDetail = () => {
 
         {/* Tabs for Details, Chat, Invoice */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="details">
               <Package className="w-4 h-4 mr-2" />
               Details
@@ -303,6 +307,10 @@ const AgentOrderDetail = () => {
             <TabsTrigger value="invoice" disabled={order.status === "pending" || order.status === "accepted"}>
               <Receipt className="w-4 h-4 mr-2" />
               Invoice
+            </TabsTrigger>
+            <TabsTrigger value="final-invoice" disabled={order.status !== "delivered"}>
+              <Receipt className="w-4 h-4 mr-2" />
+              Final Invoice
             </TabsTrigger>
           </TabsList>
 
@@ -371,6 +379,36 @@ const AgentOrderDetail = () => {
                   )}
                 </CardContent>
               </Card>
+            )}
+          </TabsContent>
+
+          {/* Final Invoice Tab - Post Delivery */}
+          <TabsContent value="final-invoice" className="mt-4">
+            {invoice ? (
+              <InvoiceView
+                invoice={invoice}
+                customerName={customerProfile?.full_name || undefined}
+                locationName={order.location_name}
+              />
+            ) : (
+              <PostDeliveryInvoiceForm
+                orderItems={order.order_items.map(item => ({
+                  id: item.id,
+                  name: item.name,
+                  quantity: item.quantity,
+                  actual_price: item.actual_price,
+                  estimated_price: item.estimated_price,
+                }))}
+                serviceFee={order.service_fee || 0}
+                deliveryFee={order.delivery_fee || 0}
+                onSubmit={async (data) => {
+                  await createInvoice({
+                    buyerId: order.user_id,
+                    ...data,
+                  });
+                }}
+                disabled={invoiceCreating}
+              />
             )}
           </TabsContent>
 
