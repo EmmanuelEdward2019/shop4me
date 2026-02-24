@@ -27,6 +27,7 @@ import {
   FileText,
   Inbox,
   Home,
+  Receipt,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import AdminViewSwitcher from "./AdminViewSwitcher";
@@ -41,6 +42,7 @@ const navItems = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
   { label: "Users", href: "/admin/users", icon: Users },
   { label: "Orders", href: "/admin/orders", icon: Package },
+  { label: "Invoices", href: "/admin/invoices", icon: Receipt },
   { label: "Agents", href: "/admin/agents", icon: UserCheck },
   { label: "Applications", href: "/admin/applications", icon: ClipboardList },
   { label: "Messages", href: "/admin/messages", icon: MessageSquare },

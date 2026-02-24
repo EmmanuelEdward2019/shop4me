@@ -1,0 +1,245 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import {
+  emailLayout,
+  greetingLine,
+  infoBox,
+  ctaButton,
+  formatNGN,
+  sendEmail,
+} from "../_shared/email-templates.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+type EmailType =
+  | "welcome"
+  | "password_reset"
+  | "payment_success"
+  | "payment_failed"
+  | "wallet_topup"
+  | "order_paid_agent"
+  | "order_paid_admin"
+  | "order_delivered"
+  | "invoice_created";
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+    if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
+
+    const supabase = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+
+    const { type, data } = (await req.json()) as { type: EmailType; data: Record<string, any> };
+
+    let to: string | string[] = "";
+    let subject = "";
+    let body = "";
+
+    switch (type) {
+      // ─── Welcome / Signup ─────────────────────────────────
+      case "welcome": {
+        const { email, name } = data;
+        to = email;
+        subject = "Welcome to Shop4Me! 🎉";
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">Your account has been created successfully. You can now place orders and have a personal shopping agent bring items right to your doorstep.</p>` +
+            ctaButton("Start Shopping", "https://shop4me.lovable.app/dashboard") +
+            `<p style="color:#6b7280;font-size:14px;">Need help? Visit our <a href="https://shop4me.lovable.app/help" style="color:#16a34a;">Help Center</a>.</p>`
+        );
+        break;
+      }
+
+      // ─── Password Reset ───────────────────────────────────
+      case "password_reset": {
+        const { email, name, resetLink } = data;
+        to = email;
+        subject = "Reset Your Shop4Me Password";
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">We received a request to reset your password. Click the button below to create a new password.</p>` +
+            ctaButton("Reset Password", resetLink) +
+            `<p style="color:#6b7280;font-size:14px;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>`
+        );
+        break;
+      }
+
+      // ─── Payment Success (Buyer) ──────────────────────────
+      case "payment_success": {
+        const { email, name, amount, orderId, locationName, reference } = data;
+        to = email;
+        subject = `Payment Confirmed - ${formatNGN(amount)}`;
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">Your payment of <strong>${formatNGN(amount)}</strong> for your order from <strong>${locationName}</strong> has been confirmed.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>Order:</strong> #${orderId?.slice(0, 8) || "N/A"}</p>
+               <p style="margin:4px 0 0;"><strong>Reference:</strong> ${reference || "N/A"}</p>
+               <p style="margin:4px 0 0;"><strong>Amount:</strong> ${formatNGN(amount)}</p>`
+            ) +
+            `<p style="color:#4a4a4a;font-size:16px;">Your agent will begin delivery shortly.</p>` +
+            ctaButton("View Order", `https://shop4me.lovable.app/dashboard/orders/${orderId}`)
+        );
+        break;
+      }
+
+      // ─── Payment Failed (Buyer) ───────────────────────────
+      case "payment_failed": {
+        const { email, name, amount, reference } = data;
+        to = email;
+        subject = "Payment Failed - Action Required";
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">Your payment of <strong>${formatNGN(amount)}</strong> could not be processed.</p>` +
+            infoBox(
+              `<p style="margin:0;color:#dc2626;"><strong>Status:</strong> Failed</p>
+               <p style="margin:4px 0 0;"><strong>Reference:</strong> ${reference || "N/A"}</p>`
+            ) +
+            `<p style="color:#4a4a4a;font-size:16px;">Please try again or use a different payment method.</p>` +
+            ctaButton("Retry Payment", "https://shop4me.lovable.app/dashboard/orders")
+        );
+        break;
+      }
+
+      // ─── Wallet Topup (Buyer) ─────────────────────────────
+      case "wallet_topup": {
+        const { email, name, amount, newBalance, reference } = data;
+        to = email;
+        subject = `Wallet Funded - ${formatNGN(amount)}`;
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">Your Shop4Me wallet has been funded successfully.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>Amount Added:</strong> ${formatNGN(amount)}</p>
+               <p style="margin:4px 0 0;"><strong>New Balance:</strong> ${formatNGN(newBalance)}</p>
+               <p style="margin:4px 0 0;"><strong>Reference:</strong> ${reference || "N/A"}</p>`
+            ) +
+            ctaButton("View Wallet", "https://shop4me.lovable.app/dashboard/wallet")
+        );
+        break;
+      }
+
+      // ─── Order Paid (Agent notification) ──────────────────
+      case "order_paid_agent": {
+        const { email, name, amount, orderId, locationName, buyerName } = data;
+        to = email;
+        subject = `Order Paid - ${locationName}`;
+        body = emailLayout(
+          subject,
+          greetingLine(name || "Agent") +
+            `<p style="color:#4a4a4a;font-size:16px;">Great news! <strong>${buyerName}</strong> has completed payment of <strong>${formatNGN(amount)}</strong> for the order from <strong>${locationName}</strong>.</p>` +
+            `<p style="color:#4a4a4a;font-size:16px;">You can now proceed with delivery.</p>` +
+            ctaButton("Start Delivery", `https://shop4me.lovable.app/agent/orders/${orderId}`)
+        );
+        break;
+      }
+
+      // ─── Order Paid (Admin notification) ──────────────────
+      case "order_paid_admin": {
+        const { email, amount, orderId, locationName, buyerName, agentName } = data;
+        to = email;
+        subject = `[Admin] Payment Received - ${formatNGN(amount)}`;
+        body = emailLayout(
+          subject,
+          `<p style="color:#4a4a4a;font-size:16px;">A payment has been processed on the platform.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>Order:</strong> #${orderId?.slice(0, 8) || "N/A"}</p>
+               <p style="margin:4px 0 0;"><strong>Location:</strong> ${locationName}</p>
+               <p style="margin:4px 0 0;"><strong>Buyer:</strong> ${buyerName || "N/A"}</p>
+               <p style="margin:4px 0 0;"><strong>Agent:</strong> ${agentName || "N/A"}</p>
+               <p style="margin:4px 0 0;"><strong>Amount:</strong> ${formatNGN(amount)}</p>`
+            ) +
+            ctaButton("View in Admin", `https://shop4me.lovable.app/admin/orders/${orderId}`)
+        );
+        break;
+      }
+
+      // ─── Order Delivered ──────────────────────────────────
+      case "order_delivered": {
+        let { email, name, orderId, locationName } = data;
+        // Resolve buyer email from order if not provided
+        if (!email && orderId) {
+          const { data: order } = await supabase.from("orders").select("user_id, location_name").eq("id", orderId).single();
+          if (order) {
+            locationName = locationName || order.location_name;
+            const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("user_id", order.user_id).single();
+            if (profile) { email = profile.email; name = profile.full_name; }
+          }
+        }
+        if (!email) { return new Response(JSON.stringify({ error: "Buyer email not found" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
+        to = email;
+        subject = `Order Delivered - ${locationName}`;
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">Your order from <strong>${locationName}</strong> has been delivered! 🎉</p>` +
+            `<p style="color:#4a4a4a;font-size:16px;">We'd love to hear about your experience. Please rate your agent.</p>` +
+            ctaButton("Rate Your Agent", `https://shop4me.lovable.app/dashboard/orders/${orderId}`)
+        );
+        break;
+      }
+
+      // ─── Invoice Created (Buyer) ──────────────────────────
+      case "invoice_created": {
+        const { email, name, invoiceNumber, locationName, subtotal, serviceFee, deliveryFee, discount, total } = data;
+        to = email;
+        subject = `Invoice ${invoiceNumber} - ${locationName}`;
+        body = emailLayout(
+          subject,
+          greetingLine(name || "Valued Customer") +
+            `<p style="color:#4a4a4a;font-size:16px;">Your agent has generated a final invoice for your order from <strong>${locationName}</strong>.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>Invoice:</strong> ${invoiceNumber}</p>
+               <p style="margin:4px 0 0;"><strong>Subtotal:</strong> ${formatNGN(subtotal)}</p>
+               ${serviceFee > 0 ? `<p style="margin:4px 0 0;"><strong>Service Fee:</strong> ${formatNGN(serviceFee)}</p>` : ""}
+               ${deliveryFee > 0 ? `<p style="margin:4px 0 0;"><strong>Delivery Fee:</strong> ${formatNGN(deliveryFee)}</p>` : ""}
+               ${discount > 0 ? `<p style="margin:4px 0 0;color:#16a34a;"><strong>Discount:</strong> -${formatNGN(discount)}</p>` : ""}
+               <hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0;" />
+               <p style="margin:0;font-size:18px;"><strong>Total: ${formatNGN(total)}</strong></p>`
+            ) +
+            `<p style="color:#4a4a4a;font-size:14px;">Log in to view the full invoice and download a PDF copy.</p>` +
+            ctaButton("View Invoice", "https://shop4me.lovable.app/dashboard/orders")
+        );
+        break;
+      }
+
+      default:
+        return new Response(
+          JSON.stringify({ error: `Unknown email type: ${type}` }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+    }
+
+    const result = await sendEmail(RESEND_API_KEY, to, subject, body);
+
+    if (!result.success) {
+      throw new Error(result.error);
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, emailId: result.id }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error: unknown) {
+    console.error("Error sending email:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    return new Response(
+      JSON.stringify({ success: false, error: errorMessage }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

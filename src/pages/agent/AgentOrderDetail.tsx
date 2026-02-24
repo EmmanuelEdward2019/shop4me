@@ -197,6 +197,22 @@ const AgentOrderDetail = () => {
         title: "Status Updated",
         description: `Order status changed to ${newStatus.replace("_", " ")}`,
       });
+
+      // Send delivery notification email to buyer
+      if (newStatus === "delivered" && order) {
+        supabase.functions
+          .invoke("send-notification-email", {
+            body: {
+              type: "order_delivered",
+              data: {
+                email: "", // resolved server-side via buyer profile
+                orderId: id,
+                locationName: order.location_name,
+              },
+            },
+          })
+          .catch((err) => console.error("Delivery email failed:", err));
+      }
     } catch (error) {
       console.error("Error updating order status:", error);
       toast({
