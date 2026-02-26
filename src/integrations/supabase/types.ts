@@ -364,6 +364,42 @@ export type Database = {
           },
         ]
       }
+      compliance_actions: {
+        Row: {
+          action_type: string
+          admin_id: string
+          compliance_score: number | null
+          created_at: string
+          id: string
+          notes: string | null
+          reason: string
+          target_role: string
+          target_user_id: string
+        }
+        Insert: {
+          action_type: string
+          admin_id: string
+          compliance_score?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reason: string
+          target_role: string
+          target_user_id: string
+        }
+        Update: {
+          action_type?: string
+          admin_id?: string
+          compliance_score?: number | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          reason?: string
+          target_role?: string
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       contact_submissions: {
         Row: {
           admin_notes: string | null
