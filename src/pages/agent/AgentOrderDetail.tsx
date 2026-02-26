@@ -187,9 +187,19 @@ const AgentOrderDetail = () => {
   const updateOrderStatus = async (newStatus: OrderStatus) => {
     setUpdating(true);
     try {
+      const updateData: any = { status: newStatus };
+
+      // Start timer when agent begins shopping
+      if (newStatus === "shopping" && order) {
+        const itemCount = order.order_items?.length || 0;
+        const estimatedMinutes = calculateEstimatedMinutes(itemCount);
+        updateData.timer_started_at = new Date().toISOString();
+        updateData.estimated_minutes = estimatedMinutes;
+      }
+
       const { error } = await supabase
         .from("orders")
-        .update({ status: newStatus })
+        .update(updateData)
         .eq("id", id)
         .eq("agent_id", user?.id);
 
