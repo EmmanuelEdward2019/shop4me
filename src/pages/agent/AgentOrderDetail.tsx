@@ -89,6 +89,7 @@ const AgentOrderDetail = () => {
   useEffect(() => {
     if (id) {
       fetchOrder();
+      checkRiderAlert();
     }
   }, [id]);
 
