@@ -115,12 +115,40 @@ export const LAGOS_AREAS: Record<string, LocationCoordinates> = {
   "Berger": { latitude: 6.6245, longitude: 3.3287 },
 };
 
+// Common areas in Port Harcourt for delivery
+export const PORT_HARCOURT_AREAS: Record<string, LocationCoordinates> = {
+  "GRA": { latitude: 4.7965, longitude: 7.0312 },
+  "Woji": { latitude: 4.8234, longitude: 7.0567 },
+  "Trans Amadi": { latitude: 4.8205, longitude: 7.0342 },
+  "Rumuola": { latitude: 4.8472, longitude: 7.0194 },
+  "D-Line": { latitude: 4.7817, longitude: 7.0201 },
+  "Rumuokoro": { latitude: 4.8621, longitude: 6.9987 },
+  "Eleme Junction": { latitude: 4.8103, longitude: 7.0653 },
+  "Ada George": { latitude: 4.8341, longitude: 7.0023 },
+  "Peter Odili": { latitude: 4.8563, longitude: 7.0275 },
+  "Diobu": { latitude: 4.7748, longitude: 7.0134 },
+  "Rumuomasi": { latitude: 4.8312, longitude: 7.0145 },
+  "Eliozu": { latitude: 4.8589, longitude: 7.0412 },
+};
+
 // Get approximate coordinates for an area/city
 export const getAreaCoordinates = (city: string): LocationCoordinates => {
+  // Check Lagos areas
   for (const [area, coords] of Object.entries(LAGOS_AREAS)) {
     if (city.toLowerCase().includes(area.toLowerCase())) {
       return coords;
     }
+  }
+  // Check Port Harcourt areas
+  for (const [area, coords] of Object.entries(PORT_HARCOURT_AREAS)) {
+    if (city.toLowerCase().includes(area.toLowerCase())) {
+      return coords;
+    }
+  }
+  // Detect city for default
+  const lower = city.toLowerCase();
+  if (lower.includes("port harcourt") || lower.includes("ph") || lower.includes("rivers")) {
+    return PORT_HARCOURT_DEFAULT;
   }
   return LAGOS_DEFAULT;
 };
