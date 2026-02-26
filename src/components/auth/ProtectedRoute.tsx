@@ -67,8 +67,8 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  // If admin or agent not in view-as mode, don't render buyer dashboard
-  if ((isAdmin || isAgent) && viewAsMode !== "buyer") {
+  // If admin, agent, or rider not in view-as mode, don't render buyer dashboard
+  if ((isAdmin || isAgent || (isRider && !isAdmin)) && viewAsMode !== "buyer") {
     return null;
   }
 
