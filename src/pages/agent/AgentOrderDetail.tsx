@@ -497,6 +497,17 @@ const AgentOrderDetail = () => {
                   })}
                 </div>
 
+            {/* Countdown Timer */}
+                {order.status !== "pending" && order.status !== "cancelled" && (
+                  <OrderCountdownTimer
+                    timerStartedAt={(order as any).timer_started_at}
+                    estimatedMinutes={(order as any).estimated_minutes}
+                    orderStatus={order.status}
+                    itemCount={order.order_items?.length || 0}
+                    className="mt-4"
+                  />
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex gap-2 mt-6">
                   {order.status === "accepted" && (

@@ -396,6 +396,16 @@ const OrderDetailPage = () => {
           </CardContent>
         </Card>
 
+        {/* Countdown Timer */}
+        {order.status !== "pending" && order.status !== "cancelled" && (
+          <OrderCountdownTimer
+            timerStartedAt={(order as any).timer_started_at}
+            estimatedMinutes={(order as any).estimated_minutes}
+            orderStatus={order.status}
+            itemCount={items.length}
+          />
+        )}
+
         {/* Agent Profile Card */}
         {(order.agent_id || order.status !== "pending") && (
           <AgentProfileCard agentInfo={agentInfo} agentId={order.agent_id} loading={agentLoading} />
