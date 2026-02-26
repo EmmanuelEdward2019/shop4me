@@ -60,6 +60,7 @@ import AdminBlog from "./pages/admin/AdminBlog";
 import AdminSettingsPage from "./pages/admin/AdminSettings";
 import AdminSubmissions from "./pages/admin/AdminSubmissions";
 import AdminInvoices from "./pages/admin/AdminInvoices";
+import AdminRiders from "./pages/admin/AdminRiders";
 
 // Blog pages
 import Blog from "./pages/Blog";
@@ -318,6 +319,14 @@ const App = () => (
               element={
                 <AdminProtectedRoute>
                   <AdminInvoices />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/riders"
+              element={
+                <AdminProtectedRoute>
+                  <AdminRiders />
                 </AdminProtectedRoute>
               }
             />
