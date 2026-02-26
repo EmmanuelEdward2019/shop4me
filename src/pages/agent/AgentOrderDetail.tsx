@@ -320,6 +320,14 @@ const AgentOrderDetail = () => {
           <Badge className="text-sm capitalize">
             {order.status.replace("_", " ")}
           </Badge>
+          {(order as any).timer_started_at && order.status !== "delivered" && order.status !== "cancelled" && (
+            <OrderCountdownTimer
+              timerStartedAt={(order as any).timer_started_at}
+              estimatedMinutes={(order as any).estimated_minutes}
+              orderStatus={order.status}
+              compact
+            />
+          )}
         </div>
 
         {/* Tabs for Details, Chat, Invoice */}
