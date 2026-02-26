@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading: authLoading } = useAuth();
-  const { role, loading: roleLoading, isAdmin, isAgent } = useUserRole();
+  const { role, loading: roleLoading, isAdmin, isAgent, isRider } = useUserRole();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -35,8 +35,12 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         navigate("/agent", { replace: true });
         return;
       }
+      if (isRider && !isAdmin && !isAgent && viewAsMode !== "buyer") {
+        navigate("/rider", { replace: true });
+        return;
+      }
     }
-  }, [user, authLoading, roleLoading, isAdmin, isAgent, navigate, location]);
+  }, [user, authLoading, roleLoading, isAdmin, isAgent, isRider, navigate, location]);
 
   if (authLoading || roleLoading) {
     return (
@@ -63,8 +67,8 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  // If admin or agent not in view-as mode, don't render buyer dashboard
-  if ((isAdmin || isAgent) && viewAsMode !== "buyer") {
+  // If admin, agent, or rider not in view-as mode, don't render buyer dashboard
+  if ((isAdmin || isAgent || (isRider && !isAdmin)) && viewAsMode !== "buyer") {
     return null;
   }
 

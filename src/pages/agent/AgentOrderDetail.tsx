@@ -20,6 +20,8 @@ import {
   AlertCircle,
   MessageSquare,
   Receipt,
+  Bell,
+  PackageCheck,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -77,6 +79,8 @@ const AgentOrderDetail = () => {
   const [updating, setUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const [riderAlertSent, setRiderAlertSent] = useState(false);
+  const [riderAlertPacked, setRiderAlertPacked] = useState(false);
   
   const { messages, sendMessage, uploadPhoto } = useChat({ orderId: id });
   const { invoice, loading: invoiceLoading, creating: invoiceCreating, createInvoice } = useInvoice({ orderId: id || "" });
@@ -85,6 +89,7 @@ const AgentOrderDetail = () => {
   useEffect(() => {
     if (id) {
       fetchOrder();
+      checkRiderAlert();
     }
   }, [id]);
 
@@ -126,6 +131,55 @@ const AgentOrderDetail = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const checkRiderAlert = async () => {
+    const { data } = await supabase
+      .from("rider_alerts")
+      .select("id, order_packed")
+      .eq("order_id", id)
+      .eq("agent_id", user?.id)
+      .maybeSingle();
+    
+    if (data) {
+      setRiderAlertSent(true);
+      setRiderAlertPacked(data.order_packed || false);
+    }
+  };
+
+  const notifyRider = async () => {
+    if (!order || !user) return;
+    try {
+      const { error } = await supabase.from("rider_alerts").insert({
+        order_id: order.id,
+        agent_id: user.id,
+        store_location_name: order.location_name,
+        status: "pending",
+      });
+      if (error) throw error;
+      setRiderAlertSent(true);
+      toast({ title: "Rider Notified!", description: "Nearby riders have been alerted about this pickup." });
+    } catch (error) {
+      console.error("Error notifying rider:", error);
+      toast({ title: "Error", description: "Failed to notify rider", variant: "destructive" });
+    }
+  };
+
+  const markOrderPacked = async () => {
+    if (!order || !user) return;
+    try {
+      const { error } = await supabase
+        .from("rider_alerts")
+        .update({ order_packed: true })
+        .eq("order_id", order.id)
+        .eq("agent_id", user.id);
+      if (error) throw error;
+      setRiderAlertPacked(true);
+      toast({ title: "Order Packed!", description: "The rider has been notified that the order is ready for pickup." });
+    } catch (error) {
+      console.error("Error marking packed:", error);
+      toast({ title: "Error", description: "Failed to update", variant: "destructive" });
     }
   };
 
@@ -517,7 +571,7 @@ const AgentOrderDetail = () => {
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 mt-6">
+                <div className="flex flex-wrap gap-2 mt-6">
                   {order.status === "accepted" && (
                     <Button onClick={() => updateOrderStatus("shopping")} disabled={updating}>
                       <ShoppingCart className="w-4 h-4 mr-2" />
@@ -525,10 +579,49 @@ const AgentOrderDetail = () => {
                     </Button>
                   )}
                   {order.status === "shopping" && (
-                    <Button onClick={() => setActiveTab("invoice")} disabled={updating}>
-                      <Receipt className="w-4 h-4 mr-2" />
-                      Create Invoice
-                    </Button>
+                    <>
+                      <Button onClick={() => setActiveTab("invoice")} disabled={updating}>
+                        <Receipt className="w-4 h-4 mr-2" />
+                        Create Invoice
+                      </Button>
+                      {!riderAlertSent ? (
+                        <Button variant="outline" onClick={notifyRider}>
+                          <Bell className="w-4 h-4 mr-2" />
+                          Notify Rider
+                        </Button>
+                      ) : !riderAlertPacked ? (
+                        <Button variant="outline" onClick={markOrderPacked} className="border-green-500 text-green-700 hover:bg-green-50">
+                          <PackageCheck className="w-4 h-4 mr-2" />
+                          Order Packed & Ready
+                        </Button>
+                      ) : (
+                        <Badge variant="outline" className="h-10 px-4 flex items-center gap-2 bg-green-50 text-green-700 border-green-200">
+                          <CheckCircle className="w-4 h-4" />
+                          Rider Notified & Packed
+                        </Badge>
+                      )}
+                    </>
+                  )}
+                  {/* Also show notify/packed for items_confirmed and payment_pending statuses */}
+                  {(order.status === "items_confirmed" || order.status === "payment_pending" || order.status === "paid") && (
+                    <>
+                      {!riderAlertSent ? (
+                        <Button variant="outline" onClick={notifyRider}>
+                          <Bell className="w-4 h-4 mr-2" />
+                          Notify Rider
+                        </Button>
+                      ) : !riderAlertPacked ? (
+                        <Button variant="outline" onClick={markOrderPacked} className="border-green-500 text-green-700 hover:bg-green-50">
+                          <PackageCheck className="w-4 h-4 mr-2" />
+                          Order Packed & Ready
+                        </Button>
+                      ) : (
+                        <Badge variant="outline" className="h-10 px-4 flex items-center gap-2 bg-green-50 text-green-700 border-green-200">
+                          <CheckCircle className="w-4 h-4" />
+                          Rider Notified & Packed
+                        </Badge>
+                      )}
+                    </>
                   )}
                   {order.status === "paid" && (
                     <Button onClick={() => updateOrderStatus("in_transit")} disabled={updating}>

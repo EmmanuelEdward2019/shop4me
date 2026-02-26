@@ -8,6 +8,7 @@ import ScrollToTop from "@/components/ScrollToTop";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AgentProtectedRoute from "@/components/auth/AgentProtectedRoute";
 import AdminProtectedRoute from "@/components/auth/AdminProtectedRoute";
+import RiderProtectedRoute from "@/components/auth/RiderProtectedRoute";
 
 // Public pages
 import Index from "./pages/Index";
@@ -66,6 +67,13 @@ import BlogPostPage from "./pages/BlogPost";
 
 // Agent Application
 import AgentApplication from "./pages/AgentApplication";
+import RiderApplication from "./pages/RiderApplication";
+
+// Rider pages
+import RiderDashboard from "./pages/rider/RiderDashboard";
+import RiderAvailablePickups from "./pages/rider/AvailablePickups";
+import RiderMyDeliveries from "./pages/rider/RiderMyDeliveries";
+import RiderSettings from "./pages/rider/RiderSettings";
 
 const queryClient = new QueryClient();
 
@@ -88,6 +96,7 @@ const App = () => (
             <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/agent-application" element={<AgentApplication />} />
+            <Route path="/rider-application" element={<RiderApplication />} />
             <Route path="/about" element={<AboutUs />} />
             <Route path="/careers" element={<Careers />} />
             <Route path="/press" element={<Press />} />
@@ -312,6 +321,12 @@ const App = () => (
                 </AdminProtectedRoute>
               }
             />
+
+            {/* Rider routes */}
+            <Route path="/rider" element={<RiderProtectedRoute><RiderDashboard /></RiderProtectedRoute>} />
+            <Route path="/rider/available-pickups" element={<RiderProtectedRoute><RiderAvailablePickups /></RiderProtectedRoute>} />
+            <Route path="/rider/my-deliveries" element={<RiderProtectedRoute><RiderMyDeliveries /></RiderProtectedRoute>} />
+            <Route path="/rider/settings" element={<RiderProtectedRoute><RiderSettings /></RiderProtectedRoute>} />
 
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />

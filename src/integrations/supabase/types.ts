@@ -890,6 +890,50 @@ export type Database = {
         }
         Relationships: []
       }
+      rider_alerts: {
+        Row: {
+          agent_id: string
+          created_at: string
+          id: string
+          order_id: string
+          order_packed: boolean
+          rider_id: string | null
+          status: string
+          store_location_name: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          id?: string
+          order_id: string
+          order_packed?: boolean
+          rider_id?: string | null
+          status?: string
+          store_location_name: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          id?: string
+          order_id?: string
+          order_packed?: boolean
+          rider_id?: string | null
+          status?: string
+          store_location_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rider_alerts_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

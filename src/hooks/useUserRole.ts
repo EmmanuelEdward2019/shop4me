@@ -44,6 +44,7 @@ export const useUserRole = () => {
   const isAgent = role === "agent" || role === "admin";
   const isAdmin = role === "admin";
   const isBuyer = role === "buyer";
+  const isRider = role === "rider" || role === "admin";
 
-  return { role, loading, isAgent, isAdmin, isBuyer };
+  return { role, loading, isAgent, isAdmin, isBuyer, isRider };
 };
