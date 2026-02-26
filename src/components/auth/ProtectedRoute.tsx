@@ -35,8 +35,12 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         navigate("/agent", { replace: true });
         return;
       }
+      if (isRider && !isAdmin && !isAgent && viewAsMode !== "buyer") {
+        navigate("/rider", { replace: true });
+        return;
+      }
     }
-  }, [user, authLoading, roleLoading, isAdmin, isAgent, navigate, location]);
+  }, [user, authLoading, roleLoading, isAdmin, isAgent, isRider, navigate, location]);
 
   if (authLoading || roleLoading) {
     return (
