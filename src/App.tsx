@@ -322,6 +322,12 @@ const App = () => (
               }
             />
 
+            {/* Rider routes */}
+            <Route path="/rider" element={<RiderProtectedRoute><RiderDashboard /></RiderProtectedRoute>} />
+            <Route path="/rider/available-pickups" element={<RiderProtectedRoute><RiderAvailablePickups /></RiderProtectedRoute>} />
+            <Route path="/rider/my-deliveries" element={<RiderProtectedRoute><RiderMyDeliveries /></RiderProtectedRoute>} />
+            <Route path="/rider/settings" element={<RiderProtectedRoute><RiderSettings /></RiderProtectedRoute>} />
+
             {/* Catch-all */}
             <Route path="*" element={<NotFound />} />
           </Routes>
