@@ -22,7 +22,10 @@ type EmailType =
   | "order_paid_agent"
   | "order_paid_admin"
   | "order_delivered"
-  | "invoice_created";
+  | "invoice_created"
+  | "compliance_warning"
+  | "compliance_suspension"
+  | "compliance_reinstatement";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -230,6 +233,68 @@ Deno.serve(async (req) => {
             ) +
             `<p style="color:#4a4a4a;font-size:14px;">Log in to view the full invoice and download a PDF copy.</p>` +
             ctaButton("View Invoice", "https://shop4me.lovable.app/dashboard/orders")
+        );
+        break;
+      }
+
+      // ─── Compliance Warning ─────────────────────────────
+      case "compliance_warning": {
+        const { email, name, reason, notes, role, score } = data;
+        to = email;
+        subject = "Shop4Me Compliance Warning";
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">This is a formal warning regarding your performance as a <strong>${role}</strong> on the Shop4Me platform.</p>` +
+            infoBox(
+              `<p style="margin:0;color:#d97706;"><strong>⚠️ Warning Issued</strong></p>
+               <p style="margin:4px 0 0;"><strong>Reason:</strong> ${reason}</p>
+               ${notes ? `<p style="margin:4px 0 0;"><strong>Details:</strong> ${notes}</p>` : ""}
+               ${score !== undefined ? `<p style="margin:4px 0 0;"><strong>Compliance Score:</strong> ${score}/100</p>` : ""}`
+            ) +
+            `<p style="color:#4a4a4a;font-size:16px;">Please take steps to improve your performance. Continued violations may result in suspension of your account.</p>` +
+            `<p style="color:#6b7280;font-size:14px;">If you have questions, please contact support through the app.</p>`
+        );
+        break;
+      }
+
+      // ─── Compliance Suspension ────────────────────────────
+      case "compliance_suspension": {
+        const { email, name, reason, notes, role, score } = data;
+        to = email;
+        subject = "Shop4Me Account Suspended";
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">Your <strong>${role}</strong> account on Shop4Me has been <strong>suspended</strong> due to compliance issues.</p>` +
+            infoBox(
+              `<p style="margin:0;color:#dc2626;"><strong>🚫 Account Suspended</strong></p>
+               <p style="margin:4px 0 0;"><strong>Reason:</strong> ${reason}</p>
+               ${notes ? `<p style="margin:4px 0 0;"><strong>Details:</strong> ${notes}</p>` : ""}
+               ${score !== undefined ? `<p style="margin:4px 0 0;"><strong>Compliance Score:</strong> ${score}/100</p>` : ""}`
+            ) +
+            `<p style="color:#4a4a4a;font-size:16px;">Your role has been reverted to a regular buyer account. You will no longer be able to accept orders or deliveries until your account is reinstated.</p>` +
+            `<p style="color:#6b7280;font-size:14px;">If you believe this was an error, please contact our support team.</p>`
+        );
+        break;
+      }
+
+      // ─── Compliance Reinstatement ─────────────────────────
+      case "compliance_reinstatement": {
+        const { email, name, reason, notes, role, score } = data;
+        to = email;
+        subject = "Shop4Me Account Reinstated 🎉";
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">Great news! Your <strong>${role}</strong> account on Shop4Me has been <strong>reinstated</strong>.</p>` +
+            infoBox(
+              `<p style="margin:0;color:#16a34a;"><strong>✅ Account Reinstated</strong></p>
+               <p style="margin:4px 0 0;"><strong>Reason:</strong> ${reason}</p>
+               ${notes ? `<p style="margin:4px 0 0;"><strong>Details:</strong> ${notes}</p>` : ""}`
+            ) +
+            `<p style="color:#4a4a4a;font-size:16px;">You can now resume accepting orders and deliveries. Please ensure you maintain high performance standards going forward.</p>` +
+            ctaButton("Go to Dashboard", `https://shop4me.lovable.app/${role === "rider" ? "rider" : "agent"}/dashboard`)
         );
         break;
       }

@@ -445,6 +445,26 @@ const AdminCompliance = () => {
         compliance_score: selectedUser.score,
       });
       if (error) throw error;
+
+      // Send warning email (fire-and-forget)
+      supabase.from("profiles").select("email").eq("user_id", selectedUser.id).single().then(({ data: p }) => {
+        if (p?.email) {
+          supabase.functions.invoke("send-notification-email", {
+            body: {
+              type: "compliance_warning",
+              data: {
+                email: p.email,
+                name: selectedUser.name,
+                reason: actionReason,
+                notes: actionNotes || undefined,
+                role: selectedUser.role,
+                score: selectedUser.score,
+              },
+            },
+          }).catch((err) => console.error("Warning email failed:", err));
+        }
+      });
+
       toast({ title: "Warning Issued", description: `${selectedUser.name} has been warned.` });
       setActionDialogOpen(false);
       fetchComplianceData();
@@ -481,6 +501,25 @@ const AdminCompliance = () => {
         .update({ role: "buyer" })
         .eq("user_id", selectedUser.id);
 
+      // Send suspension email (fire-and-forget)
+      supabase.from("profiles").select("email").eq("user_id", selectedUser.id).single().then(({ data: p }) => {
+        if (p?.email) {
+          supabase.functions.invoke("send-notification-email", {
+            body: {
+              type: "compliance_suspension",
+              data: {
+                email: p.email,
+                name: selectedUser.name,
+                reason: actionReason,
+                notes: actionNotes || undefined,
+                role: selectedUser.role,
+                score: selectedUser.score,
+              },
+            },
+          }).catch((err) => console.error("Suspension email failed:", err));
+        }
+      });
+
       toast({ title: "User Suspended", description: `${selectedUser.name} has been suspended and downgraded to buyer.` });
       setSuspendDialogOpen(false);
       fetchComplianceData();
@@ -515,6 +554,25 @@ const AdminCompliance = () => {
       await supabase.from("user_roles")
         .update({ role: selectedUser.role })
         .eq("user_id", selectedUser.id);
+
+      // Send reinstatement email (fire-and-forget)
+      supabase.from("profiles").select("email").eq("user_id", selectedUser.id).single().then(({ data: p }) => {
+        if (p?.email) {
+          supabase.functions.invoke("send-notification-email", {
+            body: {
+              type: "compliance_reinstatement",
+              data: {
+                email: p.email,
+                name: selectedUser.name,
+                reason: actionReason,
+                notes: actionNotes || undefined,
+                role: selectedUser.role,
+                score: selectedUser.score,
+              },
+            },
+          }).catch((err) => console.error("Reinstatement email failed:", err));
+        }
+      });
 
       toast({ title: "User Reinstated", description: `${selectedUser.name} has been reinstated as ${selectedUser.role}.` });
       setReinstateDialogOpen(false);
