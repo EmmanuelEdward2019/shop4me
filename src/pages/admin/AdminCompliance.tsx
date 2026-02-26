@@ -500,6 +500,24 @@ const AdminCompliance = () => {
         .update({ role: "buyer" })
         .eq("user_id", selectedUser.id);
 
+      // Send suspension email (fire-and-forget)
+      const targetProfile2 = profilesMap[selectedUser.id];
+      if (targetProfile2?.email) {
+        supabase.functions.invoke("send-notification-email", {
+          body: {
+            type: "compliance_suspension",
+            data: {
+              email: targetProfile2.email,
+              name: selectedUser.name,
+              reason: actionReason,
+              notes: actionNotes || undefined,
+              role: selectedUser.role,
+              score: selectedUser.score,
+            },
+          },
+        }).catch((err) => console.error("Suspension email failed:", err));
+      }
+
       toast({ title: "User Suspended", description: `${selectedUser.name} has been suspended and downgraded to buyer.` });
       setSuspendDialogOpen(false);
       fetchComplianceData();
