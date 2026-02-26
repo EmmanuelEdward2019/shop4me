@@ -30,6 +30,7 @@ import AgentProfileCard from "@/components/order/AgentProfileCard";
 import AgentReviewForm from "@/components/order/AgentReviewForm";
 import DeliveryTimeEstimate from "@/components/order/DeliveryTimeEstimate";
 import LiveTrackingCard from "@/components/order/LiveTrackingCard";
+import OrderCountdownTimer from "@/components/order/OrderCountdownTimer";
 import { getAreaCoordinates } from "@/lib/lagos-locations";
 
 interface Order {
