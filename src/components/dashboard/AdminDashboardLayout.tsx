@@ -23,11 +23,13 @@ import {
   Menu,
   X,
   Shield,
+  ShieldCheck,
   MessageSquare,
   FileText,
   Inbox,
   Home,
   Receipt,
+  Bike,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import AdminViewSwitcher from "./AdminViewSwitcher";
