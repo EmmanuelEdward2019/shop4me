@@ -134,6 +134,55 @@ const AgentOrderDetail = () => {
     }
   };
 
+  const checkRiderAlert = async () => {
+    const { data } = await supabase
+      .from("rider_alerts")
+      .select("id, order_packed")
+      .eq("order_id", id)
+      .eq("agent_id", user?.id)
+      .maybeSingle();
+    
+    if (data) {
+      setRiderAlertSent(true);
+      setRiderAlertPacked(data.order_packed || false);
+    }
+  };
+
+  const notifyRider = async () => {
+    if (!order || !user) return;
+    try {
+      const { error } = await supabase.from("rider_alerts").insert({
+        order_id: order.id,
+        agent_id: user.id,
+        store_location_name: order.location_name,
+        status: "pending",
+      });
+      if (error) throw error;
+      setRiderAlertSent(true);
+      toast({ title: "Rider Notified!", description: "Nearby riders have been alerted about this pickup." });
+    } catch (error) {
+      console.error("Error notifying rider:", error);
+      toast({ title: "Error", description: "Failed to notify rider", variant: "destructive" });
+    }
+  };
+
+  const markOrderPacked = async () => {
+    if (!order || !user) return;
+    try {
+      const { error } = await supabase
+        .from("rider_alerts")
+        .update({ order_packed: true })
+        .eq("order_id", order.id)
+        .eq("agent_id", user.id);
+      if (error) throw error;
+      setRiderAlertPacked(true);
+      toast({ title: "Order Packed!", description: "The rider has been notified that the order is ready for pickup." });
+    } catch (error) {
+      console.error("Error marking packed:", error);
+      toast({ title: "Error", description: "Failed to update", variant: "destructive" });
+    }
+  };
+
   // Get shopping list from chat messages or order items
   const getShoppingListFromOrder = (): ShoppingListItem[] => {
     // First check if there's a shopping list message
