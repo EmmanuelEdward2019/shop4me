@@ -445,6 +445,25 @@ const AdminCompliance = () => {
         compliance_score: selectedUser.score,
       });
       if (error) throw error;
+
+      // Send warning email (fire-and-forget)
+      const targetProfile = profilesMap[selectedUser.id];
+      if (targetProfile?.email) {
+        supabase.functions.invoke("send-notification-email", {
+          body: {
+            type: "compliance_warning",
+            data: {
+              email: targetProfile.email,
+              name: selectedUser.name,
+              reason: actionReason,
+              notes: actionNotes || undefined,
+              role: selectedUser.role,
+              score: selectedUser.score,
+            },
+          },
+        }).catch((err) => console.error("Warning email failed:", err));
+      }
+
       toast({ title: "Warning Issued", description: `${selectedUser.name} has been warned.` });
       setActionDialogOpen(false);
       fetchComplianceData();
