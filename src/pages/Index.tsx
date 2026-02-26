@@ -10,6 +10,7 @@ import FAQ from "@/components/landing/FAQ";
 import FinalCTA from "@/components/landing/FinalCTA";
 import Footer from "@/components/landing/Footer";
 import WhatsAppButton from "@/components/support/WhatsAppButton";
+import RiderCTA from "@/components/landing/RiderCTA";
 
 const Index = () => {
   return (
@@ -22,6 +23,7 @@ const Index = () => {
         <ExploreStores />
         <Features />
         <AgentsShowcase />
+        <RiderCTA />
         <LocationsCarousel />
         <FAQ />
         <FinalCTA />

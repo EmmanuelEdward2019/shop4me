@@ -147,7 +147,9 @@ const ForAgentsPage = () => {
                           {role.earnings}
                         </span>
                         <Button size="sm" asChild>
-                          <Link to="/agent-application">Apply</Link>
+                          <Link to={role.title === "Delivery Rider" ? "/rider-application" : "/agent-application"}>
+                            Apply
+                          </Link>
                         </Button>
                       </div>
                     </div>
