@@ -61,6 +61,7 @@ import AdminSettingsPage from "./pages/admin/AdminSettings";
 import AdminSubmissions from "./pages/admin/AdminSubmissions";
 import AdminInvoices from "./pages/admin/AdminInvoices";
 import AdminRiders from "./pages/admin/AdminRiders";
+import AdminCompliance from "./pages/admin/AdminCompliance";
 
 // Blog pages
 import Blog from "./pages/Blog";
