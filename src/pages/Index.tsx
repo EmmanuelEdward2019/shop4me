@@ -23,6 +23,7 @@ const Index = () => {
         <ExploreStores />
         <Features />
         <AgentsShowcase />
+        <RiderCTA />
         <LocationsCarousel />
         <FAQ />
         <FinalCTA />
