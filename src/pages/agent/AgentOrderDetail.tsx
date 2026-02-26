@@ -32,6 +32,7 @@ import { PostDeliveryInvoiceForm } from "@/components/invoice/PostDeliveryInvoic
 import { InvoiceView } from "@/components/invoice/InvoiceView";
 import LocationSharingToggle from "@/components/agent/LocationSharingToggle";
 import DeliveryStatusUpdater from "@/components/agent/DeliveryStatusUpdater";
+import OrderCountdownTimer, { calculateEstimatedMinutes } from "@/components/order/OrderCountdownTimer";
 import type { Database } from "@/integrations/supabase/types";
 import type { ShoppingListItem, ShoppingListMetadata, InvoiceMetadata } from "@/types/chat";
 
