@@ -149,9 +149,10 @@ const AdminApplications = () => {
         prev.map((a) => (a.id === app.id ? { ...a, status: "approved" as ApplicationStatus } : a))
       );
 
+      const roleLabel = app.role_type === "rider" ? "rider" : "agent";
       toast({
         title: "Application Approved",
-        description: `${app.full_name} has been approved as an agent.`,
+        description: `${app.full_name} has been approved as a ${roleLabel}.`,
       });
 
       setIsViewOpen(false);

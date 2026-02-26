@@ -44,6 +44,7 @@ const navItems = [
   { label: "Orders", href: "/admin/orders", icon: Package },
   { label: "Invoices", href: "/admin/invoices", icon: Receipt },
   { label: "Agents", href: "/admin/agents", icon: UserCheck },
+  { label: "Riders", href: "/admin/riders", icon: Package },
   { label: "Applications", href: "/admin/applications", icon: ClipboardList },
   { label: "Messages", href: "/admin/messages", icon: MessageSquare },
   { label: "Blog", href: "/admin/blog", icon: FileText },
