@@ -135,10 +135,11 @@ const AdminApplications = () => {
 
       if (appError) throw appError;
 
-      // Update user role to agent
+      // Update user role based on application role_type
+      const targetRole = app.role_type === "rider" ? "rider" : "agent";
       const { error: roleError } = await supabase
         .from("user_roles")
-        .update({ role: "agent" })
+        .update({ role: targetRole })
         .eq("user_id", app.user_id);
 
       if (roleError) throw roleError;
