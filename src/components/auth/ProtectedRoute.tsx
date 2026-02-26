@@ -11,7 +11,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { user, loading: authLoading } = useAuth();
-  const { role, loading: roleLoading, isAdmin, isAgent } = useUserRole();
+  const { role, loading: roleLoading, isAdmin, isAgent, isRider } = useUserRole();
   const navigate = useNavigate();
   const location = useLocation();
 
