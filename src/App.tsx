@@ -8,6 +8,7 @@ import ScrollToTop from "@/components/ScrollToTop";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AgentProtectedRoute from "@/components/auth/AgentProtectedRoute";
 import AdminProtectedRoute from "@/components/auth/AdminProtectedRoute";
+import RiderProtectedRoute from "@/components/auth/RiderProtectedRoute";
 
 // Public pages
 import Index from "./pages/Index";
