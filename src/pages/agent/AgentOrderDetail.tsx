@@ -37,6 +37,7 @@ import DeliveryStatusUpdater from "@/components/agent/DeliveryStatusUpdater";
 import OrderCountdownTimer, { calculateEstimatedMinutes } from "@/components/order/OrderCountdownTimer";
 import type { Database } from "@/integrations/supabase/types";
 import type { ShoppingListItem, ShoppingListMetadata, InvoiceMetadata } from "@/types/chat";
+import { getLocationCoordinates } from "@/lib/lagos-locations";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
 type OrderItem = Database["public"]["Tables"]["order_items"]["Row"];
