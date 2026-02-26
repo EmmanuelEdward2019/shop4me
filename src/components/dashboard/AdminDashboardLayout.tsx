@@ -23,11 +23,13 @@ import {
   Menu,
   X,
   Shield,
+  ShieldCheck,
   MessageSquare,
   FileText,
   Inbox,
   Home,
   Receipt,
+  Bike,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import AdminViewSwitcher from "./AdminViewSwitcher";
@@ -44,7 +46,8 @@ const navItems = [
   { label: "Orders", href: "/admin/orders", icon: Package },
   { label: "Invoices", href: "/admin/invoices", icon: Receipt },
   { label: "Agents", href: "/admin/agents", icon: UserCheck },
-  { label: "Riders", href: "/admin/riders", icon: Package },
+  { label: "Riders", href: "/admin/riders", icon: Bike },
+  { label: "Compliance", href: "/admin/compliance", icon: ShieldCheck },
   { label: "Applications", href: "/admin/applications", icon: ClipboardList },
   { label: "Messages", href: "/admin/messages", icon: MessageSquare },
   { label: "Blog", href: "/admin/blog", icon: FileText },
