@@ -22,7 +22,10 @@ type EmailType =
   | "order_paid_agent"
   | "order_paid_admin"
   | "order_delivered"
-  | "invoice_created";
+  | "invoice_created"
+  | "compliance_warning"
+  | "compliance_suspension"
+  | "compliance_reinstatement";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
