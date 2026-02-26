@@ -556,22 +556,23 @@ const AdminCompliance = () => {
         .eq("user_id", selectedUser.id);
 
       // Send reinstatement email (fire-and-forget)
-      const targetProfile3 = profilesMap[selectedUser.id];
-      if (targetProfile3?.email) {
-        supabase.functions.invoke("send-notification-email", {
-          body: {
-            type: "compliance_reinstatement",
-            data: {
-              email: targetProfile3.email,
-              name: selectedUser.name,
-              reason: actionReason,
-              notes: actionNotes || undefined,
-              role: selectedUser.role,
-              score: selectedUser.score,
+      supabase.from("profiles").select("email").eq("user_id", selectedUser.id).single().then(({ data: p }) => {
+        if (p?.email) {
+          supabase.functions.invoke("send-notification-email", {
+            body: {
+              type: "compliance_reinstatement",
+              data: {
+                email: p.email,
+                name: selectedUser.name,
+                reason: actionReason,
+                notes: actionNotes || undefined,
+                role: selectedUser.role,
+                score: selectedUser.score,
+              },
             },
-          },
-        }).catch((err) => console.error("Reinstatement email failed:", err));
-      }
+          }).catch((err) => console.error("Reinstatement email failed:", err));
+        }
+      });
 
       toast({ title: "User Reinstated", description: `${selectedUser.name} has been reinstated as ${selectedUser.role}.` });
       setReinstateDialogOpen(false);
