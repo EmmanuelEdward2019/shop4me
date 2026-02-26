@@ -640,6 +640,7 @@ export type Database = {
           created_at: string
           delivery_address_id: string | null
           delivery_fee: number | null
+          estimated_minutes: number | null
           estimated_total: number | null
           final_total: number | null
           id: string
@@ -648,6 +649,7 @@ export type Database = {
           notes: string | null
           service_fee: number | null
           status: Database["public"]["Enums"]["order_status"]
+          timer_started_at: string | null
           updated_at: string
           user_id: string
         }
@@ -656,6 +658,7 @@ export type Database = {
           created_at?: string
           delivery_address_id?: string | null
           delivery_fee?: number | null
+          estimated_minutes?: number | null
           estimated_total?: number | null
           final_total?: number | null
           id?: string
@@ -664,6 +667,7 @@ export type Database = {
           notes?: string | null
           service_fee?: number | null
           status?: Database["public"]["Enums"]["order_status"]
+          timer_started_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -672,6 +676,7 @@ export type Database = {
           created_at?: string
           delivery_address_id?: string | null
           delivery_fee?: number | null
+          estimated_minutes?: number | null
           estimated_total?: number | null
           final_total?: number | null
           id?: string
@@ -680,6 +685,7 @@ export type Database = {
           notes?: string | null
           service_fee?: number | null
           status?: Database["public"]["Enums"]["order_status"]
+          timer_started_at?: string | null
           updated_at?: string
           user_id?: string
         }
