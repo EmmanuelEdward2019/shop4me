@@ -30,6 +30,7 @@ import AgentProfileCard from "@/components/order/AgentProfileCard";
 import AgentReviewForm from "@/components/order/AgentReviewForm";
 import DeliveryTimeEstimate from "@/components/order/DeliveryTimeEstimate";
 import LiveTrackingCard from "@/components/order/LiveTrackingCard";
+import OrderCountdownTimer from "@/components/order/OrderCountdownTimer";
 import { getAreaCoordinates } from "@/lib/lagos-locations";
 
 interface Order {
@@ -292,6 +293,14 @@ const OrderDetailPage = () => {
           <Badge className="capitalize">
             {order.status.replace("_", " ")}
           </Badge>
+          {(order as any).timer_started_at && order.status !== "delivered" && order.status !== "cancelled" && (
+            <OrderCountdownTimer
+              timerStartedAt={(order as any).timer_started_at}
+              estimatedMinutes={(order as any).estimated_minutes}
+              orderStatus={order.status}
+              compact
+            />
+          )}
         </div>
 
         {/* Tabs for Details and Chat */}
@@ -394,6 +403,16 @@ const OrderDetailPage = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Countdown Timer */}
+        {order.status !== "pending" && order.status !== "cancelled" && (
+          <OrderCountdownTimer
+            timerStartedAt={(order as any).timer_started_at}
+            estimatedMinutes={(order as any).estimated_minutes}
+            orderStatus={order.status}
+            itemCount={items.length}
+          />
+        )}
 
         {/* Agent Profile Card */}
         {(order.agent_id || order.status !== "pending") && (

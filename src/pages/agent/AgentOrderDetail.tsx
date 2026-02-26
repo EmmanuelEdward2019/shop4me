@@ -32,6 +32,7 @@ import { PostDeliveryInvoiceForm } from "@/components/invoice/PostDeliveryInvoic
 import { InvoiceView } from "@/components/invoice/InvoiceView";
 import LocationSharingToggle from "@/components/agent/LocationSharingToggle";
 import DeliveryStatusUpdater from "@/components/agent/DeliveryStatusUpdater";
+import OrderCountdownTimer, { calculateEstimatedMinutes } from "@/components/order/OrderCountdownTimer";
 import type { Database } from "@/integrations/supabase/types";
 import type { ShoppingListItem, ShoppingListMetadata, InvoiceMetadata } from "@/types/chat";
 
@@ -186,9 +187,19 @@ const AgentOrderDetail = () => {
   const updateOrderStatus = async (newStatus: OrderStatus) => {
     setUpdating(true);
     try {
+      const updateData: any = { status: newStatus };
+
+      // Start timer when agent begins shopping
+      if (newStatus === "shopping" && order) {
+        const itemCount = order.order_items?.length || 0;
+        const estimatedMinutes = calculateEstimatedMinutes(itemCount);
+        updateData.timer_started_at = new Date().toISOString();
+        updateData.estimated_minutes = estimatedMinutes;
+      }
+
       const { error } = await supabase
         .from("orders")
-        .update({ status: newStatus })
+        .update(updateData)
         .eq("id", id)
         .eq("agent_id", user?.id);
 
@@ -309,6 +320,14 @@ const AgentOrderDetail = () => {
           <Badge className="text-sm capitalize">
             {order.status.replace("_", " ")}
           </Badge>
+          {(order as any).timer_started_at && order.status !== "delivered" && order.status !== "cancelled" && (
+            <OrderCountdownTimer
+              timerStartedAt={(order as any).timer_started_at}
+              estimatedMinutes={(order as any).estimated_minutes}
+              orderStatus={order.status}
+              compact
+            />
+          )}
         </div>
 
         {/* Tabs for Details, Chat, Invoice */}
@@ -485,6 +504,17 @@ const AgentOrderDetail = () => {
                     );
                   })}
                 </div>
+
+            {/* Countdown Timer */}
+                {order.status !== "pending" && order.status !== "cancelled" && (
+                  <OrderCountdownTimer
+                    timerStartedAt={(order as any).timer_started_at}
+                    estimatedMinutes={(order as any).estimated_minutes}
+                    orderStatus={order.status}
+                    itemCount={order.order_items?.length || 0}
+                    className="mt-4"
+                  />
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 mt-6">
