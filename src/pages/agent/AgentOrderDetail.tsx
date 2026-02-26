@@ -79,6 +79,8 @@ const AgentOrderDetail = () => {
   const [updating, setUpdating] = useState(false);
   const [activeTab, setActiveTab] = useState("details");
   const [showInvoiceForm, setShowInvoiceForm] = useState(false);
+  const [riderAlertSent, setRiderAlertSent] = useState(false);
+  const [riderAlertPacked, setRiderAlertPacked] = useState(false);
   
   const { messages, sendMessage, uploadPhoto } = useChat({ orderId: id });
   const { invoice, loading: invoiceLoading, creating: invoiceCreating, createInvoice } = useInvoice({ orderId: id || "" });
