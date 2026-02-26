@@ -67,6 +67,13 @@ import BlogPostPage from "./pages/BlogPost";
 
 // Agent Application
 import AgentApplication from "./pages/AgentApplication";
+import RiderApplication from "./pages/RiderApplication";
+
+// Rider pages
+import RiderDashboard from "./pages/rider/RiderDashboard";
+import RiderAvailablePickups from "./pages/rider/AvailablePickups";
+import RiderMyDeliveries from "./pages/rider/RiderMyDeliveries";
+import RiderSettings from "./pages/rider/RiderSettings";
 
 const queryClient = new QueryClient();
 
