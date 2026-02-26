@@ -20,6 +20,8 @@ import {
   AlertCircle,
   MessageSquare,
   Receipt,
+  Bell,
+  PackageCheck,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
