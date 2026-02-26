@@ -897,9 +897,13 @@ export type Database = {
           id: string
           order_id: string
           order_packed: boolean
+          order_picked_up_at: string | null
+          rider_arrived_at: string | null
           rider_id: string | null
           status: string
+          store_latitude: number | null
           store_location_name: string
+          store_longitude: number | null
           updated_at: string
         }
         Insert: {
@@ -908,9 +912,13 @@ export type Database = {
           id?: string
           order_id: string
           order_packed?: boolean
+          order_picked_up_at?: string | null
+          rider_arrived_at?: string | null
           rider_id?: string | null
           status?: string
+          store_latitude?: number | null
           store_location_name: string
+          store_longitude?: number | null
           updated_at?: string
         }
         Update: {
@@ -919,9 +927,13 @@ export type Database = {
           id?: string
           order_id?: string
           order_packed?: boolean
+          order_picked_up_at?: string | null
+          rider_arrived_at?: string | null
           rider_id?: string | null
           status?: string
+          store_latitude?: number | null
           store_location_name?: string
+          store_longitude?: number | null
           updated_at?: string
         }
         Relationships: [

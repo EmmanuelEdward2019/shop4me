@@ -5,9 +5,11 @@ import RiderDashboardLayout from "@/components/dashboard/RiderDashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Package, MapPin, Clock, CheckCircle, Bike } from "lucide-react";
+import { Package, MapPin, Clock, CheckCircle, Bike, Navigation, ShieldCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useRiderGeofence, formatDistance } from "@/hooks/useRiderGeofence";
+import GeofenceStatus from "@/components/rider/GeofenceStatus";
 
 interface RiderAlert {
   id: string;
@@ -18,7 +20,119 @@ interface RiderAlert {
   order_packed: boolean;
   created_at: string;
   rider_id: string | null;
+  store_latitude: number | null;
+  store_longitude: number | null;
+  rider_arrived_at: string | null;
+  order_picked_up_at: string | null;
 }
+
+// Geofenced delivery card for accepted pickups
+const ActiveDeliveryCard = ({ delivery, onArrived, onPickedUp, onCompleted }: {
+  delivery: RiderAlert;
+  onArrived: (id: string) => void;
+  onPickedUp: (id: string) => void;
+  onCompleted: (id: string) => void;
+}) => {
+  const { distance, formattedDistance, isWithinRadius, loading, error } = useRiderGeofence({
+    storeLat: delivery.store_latitude,
+    storeLng: delivery.store_longitude,
+    radiusMeters: 100,
+    watchEnabled: !delivery.order_picked_up_at, // Stop watching after pickup
+  });
+
+  const timeSince = (date: string) => {
+    const mins = Math.floor((Date.now() - new Date(date).getTime()) / 60000);
+    if (mins < 1) return "Just now";
+    if (mins < 60) return `${mins}m ago`;
+    return `${Math.floor(mins / 60)}h ago`;
+  };
+
+  const hasArrived = !!delivery.rider_arrived_at;
+  const hasPickedUp = !!delivery.order_picked_up_at;
+
+  return (
+    <div className="p-4 border border-border rounded-lg bg-primary/5 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <MapPin className="w-5 h-5 text-primary" />
+          <div>
+            <p className="font-medium text-foreground">{delivery.store_location_name}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <Clock className="w-3 h-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">{timeSince(delivery.created_at)}</span>
+              {delivery.order_packed && (
+                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                  <CheckCircle className="w-3 h-3 mr-1" /> Order Packed
+                </Badge>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Geofence Status */}
+      {!hasPickedUp && (
+        <GeofenceStatus
+          distance={distance}
+          formattedDistance={formattedDistance}
+          isWithinRadius={isWithinRadius}
+          loading={loading}
+          error={error}
+          radiusMeters={100}
+        />
+      )}
+
+      {/* Action Buttons - Geofenced */}
+      <div className="flex flex-wrap gap-2">
+        {!hasArrived && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onArrived(delivery.id)}
+            disabled={!isWithinRadius}
+            className={isWithinRadius ? "border-primary text-primary hover:bg-primary hover:text-primary-foreground" : ""}
+          >
+            <Navigation className="w-4 h-4 mr-1" />
+            {isWithinRadius ? "Mark Arrived at Store" : `Arrive at Store (${formattedDistance || "..."} away)`}
+          </Button>
+        )}
+
+        {hasArrived && !hasPickedUp && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onPickedUp(delivery.id)}
+            disabled={!isWithinRadius}
+            className={isWithinRadius ? "border-primary text-primary hover:bg-primary hover:text-primary-foreground" : ""}
+          >
+            <Package className="w-4 h-4 mr-1" />
+            {isWithinRadius ? "Order Picked Up" : `Pick Up (${formattedDistance || "..."} away)`}
+          </Button>
+        )}
+
+        {hasArrived && (
+          <Badge variant="outline" className="h-8 flex items-center gap-1 bg-green-50 text-green-700 border-green-200">
+            <ShieldCheck className="w-3 h-3" />
+            Arrived ✓
+          </Badge>
+        )}
+
+        {hasPickedUp && (
+          <>
+            <Badge variant="outline" className="h-8 flex items-center gap-1 bg-green-50 text-green-700 border-green-200">
+              <Package className="w-3 h-3" />
+              Picked Up ✓
+            </Badge>
+            <Button size="sm" onClick={() => onCompleted(delivery.id)}>
+              <CheckCircle className="w-4 h-4 mr-1" />
+              Mark Delivered
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const AvailablePickups = () => {
   const { user } = useAuth();
@@ -31,7 +145,6 @@ const AvailablePickups = () => {
   useEffect(() => {
     fetchAlerts();
 
-    // Subscribe to real-time updates
     const channel = supabase
       .channel("rider-alerts")
       .on("postgres_changes", { event: "*", schema: "public", table: "rider_alerts" }, () => {
@@ -45,7 +158,6 @@ const AvailablePickups = () => {
   const fetchAlerts = async () => {
     setLoading(true);
     try {
-      // Available pickups (no rider assigned)
       const { data: available } = await supabase
         .from("rider_alerts")
         .select("*")
@@ -55,7 +167,6 @@ const AvailablePickups = () => {
 
       setAlerts(available || []);
 
-      // My accepted deliveries
       const { data: mine } = await supabase
         .from("rider_alerts")
         .select("*")
@@ -81,14 +192,44 @@ const AvailablePickups = () => {
         .is("rider_id", null);
 
       if (error) throw error;
-
-      toast({ title: "Pickup Accepted!", description: "Head to the store to pick up the order." });
+      toast({ title: "Pickup Accepted!", description: "Head to the store. You must be within 100m to mark arrival." });
       fetchAlerts();
     } catch (error) {
-      console.error("Error accepting pickup:", error);
       toast({ title: "Error", description: "Failed to accept pickup. It may have been taken.", variant: "destructive" });
     } finally {
       setAccepting(null);
+    }
+  };
+
+  const markArrived = async (alertId: string) => {
+    try {
+      const { error } = await supabase
+        .from("rider_alerts")
+        .update({ rider_arrived_at: new Date().toISOString() })
+        .eq("id", alertId)
+        .eq("rider_id", user?.id);
+
+      if (error) throw error;
+      toast({ title: "Arrived!", description: "You've confirmed arrival at the store." });
+      fetchAlerts();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to mark arrival", variant: "destructive" });
+    }
+  };
+
+  const markPickedUp = async (alertId: string) => {
+    try {
+      const { error } = await supabase
+        .from("rider_alerts")
+        .update({ order_picked_up_at: new Date().toISOString() })
+        .eq("id", alertId)
+        .eq("rider_id", user?.id);
+
+      if (error) throw error;
+      toast({ title: "Order Picked Up!", description: "Now deliver to the customer." });
+      fetchAlerts();
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to mark pickup", variant: "destructive" });
     }
   };
 
@@ -104,7 +245,6 @@ const AvailablePickups = () => {
       toast({ title: "Delivery Complete!", description: "Great job!" });
       fetchAlerts();
     } catch (error) {
-      console.error("Error completing delivery:", error);
       toast({ title: "Error", description: "Failed to mark as complete", variant: "destructive" });
     }
   };
@@ -121,10 +261,10 @@ const AvailablePickups = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-display font-bold text-foreground">Available Pickups</h1>
-          <p className="text-muted-foreground">Accept pickup requests from shopping agents.</p>
+          <p className="text-muted-foreground">Accept pickup requests from shopping agents. GPS verification required within 100m of store.</p>
         </div>
 
-        {/* My Active Deliveries */}
+        {/* My Active Deliveries with Geofencing */}
         {myDeliveries.length > 0 && (
           <Card className="border-primary/20">
             <CardHeader>
@@ -135,27 +275,13 @@ const AvailablePickups = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               {myDeliveries.map((delivery) => (
-                <div key={delivery.id} className="flex items-center justify-between p-4 border border-border rounded-lg bg-primary/5">
-                  <div className="flex items-center gap-3">
-                    <MapPin className="w-5 h-5 text-primary" />
-                    <div>
-                      <p className="font-medium text-foreground">{delivery.store_location_name}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Clock className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{timeSince(delivery.created_at)}</span>
-                        {delivery.order_packed && (
-                          <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                            <CheckCircle className="w-3 h-3 mr-1" /> Order Packed
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <Button size="sm" onClick={() => markCompleted(delivery.id)}>
-                    <CheckCircle className="w-4 h-4 mr-1" />
-                    Delivered
-                  </Button>
-                </div>
+                <ActiveDeliveryCard
+                  key={delivery.id}
+                  delivery={delivery}
+                  onArrived={markArrived}
+                  onPickedUp={markPickedUp}
+                  onCompleted={markCompleted}
+                />
               ))}
             </CardContent>
           </Card>

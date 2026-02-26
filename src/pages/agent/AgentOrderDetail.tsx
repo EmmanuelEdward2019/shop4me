@@ -37,6 +37,7 @@ import DeliveryStatusUpdater from "@/components/agent/DeliveryStatusUpdater";
 import OrderCountdownTimer, { calculateEstimatedMinutes } from "@/components/order/OrderCountdownTimer";
 import type { Database } from "@/integrations/supabase/types";
 import type { ShoppingListItem, ShoppingListMetadata, InvoiceMetadata } from "@/types/chat";
+import { getLocationCoordinates } from "@/lib/lagos-locations";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
 type OrderItem = Database["public"]["Tables"]["order_items"]["Row"];
@@ -151,11 +152,16 @@ const AgentOrderDetail = () => {
   const notifyRider = async () => {
     if (!order || !user) return;
     try {
+      // Get store coordinates for geofencing
+      const storeCoords = getLocationCoordinates(order.location_name);
+      
       const { error } = await supabase.from("rider_alerts").insert({
         order_id: order.id,
         agent_id: user.id,
         store_location_name: order.location_name,
         status: "pending",
+        store_latitude: storeCoords.latitude,
+        store_longitude: storeCoords.longitude,
       });
       if (error) throw error;
       setRiderAlertSent(true);
