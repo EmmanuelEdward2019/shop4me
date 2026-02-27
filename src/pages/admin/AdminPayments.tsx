@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CreditCard, Wallet, ArrowDownCircle, ArrowUpCircle, Search, CalendarIcon, X, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
+import { CreditCard, Wallet, ArrowDownCircle, ArrowUpCircle, Search, CalendarIcon, X, TrendingUp, ChevronLeft, ChevronRight, BarChart3, AreaChart as AreaChartIcon } from "lucide-react";
 import { format, isAfter, isBefore, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import AdminPaymentsExport from "@/components/admin/AdminPaymentsExport";
@@ -48,6 +48,7 @@ const AdminPayments = () => {
   const hasDateFilter = dateFrom || dateTo;
 
   const [chartView, setChartView] = useState<"daily" | "weekly">("daily");
+  const [chartType, setChartType] = useState<"bar" | "area">("bar");
   const [activePreset, setActivePreset] = useState<string | null>(null);
 
   const applyPreset = (preset: string) => {
@@ -265,41 +266,65 @@ const AdminPayments = () => {
               >
                 Weekly
               </Button>
+              <div className="w-px h-5 bg-border mx-1" />
+              <Button
+                variant={chartType === "bar" ? "default" : "outline"}
+                size="icon"
+                onClick={() => setChartType("bar")}
+                className="h-7 w-7"
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={chartType === "area" ? "default" : "outline"}
+                size="icon"
+                onClick={() => setChartType("area")}
+                className="h-7 w-7"
+              >
+                <AreaChartIcon className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
             <div className="h-[300px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 11 }}
-                    className="text-muted-foreground"
-                    interval={chartView === "daily" ? 4 : 0}
-                    angle={chartView === "weekly" ? -30 : 0}
-                    textAnchor={chartView === "weekly" ? "end" : "middle"}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11 }}
-                    className="text-muted-foreground"
-                    tickFormatter={(v) => v >= 1000 ? `₦${(v / 1000).toFixed(0)}k` : `₦${v}`}
-                  />
-                  <Tooltip
-                    formatter={chartTooltipFormatter}
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      color: "hsl(var(--foreground))",
-                      fontSize: "12px",
-                    }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: "12px" }} />
-                  <Bar dataKey="paystack" name="Paystack Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="walletIn" name="Wallet Credits" fill="hsl(142 71% 45%)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="walletOut" name="Wallet Debits" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                {chartType === "bar" ? (
+                  <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} className="text-muted-foreground" interval={chartView === "daily" ? 4 : 0} angle={chartView === "weekly" ? -30 : 0} textAnchor={chartView === "weekly" ? "end" : "middle"} />
+                    <YAxis tick={{ fontSize: 11 }} className="text-muted-foreground" tickFormatter={(v) => v >= 1000 ? `₦${(v / 1000).toFixed(0)}k` : `₦${v}`} />
+                    <Tooltip formatter={chartTooltipFormatter} contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", color: "hsl(var(--foreground))", fontSize: "12px" }} />
+                    <Legend wrapperStyle={{ fontSize: "12px" }} />
+                    <Bar dataKey="paystack" name="Paystack Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="walletIn" name="Wallet Credits" fill="hsl(142 71% 45%)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="walletOut" name="Wallet Debits" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                ) : (
+                  <AreaChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="gradPaystack" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gradCredits" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(142 71% 45%)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(142 71% 45%)" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gradDebits" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--destructive))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--destructive))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="label" tick={{ fontSize: 11 }} className="text-muted-foreground" interval={chartView === "daily" ? 4 : 0} angle={chartView === "weekly" ? -30 : 0} textAnchor={chartView === "weekly" ? "end" : "middle"} />
+                    <YAxis tick={{ fontSize: 11 }} className="text-muted-foreground" tickFormatter={(v) => v >= 1000 ? `₦${(v / 1000).toFixed(0)}k` : `₦${v}`} />
+                    <Tooltip formatter={chartTooltipFormatter} contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", color: "hsl(var(--foreground))", fontSize: "12px" }} />
+                    <Legend wrapperStyle={{ fontSize: "12px" }} />
+                    <Area type="monotone" dataKey="paystack" name="Paystack Revenue" stroke="hsl(var(--primary))" fill="url(#gradPaystack)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="walletIn" name="Wallet Credits" stroke="hsl(142 71% 45%)" fill="url(#gradCredits)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="walletOut" name="Wallet Debits" stroke="hsl(var(--destructive))" fill="url(#gradDebits)" strokeWidth={2} />
+                  </AreaChart>
+                )}
               </ResponsiveContainer>
             </div>
           </CardContent>
