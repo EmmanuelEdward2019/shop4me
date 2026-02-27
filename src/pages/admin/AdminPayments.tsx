@@ -145,6 +145,51 @@ const AdminPayments = () => {
     return matchesSearch && matchesStatus && matchesDateRange(t.created_at);
   });
 
+  // Chart data computation
+  const chartData = useMemo(() => {
+    const successPayments = payments.filter((p: any) => p.status === "success");
+    const credits = walletTxns.filter((t: any) => t.type === "credit");
+    const debits = walletTxns.filter((t: any) => t.type === "debit");
+
+    if (chartView === "daily") {
+      const end = new Date();
+      const start = subDays(end, 29);
+      const days = eachDayOfInterval({ start, end });
+      return days.map((day) => {
+        const dayStr = format(day, "yyyy-MM-dd");
+        const label = format(day, "dd MMM");
+        const paystack = successPayments
+          .filter((p: any) => format(new Date(p.created_at), "yyyy-MM-dd") === dayStr)
+          .reduce((s: number, p: any) => s + Number(p.amount), 0);
+        const walletIn = credits
+          .filter((t: any) => format(new Date(t.created_at), "yyyy-MM-dd") === dayStr)
+          .reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const walletOut = debits
+          .filter((t: any) => format(new Date(t.created_at), "yyyy-MM-dd") === dayStr)
+          .reduce((s: number, t: any) => s + Number(t.amount), 0);
+        return { label, paystack, walletIn, walletOut };
+      });
+    } else {
+      const end = new Date();
+      const start = subDays(end, 83);
+      const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
+      return weeks.map((weekStart) => {
+        const wEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+        const label = format(weekStart, "dd MMM");
+        const inRange = (dateStr: string) => {
+          const d = new Date(dateStr);
+          return d >= startOfDay(weekStart) && d <= endOfDay(wEnd);
+        };
+        const paystack = successPayments.filter((p: any) => inRange(p.created_at)).reduce((s: number, p: any) => s + Number(p.amount), 0);
+        const walletIn = credits.filter((t: any) => inRange(t.created_at)).reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const walletOut = debits.filter((t: any) => inRange(t.created_at)).reduce((s: number, t: any) => s + Number(t.amount), 0);
+        return { label, paystack, walletIn, walletOut };
+      });
+    }
+  }, [payments, walletTxns, chartView]);
+
+  const chartTooltipFormatter = (value: number) => formatNaira(value);
+
   return (
     <AdminDashboardLayout>
       <div className="space-y-6">
