@@ -1,12 +1,21 @@
 import { useState, useRef } from "react";
-import { Send, Image, Loader2 } from "lucide-react";
+import { Send, Image, Camera as CameraIcon, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useNativeCamera, isNativePlatform } from "@/lib/native";
+import { useHaptics } from "@/lib/native";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ChatInputProps {
   onSend: (message: string) => void;
   onPhotoUpload?: (file: File) => void;
+  onNativePhotoUrl?: (webPath: string) => void;
   disabled?: boolean;
   placeholder?: string;
   showPhotoUpload?: boolean;
@@ -15,6 +24,7 @@ interface ChatInputProps {
 export const ChatInput = ({
   onSend,
   onPhotoUpload,
+  onNativePhotoUrl,
   disabled,
   placeholder = "Type a message...",
   showPhotoUpload = true,
@@ -22,9 +32,12 @@ export const ChatInput = ({
   const [message, setMessage] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { takePhoto, pickFromGallery, isAvailable: cameraAvailable } = useNativeCamera();
+  const { impact } = useHaptics();
 
   const handleSend = () => {
     if (message.trim() && !disabled) {
+      impact("light");
       onSend(message.trim());
       setMessage("");
     }
@@ -49,6 +62,44 @@ export const ChatInput = ({
     }
   };
 
+  const handleNativeCamera = async () => {
+    setUploading(true);
+    try {
+      const webPath = await takePhoto();
+      if (webPath) {
+        if (onNativePhotoUrl) {
+          onNativePhotoUrl(webPath);
+        } else if (onPhotoUpload) {
+          const response = await fetch(webPath);
+          const blob = await response.blob();
+          const file = new File([blob], `camera-${Date.now()}.jpg`, { type: "image/jpeg" });
+          await onPhotoUpload(file);
+        }
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleNativeGallery = async () => {
+    setUploading(true);
+    try {
+      const webPath = await pickFromGallery();
+      if (webPath) {
+        if (onNativePhotoUrl) {
+          onNativePhotoUrl(webPath);
+        } else if (onPhotoUpload) {
+          const response = await fetch(webPath);
+          const blob = await response.blob();
+          const file = new File([blob], `gallery-${Date.now()}.jpg`, { type: "image/jpeg" });
+          await onPhotoUpload(file);
+        }
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="flex items-center gap-2 p-3 border-t bg-background">
       {showPhotoUpload && (
@@ -61,18 +112,47 @@ export const ChatInput = ({
             onChange={handleFileChange}
             disabled={disabled || uploading}
           />
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={disabled || uploading}
-          >
-            {uploading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Image className="w-5 h-5" />
-            )}
-          </Button>
+
+          {cameraAvailable ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  disabled={disabled || uploading}
+                >
+                  {uploading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Image className="w-5 h-5" />
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuItem onClick={handleNativeCamera}>
+                  <CameraIcon className="w-4 h-4 mr-2" />
+                  Take Photo
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleNativeGallery}>
+                  <Image className="w-4 h-4 mr-2" />
+                  Choose from Gallery
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={disabled || uploading}
+            >
+              {uploading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <Image className="w-5 h-5" />
+              )}
+            </Button>
+          )}
         </>
       )}
       <Input

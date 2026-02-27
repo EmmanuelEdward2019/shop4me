@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWallet } from "@shared/hooks";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,28 +19,21 @@ import MonthlySpendingSummary from "@/components/wallet/MonthlySpendingSummary";
 import AnimatedBalance from "@/components/wallet/AnimatedBalance";
 import { startOfDay, endOfDay } from "date-fns";
 
-interface WalletData {
-  id: string;
-  balance: number;
-}
-
-interface Transaction {
-  id: string;
-  amount: number;
-  type: string;
-  description: string | null;
-  reference: string | null;
-  created_at: string;
-}
-
 const WalletPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [wallet, setWallet] = useState<WalletData | null>(null);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [filteredTransactions, setFilteredTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    wallet,
+    transactions,
+    loading,
+    refetch: fetchWalletData,
+    verifyPayment: verifyPaymentFn,
+  } = useWallet({
+    client: supabase,
+    userId: user?.id,
+  });
+  const [filteredTransactions, setFilteredTransactions] = useState<typeof transactions>([]);
   const [fundDialogOpen, setFundDialogOpen] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
@@ -63,16 +57,12 @@ const WalletPage = () => {
   const verifyPayment = async (reference: string) => {
     setVerifying(true);
     try {
-      const { data, error } = await supabase.functions.invoke("paystack-verify", {
-        body: { reference },
-      });
+      const result = await verifyPaymentFn(reference);
 
-      if (error) throw new Error(error.message);
-
-      if (data.status === "success") {
-        setFundedAmount(data.transaction.amount);
+      if (result.success) {
+        setFundedAmount(result.amount || 0);
         setShowSuccessAnimation(true);
-        fetchWalletData(); // Refresh wallet data
+        fetchWalletData();
       } else {
         toast({
           title: "Payment Failed",
@@ -81,7 +71,6 @@ const WalletPage = () => {
         });
       }
 
-      // Clear the URL params
       setSearchParams({});
     } catch (error: any) {
       console.error("Verification error:", error);
@@ -96,79 +85,14 @@ const WalletPage = () => {
     }
   };
 
-  useEffect(() => {
-    if (user) {
-      fetchWalletData();
-    }
-  }, [user]);
-
-  // Real-time wallet balance subscription
-  useEffect(() => {
-    if (!wallet?.id) return;
-
-    const channel = supabase
-      .channel(`wallet-${wallet.id}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "wallets", filter: `id=eq.${wallet.id}` },
-        (payload) => {
-          setWallet((prev) => prev ? { ...prev, balance: payload.new.balance } : prev);
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "wallet_transactions", filter: `wallet_id=eq.${wallet.id}` },
-        (payload) => {
-          setTransactions((prev) => [payload.new as Transaction, ...prev]);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [wallet?.id]);
-
-  const fetchWalletData = async () => {
-    setLoading(true);
-    try {
-      const { data: walletData, error: walletError } = await supabase
-        .from("wallets")
-        .select("*")
-        .eq("user_id", user?.id)
-        .maybeSingle();
-
-      if (walletError) throw walletError;
-      setWallet(walletData);
-
-      if (walletData) {
-        const { data: txData, error: txError } = await supabase
-          .from("wallet_transactions")
-          .select("*")
-          .eq("wallet_id", walletData.id)
-          .order("created_at", { ascending: false })
-          .limit(100);
-
-        if (txError) throw txError;
-        setTransactions(txData || []);
-      }
-    } catch (error) {
-      console.error("Error fetching wallet data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Apply filters to transactions
   const applyFilters = useCallback(() => {
     let filtered = [...transactions];
 
-    // Filter by type
     if (filters.type !== "all") {
       filtered = filtered.filter((tx) => tx.type === filters.type);
     }
 
-    // Filter by date range
     if (filters.dateRange?.from) {
       const fromDate = startOfDay(filters.dateRange.from);
       filtered = filtered.filter((tx) => new Date(tx.created_at) >= fromDate);
@@ -312,7 +236,6 @@ const WalletPage = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Filters */}
             {showFilters && (
               <div className="mb-6 pb-4 border-b border-border">
                 <TransactionFiltersComponent
@@ -362,7 +285,6 @@ const WalletPage = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Filter summary */}
                 {(filters.type !== "all" || filters.dateRange) && (
                   <p className="text-sm text-muted-foreground">
                     Showing {filteredTransactions.length} of {transactions.length} transactions

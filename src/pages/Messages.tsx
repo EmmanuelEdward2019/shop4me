@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useOrders } from "@shared/hooks";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,25 +22,25 @@ interface OrderWithMessages {
 
 const MessagesPage = () => {
   const { user } = useAuth();
+  const { orders: rawOrders } = useOrders({
+    client: supabase,
+    userId: user?.id,
+    role: "buyer",
+  });
   const [orders, setOrders] = useState<OrderWithMessages[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchOrdersWithMessages = useCallback(async () => {
-    if (!user) return;
+  // Enrich orders with last message and unread count
+  const enrichOrders = useCallback(async () => {
+    if (!user || rawOrders.length === 0) {
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
 
     try {
-      // Fetch orders with their latest messages
-      const { data: ordersData, error: ordersError } = await supabase
-        .from("orders")
-        .select("id, location_name, status, created_at")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false });
-
-      if (ordersError) throw ordersError;
-
-      // For each order, get the latest message and unread count
       const ordersWithMessages = await Promise.all(
-        (ordersData || []).map(async (order) => {
+        rawOrders.map(async (order) => {
           const { data: messages } = await supabase
             .from("chat_messages")
             .select("content, created_at, is_read, sender_id")
@@ -57,7 +58,10 @@ const MessagesPage = () => {
           const lastMessage = messages?.[0];
 
           return {
-            ...order,
+            id: order.id,
+            location_name: order.location_name,
+            status: order.status,
+            created_at: order.created_at,
             last_message: lastMessage?.content || null,
             last_message_at: lastMessage?.created_at || null,
             unread_count: unreadCount || 0,
@@ -65,26 +69,19 @@ const MessagesPage = () => {
         })
       );
 
-      // Filter to only show orders with messages
-      const ordersWithChats = ordersWithMessages.filter(
-        (o) => o.last_message !== null
-      );
-
-      setOrders(ordersWithChats);
+      setOrders(ordersWithMessages.filter((o) => o.last_message !== null));
     } catch (error) {
-      console.error("Error fetching messages:", error);
+      console.error("Error enriching messages:", error);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, rawOrders]);
 
   useEffect(() => {
-    if (user) {
-      fetchOrdersWithMessages();
-    }
-  }, [user, fetchOrdersWithMessages]);
+    enrichOrders();
+  }, [enrichOrders]);
 
-  // Real-time subscription for new messages
+  // Realtime for new messages to refresh list
   useEffect(() => {
     if (!user) return;
 
@@ -92,22 +89,15 @@ const MessagesPage = () => {
       .channel("messages-list-realtime")
       .on(
         "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "chat_messages",
-        },
-        () => {
-          // Refetch when a new message arrives
-          fetchOrdersWithMessages();
-        }
+        { event: "INSERT", schema: "public", table: "chat_messages" },
+        () => enrichOrders()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, fetchOrdersWithMessages]);
+  }, [user, enrichOrders]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
