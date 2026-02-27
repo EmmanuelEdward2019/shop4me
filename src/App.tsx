@@ -28,7 +28,7 @@ import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CookiePolicy from "./pages/CookiePolicy";
 import Newsletter from "./pages/Newsletter";
-
+import RoleSelect from "./pages/RoleSelect";
 // Protected pages (Buyer)
 import Dashboard from "./pages/Dashboard";
 import OrdersPage from "./pages/Orders";
