@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreditCard, Wallet, ArrowDownCircle, ArrowUpCircle, Search, DollarSign } from "lucide-react";
 import { format } from "date-fns";
+import AdminPaymentsExport from "@/components/admin/AdminPaymentsExport";
 
 const formatNaira = (amount: number) => `₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
