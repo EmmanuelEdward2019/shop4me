@@ -216,6 +216,7 @@ const AvailablePickups = () => {
         .eq("rider_id", user?.id);
 
       if (error) throw error;
+      notification("success");
       toast({ title: "Arrived!", description: "You've confirmed arrival at the store." });
       fetchAlerts();
     } catch (error) {
