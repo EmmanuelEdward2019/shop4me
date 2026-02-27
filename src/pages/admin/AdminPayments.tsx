@@ -148,6 +148,15 @@ const AdminPayments = () => {
     return matchesSearch && matchesStatus && matchesDateRange(t.created_at);
   });
 
+  // Pagination
+  const paystackTotalPages = Math.max(1, Math.ceil(filteredPayments.length / pageSize));
+  const walletTotalPages = Math.max(1, Math.ceil(filteredWalletTxns.length / pageSize));
+  const paginatedPayments = filteredPayments.slice((paystackPage - 1) * pageSize, paystackPage * pageSize);
+  const paginatedWalletTxns = filteredWalletTxns.slice((walletPage - 1) * pageSize, walletPage * pageSize);
+
+  // Reset pages when filters change
+  const resetPages = () => { setPaystackPage(1); setWalletPage(1); };
+
   // Chart data computation
   const chartData = useMemo(() => {
     const successPayments = payments.filter((p: any) => p.status === "success");
