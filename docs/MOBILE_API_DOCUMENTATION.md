@@ -18,7 +18,9 @@
 9. [Push Notifications (Expo)](#9-push-notifications-expo)
 10. [Deep Linking & Payment Callbacks](#10-deep-linking--payment-callbacks)
 11. [Role-Based Navigation](#11-role-based-navigation)
-12. [Master Prompt for AI Code Generation](#12-master-prompt-for-ai-code-generation)
+12. [Shared Types Package](#12-shared-types-package)
+13. [Master Prompt for AI Code Generation](#13-master-prompt-for-ai-code-generation)
+
 
 ---
 
