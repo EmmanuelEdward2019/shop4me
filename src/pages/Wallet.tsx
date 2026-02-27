@@ -225,9 +225,11 @@ const WalletPage = () => {
               <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                   <p className="text-primary-foreground/80 mb-1">Available Balance</p>
-                  <p className="text-3xl md:text-4xl font-display font-bold">
-                    {formatCurrency(wallet?.balance || 0)}
-                  </p>
+                  <AnimatedBalance
+                    value={wallet?.balance || 0}
+                    formatter={formatCurrency}
+                    className="text-3xl md:text-4xl font-display font-bold"
+                  />
                 </div>
                 <Button 
                   variant="hero-outline" 
