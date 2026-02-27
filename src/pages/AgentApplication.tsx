@@ -105,6 +105,8 @@ const AgentApplication = () => {
     market_knowledge: [],
     experience_description: "",
     how_heard_about_us: "",
+    password: "",
+    confirmPassword: "",
   });
 
   useEffect(() => {
