@@ -195,6 +195,7 @@ const AvailablePickups = () => {
         .is("rider_id", null);
 
       if (error) throw error;
+      notification("success");
       toast({ title: "Pickup Accepted!", description: "Head to the store. You must be within 100m to mark arrival." });
       fetchAlerts();
     } catch (error) {
