@@ -276,15 +276,9 @@ const AgentApplication = () => {
   const canProceed = () => {
     switch (step) {
       case 1:
-        return formData.full_name && formData.email && formData.phone && formData.date_of_birth && formData.gender;
-      case 2:
-        return formData.address && formData.city && formData.state && formData.role_type;
-      case 3:
-        return formData.id_type && formData.id_number && formData.bank_name && formData.account_number && formData.account_name;
-      case 4:
-        return formData.market_knowledge.length > 0;
-      default:
-        return true;
+        const baseStep1 = formData.full_name && formData.email && formData.phone && formData.date_of_birth && formData.gender;
+        if (!user) return baseStep1 && formData.password.length >= 6 && formData.password === formData.confirmPassword;
+        return baseStep1;
     }
   };
 
