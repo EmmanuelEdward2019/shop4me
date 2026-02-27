@@ -134,7 +134,7 @@ const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1">
+        <nav className="p-4 space-y-1 overflow-y-auto" style={{ maxHeight: "calc(100vh - 4rem - 4.5rem)" }}>
           {navItems.map((item) => {
             const isActive = location.pathname === item.href;
             return (
