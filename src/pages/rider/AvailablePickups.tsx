@@ -207,6 +207,7 @@ const AvailablePickups = () => {
   };
 
   const markArrived = async (alertId: string) => {
+    impact("medium");
     try {
       const { error } = await supabase
         .from("rider_alerts")
