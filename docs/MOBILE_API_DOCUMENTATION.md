@@ -1125,6 +1125,7 @@ Located at `shared/hooks/`, these React hooks work on both web and React Native.
 | `useOrderChat({ client, userId, orderId })` | Chat with send/upload/markRead | ✅ New messages |
 | `useUserProfile({ client, userId })` | Profile + getSurname/getInitials/update | ❌ |
 | `useUserRole({ client, userId })` | Role + isAgent/isAdmin/isBuyer/isRider | ❌ |
+| `useNotifications({ client, userId })` | Web Push + Native Push (auto-detect) | ❌ |
 
 ### Setup in React Native
 
@@ -1145,12 +1146,274 @@ Located at `shared/hooks/`, these React hooks work on both web and React Native.
 
 ```ts
 import { supabase } from "./lib/supabase"; // AsyncStorage-backed client
-import { useOrders, useWallet } from "@shop4me/shared-hooks";
+import { useOrders, useWallet, useNotifications } from "@shop4me/shared-hooks";
 
 // In a component:
 const { orders, loading } = useOrders({ client: supabase, userId: user?.id, role: "buyer" });
 const { wallet, fundWallet } = useWallet({ client: supabase, userId: user?.id });
 ```
+
+### useNotifications Hook
+
+The `useNotifications` hook automatically detects the platform and uses the appropriate push registration strategy:
+
+- **Web**: Service Worker + Web Push API → stores subscription in `push_subscriptions` table
+- **Native (Capacitor)**: Capacitor PushNotifications plugin → stores token in `expo_push_tokens` table
+
+```ts
+import { useNotifications } from "@shop4me/shared-hooks";
+
+const {
+  isSupported,   // boolean — whether push is available on this platform
+  isSubscribed,  // boolean — whether the user is currently subscribed
+  isLoading,     // boolean — loading state during subscribe/unsubscribe
+  permission,    // string — current permission status
+  channel,       // "web" | "native" | "none"
+  subscribe,     // () => Promise<boolean> — request permission & register
+  unsubscribe,   // () => Promise<boolean> — remove registration
+} = useNotifications({
+  client: supabase,
+  userId: user?.id,
+  onForegroundNotification: (title, body, data) => {
+    // Native only: show in-app toast when notification received in foreground
+  },
+  onNotificationTapped: (data) => {
+    // Native only: navigate to relevant screen when user taps notification
+    if (data?.screen === "OrderDetail") navigation.navigate("OrderDetail", { id: data.orderId });
+  },
+});
+```
+
+---
+
+## 14. Capacitor Native Plugins
+
+The web app includes Capacitor plugins for hybrid mobile functionality. These are used via platform-aware wrapper hooks in `src/lib/native/` that gracefully no-op on web browsers.
+
+### Installed Plugins
+
+| Plugin | Package | Version | Purpose |
+|--------|---------|---------|---------|
+| Camera | `@capacitor/camera` | ^6.0.0 | Photo capture & gallery access |
+| Push Notifications | `@capacitor/push-notifications` | — | Native push token registration |
+| Haptics | `@capacitor/haptics` | ^8.0.1 | Tactile feedback on native devices |
+| Share | `@capacitor/share` | ^8.0.1 | OS-level share sheet |
+| App | `@capacitor/app` | ^8.0.1 | Deep link handling, app lifecycle |
+| Status Bar | `@capacitor/status-bar` | ^8.0.1 | Status bar styling |
+| Keyboard | `@capacitor/keyboard` | ^8.0.1 | Keyboard events & control |
+
+### Platform-Aware Hooks (`src/lib/native/`)
+
+| Hook | Import | Description |
+|------|--------|-------------|
+| `useNativeCamera()` | `@/lib/native` | `takePhoto()` and `pickFromGallery()` with permission handling. Returns base64 data URI. |
+| `useNativePush()` | `@/lib/native` | Registers device for push, auto-upserts token to `expo_push_tokens`. |
+| `useHaptics()` | `@/lib/native` | `impact(style)`, `notification(type)`, `selectionChanged()`, `vibrate(duration)`. |
+| `useNativeShare()` | `@/lib/native` | `share({ title, text, url })` — falls back to Web Share API or clipboard. |
+| `useDeepLinks()` | `@/lib/native` | Listens for `shop4me://` URLs via `@capacitor/app`. |
+| `isNativePlatform()` | `@/lib/native` | Utility: returns `true` when running inside Capacitor shell. |
+
+### useNativeCamera Usage
+
+```tsx
+import { useNativeCamera } from "@/lib/native";
+
+const { takePhoto, pickFromGallery, isAvailable } = useNativeCamera();
+
+// On native: opens device camera; on web: no-op (use file input instead)
+const photo = await takePhoto(); // returns base64 data URI or null
+
+// On native: opens photo gallery
+const picked = await pickFromGallery(); // returns base64 data URI or null
+```
+
+**Integrated in:**
+- `ChatInput.tsx` — photo sending in order chat (dropdown: Take Photo / Choose from Gallery)
+- `PhotoUploadSection.tsx` — agent document/photo uploads during application
+
+### useNativeShare Usage
+
+```tsx
+import { useNativeShare } from "@/lib/native";
+
+const { share, isAvailable } = useNativeShare();
+
+await share({
+  title: "Check out Shop4Me!",
+  text: "Personal shopping made easy",
+  url: "https://shop4me.lovable.app",
+});
+```
+
+### useDeepLinks Usage
+
+```tsx
+import { useDeepLinks } from "@/lib/native";
+
+// In your root App component:
+useDeepLinks(); // Automatically listens for shop4me:// URLs
+```
+
+---
+
+## 15. Haptic Feedback Integration
+
+The `useHaptics` hook from `src/lib/native/useHaptics.ts` provides tactile feedback on native devices. All methods are no-ops on web browsers.
+
+### API
+
+```tsx
+import { useHaptics } from "@/lib/native";
+
+const { impact, notification, selectionChanged, vibrate, isAvailable } = useHaptics();
+
+// Impact feedback (button presses, UI interactions)
+await impact("light");   // subtle tap
+await impact("medium");  // standard tap
+await impact("heavy");   // strong tap
+
+// Notification feedback (success/error states)
+await notification("success"); // success pattern
+await notification("warning"); // warning pattern
+await notification("error");   // error pattern
+
+// Selection change (picker scrolling, toggle switches)
+await selectionChanged();
+
+// Custom vibration
+await vibrate(300); // 300ms vibration
+```
+
+### Where Haptics Are Integrated
+
+| Component / Page | Trigger | Haptic Type |
+|-----------------|---------|-------------|
+| `WalletFundedAnimation` | Wallet top-up success overlay | `notification("success")` + `impact("heavy")` |
+| `DeliveryStatusUpdater` | Agent sends delivery update | `impact("medium")` on press, `notification("success"/"error")` on result |
+| `AgentOrderDetail` | Status change (Start Shopping, Start Delivery, Mark Delivered) | `impact("medium")` on press, `notification("success"/"error")` on result |
+| `AvailableOrders` (Agent) | Accept Order button | `impact("heavy")` on press, `notification("success"/"error")` on result |
+| `AvailablePickups` (Rider) | Accept Pickup button | `impact("heavy")` on press, `notification("success"/"error")` on result |
+| `AvailablePickups` (Rider) | Mark Arrived / Order Picked Up | `impact("medium")` on press, `notification("success")` on result |
+| `AvailablePickups` (Rider) | Mark Delivered button | `impact("heavy")` on press, `notification("success")` on result |
+
+### Pattern Guidelines
+
+When adding haptics to new features, follow these conventions:
+
+| Action Type | Recommended Haptic |
+|------------|-------------------|
+| Primary action button press | `impact("heavy")` |
+| Secondary action button press | `impact("medium")` |
+| Successful operation | `notification("success")` |
+| Failed operation | `notification("error")` |
+| Toggle/selection change | `selectionChanged()` |
+| Destructive action confirmation | `notification("warning")` + `impact("heavy")` |
+
+---
+
+## 16. Master Prompt for AI Code Generation
+
+```
+You are building a React Native mobile app using Expo for "Shop4Me", a personal shopping
+and delivery platform operating in Nigeria. The app must share the SAME Supabase backend
+as the existing web application.
+
+## CRITICAL REQUIREMENTS
+
+1. **Supabase Connection**: Use the existing Supabase project:
+   - URL: https://iutxschzfxgntniurrmj.supabase.co
+   - Anon Key: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml1dHhzY2h6ZnhnbnRuaXVycm1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk5ODc0NDEsImV4cCI6MjA4NTU2MzQ0MX0.6y9x-FEBKPM5GV3GncnaNTkrFKFylWS5AfrB0VTH9Y0
+   - Use AsyncStorage for session persistence
+   - Set detectSessionInUrl: false
+
+2. **Authentication**: Email/password auth via supabase.auth.signUp/signInWithPassword.
+   On signup, pass full_name in options.data. The backend auto-creates profile, wallet,
+   and buyer role.
+
+3. **Role-Based Navigation**: After login, query user_roles table to determine role
+   (buyer/agent/rider/admin) and navigate to appropriate stack.
+
+4. **Branding**: Primary green #1F7A4D, accent orange #F4A261, white backgrounds.
+   Brand name is "Shop4Me". Use system fonts.
+
+5. **Payments**: Call edge functions (paystack-initialize) with callbackUrl: "shop4me://payment-callback".
+   Open authorization_url with expo-web-browser's openAuthSessionAsync. Extract reference
+   from callback URL and verify with paystack-verify edge function.
+
+6. **Push Notifications**: Use the shared useNotifications hook from shared/hooks/ which
+   auto-detects the platform. On native it uses Capacitor PushNotifications and stores
+   tokens in expo_push_tokens. On web it uses Web Push API and stores in push_subscriptions.
+   The backend edge function send-push-notification handles both channels.
+
+7. **Deep Linking**: URL scheme is "shop4me://". Handle routes: home, orders/{id},
+   payment-callback, wallet-topup-callback, chat/{orderId}, new-order.
+
+8. **Realtime**: Subscribe to postgres_changes for chat_messages (per order),
+   orders (status updates), wallets (balance changes), agent_locations (live tracking).
+
+9. **Maps**: Use react-native-maps for agent location tracking on order detail screen.
+
+10. **Chat**: Support message types: text, shopping_list, invoice, invoice_response,
+    photo, status_update, system. Metadata stored as JSONB.
+
+11. **Currency**: Always format as NGN (Nigerian Naira) using Intl.NumberFormat('en-NG').
+
+12. **Shared Code**: Use hooks from shared/hooks/ (useOrders, useWallet, useOrderChat,
+    useUserProfile, useUserRole, useNotifications) for business logic. These accept a
+    client: SupabaseClient parameter for dependency injection.
+
+13. **Haptic Feedback**: Use impact("heavy") for primary actions, impact("medium") for
+    secondary actions, notification("success"/"error") for operation results. Import
+    from the native haptics utility. All methods no-op on web.
+
+14. **DO NOT** create new backend tables, edge functions, or modify the existing
+    Supabase configuration. Use only the existing API as documented.
+
+## TECH STACK
+- Expo SDK (latest)
+- React Navigation (native stack + bottom tabs)
+- @supabase/supabase-js with @react-native-async-storage/async-storage
+- Shared hooks from shared/hooks/ (useOrders, useWallet, useNotifications, etc.)
+- expo-notifications (push) — or shared useNotifications hook
+- expo-web-browser (Paystack payments)
+- expo-linking (deep links)
+- react-native-maps (tracking)
+- expo-image-picker (chat photos, avatars)
+- expo-location (agent location sharing)
+- expo-haptics (tactile feedback)
+
+## ORDER FLOW
+Buyer creates order → Agent accepts → Agent shops → Agent sends shopping list →
+Buyer confirms items → Agent sends invoice → Buyer pays (wallet or Paystack) →
+Agent packs → Rider picks up → Rider delivers → Buyer rates agent
+
+## DATABASE
+Refer to the full schema documentation. All tables have RLS enabled.
+Key tables: profiles, user_roles, wallets, orders, order_items, chat_messages,
+invoices, payments, delivery_addresses, agent_locations, rider_alerts,
+expo_push_tokens, agent_reviews, agent_earnings.
+
+## EDGE FUNCTIONS (POST to https://iutxschzfxgntniurrmj.supabase.co/functions/v1/)
+- paystack-initialize: {orderId, amount, email, callbackUrl}
+- paystack-verify: {reference}
+- paystack-wallet-topup: {amount, email, callbackUrl}
+- paystack-charge-card: {amount, email, authorization_code, orderId}
+- pay-with-wallet: {orderId, amount}
+- send-push-notification: {userId|role, title, body, url?, data?}
+- send-notification-email: {to, subject, userName, body, ctaText?, ctaUrl?}
+- send-invoice-email: {to, invoiceNumber, buyerName, items, subtotal, serviceFee, deliveryFee, discount, total, paymentUrl}
+```
+
+---
+
+## Appendix: Database Functions
+
+| Function | Purpose | Parameters |
+|----------|---------|------------|
+| `has_role(user_id, role)` | Check if user has specific role | uuid, app_role |
+| `update_wallet_balance(...)` | Atomic wallet credit/debit | user_id, amount, type, description?, reference? |
+| `generate_invoice_number()` | Generate next invoice number | (none) |
+| `delete_user_account(user_id)` | Delete user's own account data | uuid (must be auth.uid()) |
 
 ---
 
