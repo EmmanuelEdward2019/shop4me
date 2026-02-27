@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, PartyPopper, Sparkles } from "lucide-react";
+import { useHaptics } from "@/lib/native";
 
 interface WalletFundedAnimationProps {
   show: boolean;
