@@ -89,6 +89,7 @@ const AvailableOrders = () => {
       setOrders(orders.filter((o) => o.id !== orderId));
     } catch (error) {
       console.error("Error accepting order:", error);
+      notification("error");
       toast({
         title: "Error",
         description: "Failed to accept order. It may have been taken by another agent.",

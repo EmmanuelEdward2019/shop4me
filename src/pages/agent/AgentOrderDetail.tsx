@@ -312,6 +312,7 @@ const AgentOrderDetail = () => {
       }
     } catch (error) {
       console.error("Error updating order status:", error);
+      notification("error");
       toast({
         title: "Error",
         description: "Failed to update order status",
