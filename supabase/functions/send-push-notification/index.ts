@@ -8,10 +8,11 @@ const corsHeaders = {
 
 interface PushPayload {
   userId?: string;
-  role?: string; // broadcast to all users with this role
+  role?: string;
   title: string;
   body: string;
   url?: string;
+  data?: Record<string, string>;
 }
 
 serve(async (req) => {
@@ -25,12 +26,11 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const payload: PushPayload = await req.json();
-    const { userId, role, title, body, url } = payload;
+    const { userId, role, title, body, url, data } = payload;
 
     let userIds: string[] = [];
 
     if (role) {
-      // Broadcast to all users with this role
       console.log(`Broadcasting push notification to all ${role}s`);
       const { data: roleUsers, error: roleError } = await supabase
         .from("user_roles")
@@ -59,33 +59,20 @@ serve(async (req) => {
       );
     }
 
-    // Get push subscriptions for all target users
-    const { data: subscriptions, error: subError } = await supabase
+    // ── 1. Web Push (existing) ──
+    const { data: webSubs, error: webSubError } = await supabase
       .from("push_subscriptions")
       .select("*")
       .in("user_id", userIds);
 
-    if (subError) {
-      console.error("Error fetching subscriptions:", subError);
-      throw subError;
+    if (webSubError) {
+      console.error("Error fetching web subscriptions:", webSubError);
     }
 
-    if (!subscriptions || subscriptions.length === 0) {
-      console.log("No push subscriptions found");
-      return new Response(
-        JSON.stringify({ success: true, message: "No subscriptions" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`Found ${subscriptions.length} subscriptions for ${userIds.length} users`);
-
-    // Send to each subscription
-    const results = await Promise.allSettled(
-      subscriptions.map(async (sub) => {
+    const webResults = await Promise.allSettled(
+      (webSubs || []).map(async (sub) => {
         try {
           const pushPayload = JSON.stringify({ title, body, url });
-
           const response = await fetch(sub.endpoint, {
             method: "POST",
             headers: {
@@ -97,25 +84,83 @@ serve(async (req) => {
           });
 
           if (!response.ok && response.status === 410) {
-            console.log("Removing expired subscription:", sub.endpoint);
-            await supabase
-              .from("push_subscriptions")
-              .delete()
-              .eq("id", sub.id);
+            console.log("Removing expired web subscription:", sub.endpoint);
+            await supabase.from("push_subscriptions").delete().eq("id", sub.id);
           }
 
-          return { success: response.ok, endpoint: sub.endpoint };
+          return { success: response.ok, type: "web", endpoint: sub.endpoint };
         } catch (error) {
-          console.error("Error sending to endpoint:", sub.endpoint, error);
-          return { success: false, endpoint: sub.endpoint, error };
+          console.error("Error sending web push:", sub.endpoint, error);
+          return { success: false, type: "web", endpoint: sub.endpoint, error };
         }
       })
     );
 
-    console.log("Push notification results:", results);
+    // ── 2. Expo Push (new for React Native) ──
+    const { data: expoTokens, error: expoError } = await supabase
+      .from("expo_push_tokens")
+      .select("*")
+      .in("user_id", userIds);
+
+    if (expoError) {
+      console.error("Error fetching Expo tokens:", expoError);
+    }
+
+    let expoResults: PromiseSettledResult<any>[] = [];
+
+    if (expoTokens && expoTokens.length > 0) {
+      // Batch Expo notifications (max 100 per request)
+      const expoMessages = expoTokens.map((t) => ({
+        to: t.token,
+        sound: "default",
+        title,
+        body,
+        data: { url, ...data },
+      }));
+
+      const chunks: typeof expoMessages[] = [];
+      for (let i = 0; i < expoMessages.length; i += 100) {
+        chunks.push(expoMessages.slice(i, i + 100));
+      }
+
+      expoResults = await Promise.allSettled(
+        chunks.map(async (chunk) => {
+          const response = await fetch("https://exp.host/--/api/v2/push/send", {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Accept-Encoding": "gzip, deflate",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(chunk),
+          });
+
+          const result = await response.json();
+
+          // Clean up invalid tokens
+          if (result.data) {
+            for (let i = 0; i < result.data.length; i++) {
+              if (result.data[i].status === "error" &&
+                  result.data[i].details?.error === "DeviceNotRegistered") {
+                console.log("Removing invalid Expo token:", chunk[i].to);
+                await supabase
+                  .from("expo_push_tokens")
+                  .delete()
+                  .eq("token", chunk[i].to);
+              }
+            }
+          }
+
+          return { success: response.ok, type: "expo", count: chunk.length, result };
+        })
+      );
+    }
+
+    const allResults = { web: webResults, expo: expoResults };
+    console.log(`Push sent: ${webSubs?.length || 0} web, ${expoTokens?.length || 0} expo tokens`);
 
     return new Response(
-      JSON.stringify({ success: true, results }),
+      JSON.stringify({ success: true, results: allResults }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
