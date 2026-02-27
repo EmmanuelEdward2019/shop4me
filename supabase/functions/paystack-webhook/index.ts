@@ -152,7 +152,7 @@ serve(async (req) => {
             console.error('Failed to update wallet balance:', walletError);
           } else {
             console.log(`Wallet credited successfully, new balance: ${walletResult?.new_balance}`);
-            // Send wallet topup email
+            // Send wallet topup email to user
             if (buyerProfile?.email) {
               sendNotificationEmail('wallet_topup', {
                 email: buyerProfile.email,
@@ -161,6 +161,24 @@ serve(async (req) => {
                 newBalance: walletResult?.new_balance,
                 reference,
               });
+            }
+
+            // Send wallet topup notification to admin(s)
+            const { data: adminRolesWallet } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
+            if (adminRolesWallet && adminRolesWallet.length > 0) {
+              for (const admin of adminRolesWallet) {
+                const adminProfile = await getProfile(admin.user_id);
+                if (adminProfile?.email) {
+                  sendNotificationEmail('wallet_topup_admin', {
+                    email: adminProfile.email,
+                    amount: payment.amount,
+                    newBalance: walletResult?.new_balance,
+                    buyerName: buyerProfile?.full_name || 'A user',
+                    buyerEmail: buyerProfile?.email,
+                    reference,
+                  });
+                }
+              }
             }
           }
         }
