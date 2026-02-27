@@ -19,7 +19,10 @@
 10. [Deep Linking & Payment Callbacks](#10-deep-linking--payment-callbacks)
 11. [Role-Based Navigation](#11-role-based-navigation)
 12. [Shared Types Package](#12-shared-types-package)
-13. [Master Prompt for AI Code Generation](#13-master-prompt-for-ai-code-generation)
+13. [Shared Hooks Package](#13-shared-hooks-package)
+14. [Capacitor Native Plugins](#14-capacitor-native-plugins)
+15. [Haptic Feedback Integration](#15-haptic-feedback-integration)
+16. [Master Prompt for AI Code Generation](#16-master-prompt-for-ai-code-generation)
 
 
 ---
