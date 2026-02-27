@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
@@ -11,10 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CreditCard, Wallet, ArrowDownCircle, ArrowUpCircle, Search, CalendarIcon, X } from "lucide-react";
-import { format, isAfter, isBefore, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
+import { CreditCard, Wallet, ArrowDownCircle, ArrowUpCircle, Search, CalendarIcon, X, TrendingUp } from "lucide-react";
+import { format, isAfter, isBefore, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import AdminPaymentsExport from "@/components/admin/AdminPaymentsExport";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from "recharts";
 
 const formatNaira = (amount: number) => `₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
@@ -43,6 +44,7 @@ const AdminPayments = () => {
   const clearDates = () => { setDateFrom(undefined); setDateTo(undefined); setActivePreset(null); };
   const hasDateFilter = dateFrom || dateTo;
 
+  const [chartView, setChartView] = useState<"daily" | "weekly">("daily");
   const [activePreset, setActivePreset] = useState<string | null>(null);
 
   const applyPreset = (preset: string) => {
@@ -143,6 +145,51 @@ const AdminPayments = () => {
     return matchesSearch && matchesStatus && matchesDateRange(t.created_at);
   });
 
+  // Chart data computation
+  const chartData = useMemo(() => {
+    const successPayments = payments.filter((p: any) => p.status === "success");
+    const credits = walletTxns.filter((t: any) => t.type === "credit");
+    const debits = walletTxns.filter((t: any) => t.type === "debit");
+
+    if (chartView === "daily") {
+      const end = new Date();
+      const start = subDays(end, 29);
+      const days = eachDayOfInterval({ start, end });
+      return days.map((day) => {
+        const dayStr = format(day, "yyyy-MM-dd");
+        const label = format(day, "dd MMM");
+        const paystack = successPayments
+          .filter((p: any) => format(new Date(p.created_at), "yyyy-MM-dd") === dayStr)
+          .reduce((s: number, p: any) => s + Number(p.amount), 0);
+        const walletIn = credits
+          .filter((t: any) => format(new Date(t.created_at), "yyyy-MM-dd") === dayStr)
+          .reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const walletOut = debits
+          .filter((t: any) => format(new Date(t.created_at), "yyyy-MM-dd") === dayStr)
+          .reduce((s: number, t: any) => s + Number(t.amount), 0);
+        return { label, paystack, walletIn, walletOut };
+      });
+    } else {
+      const end = new Date();
+      const start = subDays(end, 83);
+      const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
+      return weeks.map((weekStart) => {
+        const wEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+        const label = format(weekStart, "dd MMM");
+        const inRange = (dateStr: string) => {
+          const d = new Date(dateStr);
+          return d >= startOfDay(weekStart) && d <= endOfDay(wEnd);
+        };
+        const paystack = successPayments.filter((p: any) => inRange(p.created_at)).reduce((s: number, p: any) => s + Number(p.amount), 0);
+        const walletIn = credits.filter((t: any) => inRange(t.created_at)).reduce((s: number, t: any) => s + Number(t.amount), 0);
+        const walletOut = debits.filter((t: any) => inRange(t.created_at)).reduce((s: number, t: any) => s + Number(t.amount), 0);
+        return { label, paystack, walletIn, walletOut };
+      });
+    }
+  }, [payments, walletTxns, chartView]);
+
+  const chartTooltipFormatter = (value: number) => formatNaira(value);
+
   return (
     <AdminDashboardLayout>
       <div className="space-y-6">
@@ -181,6 +228,70 @@ const AdminPayments = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Revenue Trend Chart */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base font-semibold">Revenue Trends</CardTitle>
+            </div>
+            <div className="flex gap-1">
+              <Button
+                variant={chartView === "daily" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setChartView("daily")}
+                className="text-xs h-7 px-3"
+              >
+                Daily
+              </Button>
+              <Button
+                variant={chartView === "weekly" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setChartView("weekly")}
+                className="text-xs h-7 px-3"
+              >
+                Weekly
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11 }}
+                    className="text-muted-foreground"
+                    interval={chartView === "daily" ? 4 : 0}
+                    angle={chartView === "weekly" ? -30 : 0}
+                    textAnchor={chartView === "weekly" ? "end" : "middle"}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                    className="text-muted-foreground"
+                    tickFormatter={(v) => v >= 1000 ? `₦${(v / 1000).toFixed(0)}k` : `₦${v}`}
+                  />
+                  <Tooltip
+                    formatter={chartTooltipFormatter}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      color: "hsl(var(--foreground))",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: "12px" }} />
+                  <Bar dataKey="paystack" name="Paystack Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="walletIn" name="Wallet Credits" fill="hsl(142 71% 45%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="walletOut" name="Wallet Debits" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Filters */}
         <div className="space-y-3">
