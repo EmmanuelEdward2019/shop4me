@@ -26,6 +26,7 @@ interface AvailableOrder extends Order {
 const AvailableOrders = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { impact, notification } = useHaptics();
   const [orders, setOrders] = useState<AvailableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState<string | null>(null);
