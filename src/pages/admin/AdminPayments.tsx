@@ -35,7 +35,7 @@ const AdminPayments = () => {
   const [dateTo, setDateTo] = useState<Date | undefined>();
   const [paystackPage, setPaystackPage] = useState(1);
   const [walletPage, setWalletPage] = useState(1);
-  const pageSize = 20;
+  const [pageSize, setPageSize] = useState(20);
 
   const matchesDateRange = (dateStr: string) => {
     const date = new Date(dateStr);
