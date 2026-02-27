@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { CreditCard, Wallet, ArrowDownCircle, ArrowUpCircle, Search, CalendarIcon, X } from "lucide-react";
-import { format, isAfter, isBefore, startOfDay, endOfDay } from "date-fns";
+import { format, isAfter, isBefore, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from "date-fns";
 import { cn } from "@/lib/utils";
 import AdminPaymentsExport from "@/components/admin/AdminPaymentsExport";
 
@@ -40,8 +40,42 @@ const AdminPayments = () => {
     return true;
   };
 
-  const clearDates = () => { setDateFrom(undefined); setDateTo(undefined); };
+  const clearDates = () => { setDateFrom(undefined); setDateTo(undefined); setActivePreset(null); };
   const hasDateFilter = dateFrom || dateTo;
+
+  const [activePreset, setActivePreset] = useState<string | null>(null);
+
+  const applyPreset = (preset: string) => {
+    const today = new Date();
+    setActivePreset(preset);
+    switch (preset) {
+      case "today":
+        setDateFrom(today);
+        setDateTo(today);
+        break;
+      case "7days":
+        setDateFrom(subDays(today, 6));
+        setDateTo(today);
+        break;
+      case "this_month":
+        setDateFrom(startOfMonth(today));
+        setDateTo(today);
+        break;
+      case "last_month": {
+        const last = subMonths(today, 1);
+        setDateFrom(startOfMonth(last));
+        setDateTo(endOfMonth(last));
+        break;
+      }
+    }
+  };
+
+  const presets = [
+    { key: "today", label: "Today" },
+    { key: "7days", label: "Last 7 days" },
+    { key: "this_month", label: "This month" },
+    { key: "last_month", label: "Last month" },
+  ];
 
   // Fetch Paystack payments
   const { data: payments = [], isLoading: loadingPayments } = useQuery({
@@ -149,56 +183,71 @@ const AdminPayments = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, email, or reference..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, email, or reference..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full sm:w-[150px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateFrom ? format(dateFrom, "dd MMM yyyy") : "From date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateFrom} onSelect={(d) => { setDateFrom(d); setActivePreset(null); }} initialFocus className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className={cn("w-full sm:w-[150px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateTo ? format(dateTo, "dd MMM yyyy") : "To date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={dateTo} onSelect={(d) => { setDateTo(d); setActivePreset(null); }} initialFocus className="p-3 pointer-events-auto" />
+              </PopoverContent>
+            </Popover>
+            {hasDateFilter && (
+              <Button variant="ghost" size="icon" onClick={clearDates} className="shrink-0">
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="success">Success</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="credit">Credits</SelectItem>
+                <SelectItem value="debit">Debits</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("w-full sm:w-[150px] justify-start text-left font-normal", !dateFrom && "text-muted-foreground")}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateFrom ? format(dateFrom, "dd MMM yyyy") : "From date"}
+          <div className="flex gap-2 flex-wrap">
+            {presets.map((p) => (
+              <Button
+                key={p.key}
+                variant={activePreset === p.key ? "default" : "outline"}
+                size="sm"
+                onClick={() => applyPreset(p.key)}
+                className="text-xs"
+              >
+                {p.label}
               </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus className="p-3 pointer-events-auto" />
-            </PopoverContent>
-          </Popover>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("w-full sm:w-[150px] justify-start text-left font-normal", !dateTo && "text-muted-foreground")}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateTo ? format(dateTo, "dd MMM yyyy") : "To date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus className="p-3 pointer-events-auto" />
-            </PopoverContent>
-          </Popover>
-          {hasDateFilter && (
-            <Button variant="ghost" size="icon" onClick={clearDates} className="shrink-0">
-              <X className="h-4 w-4" />
-            </Button>
-          )}
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full sm:w-[180px]">
-              <SelectValue placeholder="Filter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="success">Success</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-              <SelectItem value="credit">Credits</SelectItem>
-              <SelectItem value="debit">Debits</SelectItem>
-            </SelectContent>
-          </Select>
+            ))}
+          </div>
         </div>
 
         {/* Tabs */}
