@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CheckCircle, PartyPopper, Sparkles } from "lucide-react";
+import { useHaptics } from "@/lib/native";
 
 interface WalletFundedAnimationProps {
   show: boolean;
@@ -10,17 +11,21 @@ interface WalletFundedAnimationProps {
 
 const WalletFundedAnimation = ({ show, amount, onComplete }: WalletFundedAnimationProps) => {
   const [visible, setVisible] = useState(show);
+  const { notification, impact } = useHaptics();
 
   useEffect(() => {
     if (show) {
       setVisible(true);
+      // Trigger haptic feedback on success
+      notification("success");
+      setTimeout(() => impact("heavy"), 300);
       const timer = setTimeout(() => {
         setVisible(false);
         onComplete?.();
       }, 3500);
       return () => clearTimeout(timer);
     }
-  }, [show, onComplete]);
+  }, [show, onComplete, notification, impact]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("en-NG", {

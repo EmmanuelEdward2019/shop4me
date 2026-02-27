@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useHaptics } from "@/lib/native";
 
 interface DeliveryStatusUpdaterProps {
   orderId: string;
@@ -70,6 +71,7 @@ const DeliveryStatusUpdater = ({
   orderStatus,
 }: DeliveryStatusUpdaterProps) => {
   const { toast } = useToast();
+  const { impact, notification } = useHaptics();
   const [showCustom, setShowCustom] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
   const [sending, setSending] = useState(false);
@@ -82,6 +84,7 @@ const DeliveryStatusUpdater = ({
 
   const sendUpdate = async (type: UpdateType, message: string) => {
     setSending(true);
+    impact("medium");
     try {
       // Get current location if available
       let latitude: number | undefined;
@@ -115,6 +118,7 @@ const DeliveryStatusUpdater = ({
 
       if (error) throw error;
 
+      notification("success");
       toast({
         title: "Update Sent",
         description: "Customer has been notified of your status",
@@ -124,6 +128,7 @@ const DeliveryStatusUpdater = ({
       setShowCustom(false);
     } catch (error) {
       console.error("Error sending update:", error);
+      notification("error");
       toast({
         title: "Error",
         description: "Failed to send update. Please try again.",
