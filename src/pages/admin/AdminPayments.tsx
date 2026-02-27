@@ -95,7 +95,7 @@ const AdminPayments = () => {
       p.profiles?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.provider_reference?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesDateRange(p.created_at);
   });
 
   // Filter wallet txns
@@ -106,7 +106,7 @@ const AdminPayments = () => {
       t.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       t.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "all" || t.type === statusFilter;
-    return matchesSearch && matchesStatus;
+    return matchesSearch && matchesStatus && matchesDateRange(t.created_at);
   });
 
   return (
