@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
                <p style="margin:4px 0 0;"><strong>Amount:</strong> ${formatNGN(amount)}</p>`
             ) +
             `<p style="color:#4a4a4a;font-size:16px;">Your agent will begin delivery shortly.</p>` +
-            ctaButton("View Order", `https://shop4me.lovable.app/dashboard/orders/${orderId}`)
+            ctaButton("View Order", `https://shop4meng.com/dashboard/orders/${orderId}`)
         );
         break;
       }
