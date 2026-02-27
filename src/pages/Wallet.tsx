@@ -15,6 +15,7 @@ import TransactionFiltersComponent, { TransactionFilters, TransactionType } from
 import TransactionExport from "@/components/wallet/TransactionExport";
 import LowBalanceWarning from "@/components/wallet/LowBalanceWarning";
 import MonthlySpendingSummary from "@/components/wallet/MonthlySpendingSummary";
+import AnimatedBalance from "@/components/wallet/AnimatedBalance";
 import { startOfDay, endOfDay } from "date-fns";
 
 interface WalletData {
