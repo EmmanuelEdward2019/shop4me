@@ -266,6 +266,23 @@ const AdminPayments = () => {
               >
                 Weekly
               </Button>
+              <div className="w-px h-5 bg-border mx-1" />
+              <Button
+                variant={chartType === "bar" ? "default" : "outline"}
+                size="icon"
+                onClick={() => setChartType("bar")}
+                className="h-7 w-7"
+              >
+                <BarChart3 className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant={chartType === "area" ? "default" : "outline"}
+                size="icon"
+                onClick={() => setChartType("area")}
+                className="h-7 w-7"
+              >
+                <AreaChartIcon className="h-3.5 w-3.5" />
+              </Button>
             </div>
           </CardHeader>
           <CardContent>
