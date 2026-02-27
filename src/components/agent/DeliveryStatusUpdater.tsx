@@ -118,6 +118,7 @@ const DeliveryStatusUpdater = ({
 
       if (error) throw error;
 
+      notification("success");
       toast({
         title: "Update Sent",
         description: "Customer has been notified of your status",
