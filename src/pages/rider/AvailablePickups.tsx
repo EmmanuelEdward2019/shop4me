@@ -234,6 +234,7 @@ const AvailablePickups = () => {
         .eq("rider_id", user?.id);
 
       if (error) throw error;
+      notification("success");
       toast({ title: "Order Picked Up!", description: "Now deliver to the customer." });
       fetchAlerts();
     } catch (error) {
