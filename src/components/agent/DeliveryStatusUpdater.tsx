@@ -84,6 +84,7 @@ const DeliveryStatusUpdater = ({
 
   const sendUpdate = async (type: UpdateType, message: string) => {
     setSending(true);
+    impact("medium");
     try {
       // Get current location if available
       let latitude: number | undefined;
