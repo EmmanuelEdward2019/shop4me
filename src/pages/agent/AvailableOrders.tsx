@@ -79,6 +79,7 @@ const AvailableOrders = () => {
 
       if (error) throw error;
 
+      notification("success");
       toast({
         title: "Order Accepted!",
         description: "You can now start shopping for this order.",
