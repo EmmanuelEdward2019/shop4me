@@ -1,0 +1,13 @@
+{
+  "name": "@shop4me/shared-hooks",
+  "version": "1.0.0",
+  "description": "Shared React hooks for Shop4Me web and React Native apps",
+  "main": "index.ts",
+  "types": "index.ts",
+  "license": "UNLICENSED",
+  "private": true,
+  "peerDependencies": {
+    "react": ">=17.0.0",
+    "@supabase/supabase-js": ">=2.0.0"
+  }
+}

@@ -1109,4 +1109,46 @@ BRAND.fonts.body             // "Inter"
 
 ---
 
+## 13. Shared Hooks Package
+
+Located at `shared/hooks/`, these React hooks work on both web and React Native. Each hook accepts a `client: SupabaseClient` parameter so each platform provides its own configured client.
+
+### Available Hooks
+
+| Hook | Purpose | Realtime |
+|------|---------|----------|
+| `useOrders({ client, userId, role })` | Fetch buyer/agent orders | ✅ INSERT/UPDATE/DELETE |
+| `useWallet({ client, userId })` | Balance, transactions, fund/pay/verify | ✅ Balance + transactions |
+| `useOrderChat({ client, userId, orderId })` | Chat with send/upload/markRead | ✅ New messages |
+| `useUserProfile({ client, userId })` | Profile + getSurname/getInitials/update | ❌ |
+| `useUserRole({ client, userId })` | Role + isAgent/isAdmin/isBuyer/isRider | ❌ |
+
+### Setup in React Native
+
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "paths": {
+      "@shop4me/shared-hooks": ["./shared/hooks"],
+      "@shop4me/shared-types": ["./shared/types"],
+      "@shared/*": ["./shared/*"]
+    }
+  }
+}
+```
+
+### Usage Example
+
+```ts
+import { supabase } from "./lib/supabase"; // AsyncStorage-backed client
+import { useOrders, useWallet } from "@shop4me/shared-hooks";
+
+// In a component:
+const { orders, loading } = useOrders({ client: supabase, userId: user?.id, role: "buyer" });
+const { wallet, fundWallet } = useWallet({ client: supabase, userId: user?.id });
+```
+
+---
+
 *This document is auto-generated from the Shop4Me web application codebase and Supabase configuration.*
