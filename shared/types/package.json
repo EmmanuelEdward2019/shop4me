@@ -1,0 +1,9 @@
+{
+  "name": "@shop4me/shared-types",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types for Shop4Me web and React Native apps",
+  "main": "index.ts",
+  "types": "index.ts",
+  "license": "UNLICENSED",
+  "private": true
+}
