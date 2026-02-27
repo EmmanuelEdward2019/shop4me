@@ -441,7 +441,7 @@ const AdminPayments = () => {
                       <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
                     ) : filteredPayments.length === 0 ? (
                       <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No payments found</TableCell></TableRow>
-                    ) : filteredPayments.map((p: any) => (
+                    ) : paginatedPayments.map((p: any) => (
                       <TableRow key={p.id}>
                         <TableCell className="text-sm">{format(new Date(p.created_at), "dd MMM yyyy, HH:mm")}</TableCell>
                         <TableCell>
@@ -461,6 +461,31 @@ const AdminPayments = () => {
                   </TableBody>
                 </Table>
               </CardContent>
+              {filteredPayments.length > pageSize && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {(paystackPage - 1) * pageSize + 1}–{Math.min(paystackPage * pageSize, filteredPayments.length)} of {filteredPayments.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={paystackPage <= 1} onClick={() => setPaystackPage(p => p - 1)}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    {Array.from({ length: Math.min(paystackTotalPages, 5) }, (_, i) => {
+                      const start = Math.max(1, Math.min(paystackPage - 2, paystackTotalPages - 4));
+                      const page = start + i;
+                      if (page > paystackTotalPages) return null;
+                      return (
+                        <Button key={page} variant={page === paystackPage ? "default" : "outline"} size="icon" className="h-8 w-8 text-xs" onClick={() => setPaystackPage(page)}>
+                          {page}
+                        </Button>
+                      );
+                    })}
+                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={paystackPage >= paystackTotalPages} onClick={() => setPaystackPage(p => p + 1)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Card>
           </TabsContent>
 
