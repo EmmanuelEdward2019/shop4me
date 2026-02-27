@@ -566,11 +566,24 @@ const AdminPayments = () => {
                   </TableBody>
                 </Table>
               </CardContent>
-              {filteredWalletTxns.length > pageSize && (
+              {filteredWalletTxns.length > 0 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-                  <p className="text-sm text-muted-foreground">
-                    Showing {(walletPage - 1) * pageSize + 1}–{Math.min(walletPage * pageSize, filteredWalletTxns.length)} of {filteredWalletTxns.length}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground">
+                      Showing {(walletPage - 1) * pageSize + 1}–{Math.min(walletPage * pageSize, filteredWalletTxns.length)} of {filteredWalletTxns.length}
+                    </p>
+                    <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); resetPages(); }}>
+                      <SelectTrigger className="w-[70px] h-8 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="20">20</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <div className="flex items-center gap-1">
                     <Button variant="outline" size="icon" className="h-8 w-8" disabled={walletPage <= 1} onClick={() => setWalletPage(p => p - 1)}>
                       <ChevronLeft className="h-4 w-4" />
