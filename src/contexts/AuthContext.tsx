@@ -52,7 +52,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = "https://shop4meng.com/auth";
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -77,12 +77,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       }, 0);
 
-      // Send welcome email (fire-and-forget)
-      supabase.functions
-        .invoke("send-notification-email", {
-          body: { type: "welcome", data: { email, name: fullName } },
-        })
-        .catch((err) => console.error("Welcome email failed:", err));
+      // Welcome email is now sent after email confirmation via onAuthStateChange
     }
 
     return { error: error as Error | null };
