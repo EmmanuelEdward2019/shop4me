@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
                <p style="margin:4px 0 0;"><strong>Reference:</strong> ${reference || "N/A"}</p>`
             ) +
             `<p style="color:#4a4a4a;font-size:16px;">Please try again or use a different payment method.</p>` +
-            ctaButton("Retry Payment", "https://shop4me.lovable.app/dashboard/orders")
+            ctaButton("Retry Payment", "https://shop4meng.com/dashboard/orders")
         );
         break;
       }
