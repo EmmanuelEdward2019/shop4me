@@ -359,6 +359,21 @@ const RiderApplication = () => {
                     <Label>Profile Photo</Label>
                     <Input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
                   </div>
+                  {!user && (
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-medium mb-3 text-foreground">Create Your Account</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Password *</Label>
+                          <Input type="password" value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} placeholder="Min. 6 characters" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Confirm Password *</Label>
+                          <Input type="password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} placeholder="Re-enter password" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 
