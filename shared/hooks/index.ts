@@ -13,3 +13,4 @@ export { useWallet } from "./useWallet";
 export { useOrderChat } from "./useOrderChat";
 export { useUserProfile } from "./useUserProfile";
 export { useUserRole } from "./useUserRole";
+export { useNotifications } from "./useNotifications";
