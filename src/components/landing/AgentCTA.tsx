@@ -50,7 +50,7 @@ const AgentCTA = () => {
               </p>
 
               <Button asChild variant="hero-outline" size="xl">
-                <Link to="/for-agents">Apply Now</Link>
+                <Link to="/agent-application">Apply Now</Link>
               </Button>
             </div>
           </ScrollAnimation>

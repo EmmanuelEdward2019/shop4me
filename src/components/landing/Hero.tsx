@@ -85,9 +85,11 @@ const Hero = () => {
             transition={{ duration: 0.6, delay: 0.5 }}
             className="flex flex-col sm:flex-row gap-4 mb-8"
           >
-            <Button variant="hero-outline" size="xl">
-              Start Shopping
-              <ArrowRight className="w-5 h-5" />
+            <Button asChild variant="hero-outline" size="xl">
+              <Link to="/get-started">
+                Start Shopping
+                <ArrowRight className="w-5 h-5" />
+              </Link>
             </Button>
             <Button
               asChild
@@ -95,7 +97,7 @@ const Hero = () => {
               size="xl"
               className="text-primary-foreground hover:bg-primary-foreground/10"
             >
-              <Link to="/for-agents">Become an Agent</Link>
+              <Link to="/get-started">Become an Agent</Link>
             </Button>
           </motion.div>
 
