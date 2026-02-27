@@ -84,7 +84,7 @@ serve(async (req) => {
     }
 
     // If payment successful, handle based on payment type
-    if (newStatus === 'success') {
+    if (newStatus === 'success' && payment.status !== 'success') {
       // Save card authorization if available
       if (transaction.authorization && transaction.authorization.reusable) {
         const auth = transaction.authorization;
@@ -100,13 +100,12 @@ serve(async (req) => {
           .maybeSingle();
 
         if (!existingCard) {
-          // Check if user has any cards (for setting default)
           const { count } = await supabase
             .from('payment_cards')
             .select('id', { count: 'exact', head: true })
             .eq('user_id', payment.user_id);
 
-          const { error: cardError } = await supabase
+          await supabase
             .from('payment_cards')
             .insert({
               user_id: payment.user_id,
@@ -117,69 +116,40 @@ serve(async (req) => {
               exp_year: auth.exp_year,
               bank: auth.bank,
               brand: auth.brand,
-              is_default: count === 0, // Set as default if first card
+              is_default: count === 0,
             });
-
-          if (cardError) {
-            console.error('Failed to save card:', cardError);
-          } else {
-            console.log(`Saved new card ending in ${auth.last4} for user ${payment.user_id}`);
-          }
         }
       }
 
       if (payment.order_id) {
         // Order payment - update order status
-        const { error: orderError } = await supabase
+        await supabase
           .from('orders')
           .update({ status: 'paid' })
           .eq('id', payment.order_id);
 
-        if (orderError) {
-          console.error('Failed to update order status:', orderError);
-        }
         console.log(`Payment ${payment.id} successful for order ${payment.order_id}`);
       } else if (payment.payment_method === 'wallet_topup') {
-        // Wallet topup - credit the user's wallet
-        const { data: wallet, error: walletError } = await supabase
-          .from('wallets')
-          .select('id, balance')
-          .eq('user_id', payment.user_id)
-          .single();
+        // Wallet topup - credit using atomic RPC
+        const { data: walletResult, error: walletRpcError } = await supabase.rpc(
+          'update_wallet_balance',
+          {
+            p_user_id: payment.user_id,
+            p_amount: transaction.amount / 100,
+            p_type: 'credit',
+            p_description: 'Wallet topup via Paystack',
+            p_reference: reference,
+          }
+        );
 
-        if (walletError || !wallet) {
-          console.error('Wallet not found for topup:', walletError);
+        if (walletRpcError) {
+          console.error('Failed to credit wallet:', walletRpcError);
         } else {
-          const amountInNaira = transaction.amount / 100;
-          
-          // Update wallet balance
-          const { error: updateWalletError } = await supabase
-            .from('wallets')
-            .update({ balance: wallet.balance + amountInNaira })
-            .eq('id', wallet.id);
-
-          if (updateWalletError) {
-            console.error('Failed to update wallet balance:', updateWalletError);
-          }
-
-          // Create wallet transaction record
-          const { error: txError } = await supabase
-            .from('wallet_transactions')
-            .insert({
-              wallet_id: wallet.id,
-              amount: amountInNaira,
-              type: 'credit',
-              description: 'Wallet top-up via Paystack',
-              reference: reference,
-            });
-
-          if (txError) {
-            console.error('Failed to create wallet transaction:', txError);
-          }
-
-          console.log(`Wallet ${wallet.id} credited with ₦${amountInNaira}`);
+          console.log(`Wallet credited via verify, new balance: ${walletResult?.new_balance}`);
         }
       }
+    } else if (newStatus === 'success' && payment.status === 'success') {
+      console.log('Payment already processed (likely by webhook), skipping');
     }
 
     return new Response(
