@@ -30,6 +30,7 @@ import {
   Home,
   Receipt,
   Bike,
+  DollarSign,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import AdminViewSwitcher from "./AdminViewSwitcher";
