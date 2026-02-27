@@ -102,28 +102,39 @@ serve(async (req) => {
         
         console.log(`Processing successful charge for reference: ${reference}`);
 
-        // Update payment record
-        const { data: payment, error: paymentError } = await supabase
+        // Fetch original payment record BEFORE updating (to preserve original payment_method)
+        const { data: originalPayment, error: fetchError } = await supabase
           .from('payments')
-          .update({
-            status: 'success',
-            payment_method: transaction.channel,
-            provider_response: transaction,
-          })
+          .select('id, order_id, user_id, amount, payment_method')
           .eq('provider_reference', reference)
-          .select('order_id, user_id, amount, payment_method')
           .single();
 
-        if (paymentError) {
-          console.error('Failed to update payment:', paymentError);
+        if (fetchError || !originalPayment) {
+          console.error('Failed to find payment:', fetchError);
           break;
         }
 
+        // Now update the payment record
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .update({
+            status: 'success',
+            payment_method: originalPayment.payment_method === 'wallet_topup' ? 'wallet_topup' : transaction.channel,
+            provider_response: transaction,
+          })
+          .eq('id', originalPayment.id);
+
+        if (paymentError) {
+          console.error('Failed to update payment:', paymentError);
+        }
+
+        const payment = originalPayment;
+
         // Get buyer profile for emails
-        const buyerProfile = payment ? await getProfile(payment.user_id) : null;
+        const buyerProfile = await getProfile(payment.user_id);
 
         // Handle wallet topup using atomic function
-        if (payment?.payment_method === 'wallet_topup' && metadata.type === 'wallet_topup') {
+        if (payment.payment_method === 'wallet_topup' || metadata.type === 'wallet_topup') {
           console.log(`Processing wallet topup for user ${payment.user_id}, amount: ${payment.amount}`);
           
           const { data: walletResult, error: walletError } = await supabase.rpc(
