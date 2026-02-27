@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CreditCard, Wallet, ArrowDownCircle, ArrowUpCircle, Search, CalendarIcon, X, TrendingUp } from "lucide-react";
+import { CreditCard, Wallet, ArrowDownCircle, ArrowUpCircle, Search, CalendarIcon, X, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, isAfter, isBefore, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import AdminPaymentsExport from "@/components/admin/AdminPaymentsExport";
