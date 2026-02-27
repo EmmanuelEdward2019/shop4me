@@ -167,13 +167,46 @@ const AgentApplication = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to submit your application.",
-        variant: "destructive",
+    let currentUser = user;
+
+    // If not logged in, create account first
+    if (!currentUser) {
+      if (!formData.password || formData.password.length < 6) {
+        toast({ title: "Password Required", description: "Password must be at least 6 characters.", variant: "destructive" });
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        toast({ title: "Passwords Don't Match", description: "Please confirm your password.", variant: "destructive" });
+        return;
+      }
+
+      setLoading(true);
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: "https://shop4meng.com/auth",
+          data: { full_name: formData.full_name },
+        },
       });
-      navigate("/auth", { state: { from: "/agent-application" } });
+
+      if (signUpError) {
+        toast({ title: "Sign Up Failed", description: signUpError.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      currentUser = signUpData.user;
+
+      // Update profile name
+      if (currentUser) {
+        await supabase.from("profiles").update({ full_name: formData.full_name, phone: formData.phone }).eq("user_id", currentUser.id);
+      }
+    }
+
+    if (!currentUser) {
+      toast({ title: "Error", description: "Could not create account. Please try again.", variant: "destructive" });
+      setLoading(false);
       return;
     }
 
@@ -191,8 +224,28 @@ const AgentApplication = () => {
       }
 
       const { error } = await supabase.from("agent_applications").insert({
-        user_id: user.id,
-        ...formData,
+        user_id: currentUser.id,
+        full_name: formData.full_name,
+        email: formData.email,
+        phone: formData.phone,
+        date_of_birth: formData.date_of_birth,
+        gender: formData.gender,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        lga: formData.lga,
+        role_type: formData.role_type,
+        id_type: formData.id_type,
+        id_number: formData.id_number,
+        bank_name: formData.bank_name,
+        account_number: formData.account_number,
+        account_name: formData.account_name,
+        has_smartphone: formData.has_smartphone,
+        has_vehicle: formData.has_vehicle,
+        vehicle_type: formData.vehicle_type,
+        market_knowledge: formData.market_knowledge,
+        experience_description: formData.experience_description,
+        how_heard_about_us: formData.how_heard_about_us,
         photo_url: photoUrl,
         id_document_url: idDocUrl,
       });
@@ -201,7 +254,7 @@ const AgentApplication = () => {
 
       toast({
         title: "Application Submitted!",
-        description: "We'll review your application and get back to you within 48 hours.",
+        description: !user ? "Please check your email to verify your account. After verification you'll receive a welcome email." : "We'll review your application and get back to you within 48 hours.",
       });
 
       setStep(5); // Success step
