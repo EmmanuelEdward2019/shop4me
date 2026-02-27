@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
           greetingLine(name || "there") +
             `<p style="color:#4a4a4a;font-size:16px;">Your order from <strong>${locationName}</strong> has been delivered! 🎉</p>` +
             `<p style="color:#4a4a4a;font-size:16px;">We'd love to hear about your experience. Please rate your agent.</p>` +
-            ctaButton("Rate Your Agent", `https://shop4me.lovable.app/dashboard/orders/${orderId}`)
+            ctaButton("Rate Your Agent", `https://shop4meng.com/dashboard/orders/${orderId}`)
         );
         break;
       }
