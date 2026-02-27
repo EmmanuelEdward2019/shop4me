@@ -38,6 +38,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Send welcome email after email confirmation (not on signup)
+        if (event === "SIGNED_IN" && session?.user) {
+          const isFirstLogin = session.user.last_sign_in_at === session.user.created_at ||
+            (new Date(session.user.last_sign_in_at || "").getTime() - new Date(session.user.created_at || "").getTime()) < 60000;
+          if (isFirstLogin) {
+            const name = session.user.user_metadata?.full_name || "";
+            const email = session.user.email || "";
+            supabase.functions
+              .invoke("send-notification-email", {
+                body: { type: "welcome", data: { email, name } },
+              })
+              .catch((err) => console.error("Welcome email failed:", err));
+          }
+        }
       }
     );
 
