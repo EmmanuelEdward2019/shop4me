@@ -1035,4 +1035,78 @@ expo_push_tokens, agent_reviews, agent_earnings.
 
 ---
 
+## 12. Shared Types Package
+
+The project includes a **platform-agnostic TypeScript types package** at `shared/types/` that must be used by both the web app and React Native app to ensure type consistency.
+
+### Location
+
+```
+shared/
+└── types/
+    ├── index.ts      ← All exported types, constants, enums
+    ├── package.json   ← @shop4me/shared-types
+    └── README.md
+```
+
+### Setup in React Native (Expo)
+
+1. Copy or symlink the `shared/types/` directory into your Expo project root
+2. Add path alias in `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@shop4me/shared-types": ["./shared/types"]
+    }
+  }
+}
+```
+
+3. Import types:
+
+```ts
+import type { Order, ChatMessage, UserProfile, AppRole } from "@shop4me/shared-types";
+import { BRAND, DEEP_LINK_ROUTES, REALTIME_CHANNELS } from "@shop4me/shared-types";
+```
+
+### Available Exports
+
+| Category | Types / Constants |
+|----------|-------------------|
+| **Enums** | `AppRole`, `OrderStatus`, `ApplicationStatus`, `MessageType`, `PaymentProvider`, `PaymentStatus`, `WalletTransactionType`, `InvoiceStatus` |
+| **Auth** | `UserProfile`, `UserRole` |
+| **Orders** | `Order`, `OrderItem` |
+| **Chat** | `ChatMessage`, `ShoppingListItem`, `ShoppingListMetadata`, `InvoiceItem`, `InvoiceMetadata`, `InvoiceResponseMetadata` |
+| **Invoices** | `Invoice`, `InvoiceLineItem` |
+| **Wallet** | `Wallet`, `WalletTransaction`, `Payment`, `PaymentCard` |
+| **Delivery** | `DeliveryAddress`, `AgentLocation`, `DeliveryUpdate` |
+| **Agent** | `AgentApplication`, `AgentEarning`, `AgentReview` |
+| **Rider** | `RiderAlert` |
+| **Notifications** | `PushSubscription`, `ExpoPushToken` |
+| **Content** | `BlogPost`, `NewsletterSubscription`, `ContactSubmission` |
+| **Platform** | `PlatformSetting`, `ComplianceAction`, `AdminAnnouncement` |
+| **Edge Function Payloads** | `PaystackInitializePayload`, `PaystackVerifyPayload`, `WalletTopupPayload`, `WalletPayPayload`, `ChargeCardPayload`, `SendPushPayload`, `SendEmailPayload`, `SendInvoiceEmailPayload` |
+| **Constants** | `BRAND` (colors, fonts, storage buckets), `DEEP_LINK_ROUTES`, `REALTIME_CHANNELS` |
+
+### Rules
+
+- **No platform-specific imports** — no React, React Native, DOM, or Supabase client code
+- **JSON-serializable** — all types must work over the wire
+- **Single source of truth** — both apps import from here, never duplicate type definitions
+
+### Branding Constants (from `BRAND`)
+
+```ts
+BRAND.colors.primaryGreen    // "#1F7A4D"
+BRAND.colors.accentOrange    // "#F4A261"
+BRAND.colors.backgroundLight // "#F9FAFB"
+BRAND.colors.error           // "#EF4444"
+BRAND.fonts.display          // "Playfair Display"
+BRAND.fonts.body             // "Inter"
+```
+
+---
+
 *This document is auto-generated from the Shop4Me web application codebase and Supabase configuration.*
