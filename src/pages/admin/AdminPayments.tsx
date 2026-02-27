@@ -508,7 +508,7 @@ const AdminPayments = () => {
                       <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
                     ) : filteredWalletTxns.length === 0 ? (
                       <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No transactions found</TableCell></TableRow>
-                    ) : filteredWalletTxns.map((t: any) => (
+                    ) : paginatedWalletTxns.map((t: any) => (
                       <TableRow key={t.id}>
                         <TableCell className="text-sm">{format(new Date(t.created_at), "dd MMM yyyy, HH:mm")}</TableCell>
                         <TableCell>
@@ -528,6 +528,31 @@ const AdminPayments = () => {
                   </TableBody>
                 </Table>
               </CardContent>
+              {filteredWalletTxns.length > pageSize && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {(walletPage - 1) * pageSize + 1}–{Math.min(walletPage * pageSize, filteredWalletTxns.length)} of {filteredWalletTxns.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={walletPage <= 1} onClick={() => setWalletPage(p => p - 1)}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    {Array.from({ length: Math.min(walletTotalPages, 5) }, (_, i) => {
+                      const start = Math.max(1, Math.min(walletPage - 2, walletTotalPages - 4));
+                      const page = start + i;
+                      if (page > walletTotalPages) return null;
+                      return (
+                        <Button key={page} variant={page === walletPage ? "default" : "outline"} size="icon" className="h-8 w-8 text-xs" onClick={() => setWalletPage(page)}>
+                          {page}
+                        </Button>
+                      );
+                    })}
+                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={walletPage >= walletTotalPages} onClick={() => setWalletPage(p => p + 1)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Card>
           </TabsContent>
         </Tabs>
