@@ -65,6 +65,7 @@ const AvailableOrders = () => {
 
   const acceptOrder = async (orderId: string) => {
     setAccepting(orderId);
+    impact("heavy");
     try {
       const { error } = await supabase
         .from("orders")
