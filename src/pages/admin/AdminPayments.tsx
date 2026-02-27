@@ -229,6 +229,70 @@ const AdminPayments = () => {
           </Card>
         </div>
 
+        {/* Revenue Trend Chart */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base font-semibold">Revenue Trends</CardTitle>
+            </div>
+            <div className="flex gap-1">
+              <Button
+                variant={chartView === "daily" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setChartView("daily")}
+                className="text-xs h-7 px-3"
+              >
+                Daily
+              </Button>
+              <Button
+                variant={chartView === "weekly" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setChartView("weekly")}
+                className="text-xs h-7 px-3"
+              >
+                Weekly
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11 }}
+                    className="text-muted-foreground"
+                    interval={chartView === "daily" ? 4 : 0}
+                    angle={chartView === "weekly" ? -30 : 0}
+                    textAnchor={chartView === "weekly" ? "end" : "middle"}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                    className="text-muted-foreground"
+                    tickFormatter={(v) => v >= 1000 ? `₦${(v / 1000).toFixed(0)}k` : `₦${v}`}
+                  />
+                  <Tooltip
+                    formatter={chartTooltipFormatter}
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                      color: "hsl(var(--foreground))",
+                      fontSize: "12px",
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: "12px" }} />
+                  <Bar dataKey="paystack" name="Paystack Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="walletIn" name="Wallet Credits" fill="hsl(142 71% 45%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="walletOut" name="Wallet Debits" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Filters */}
         <div className="space-y-3">
           <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
