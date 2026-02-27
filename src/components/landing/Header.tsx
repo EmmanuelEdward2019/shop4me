@@ -105,7 +105,7 @@ const Header = () => {
                     <Link to="/auth" onClick={() => setIsMenuOpen(false)}>Log In</Link>
                   </Button>
                   <Button asChild className="justify-center">
-                    <Link to="/auth" onClick={() => setIsMenuOpen(false)}>Get Started</Link>
+                    <Link to="/get-started" onClick={() => setIsMenuOpen(false)}>Get Started</Link>
                   </Button>
                 </>
               )}
