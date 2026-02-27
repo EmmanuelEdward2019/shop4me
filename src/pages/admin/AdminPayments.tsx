@@ -40,8 +40,42 @@ const AdminPayments = () => {
     return true;
   };
 
-  const clearDates = () => { setDateFrom(undefined); setDateTo(undefined); };
+  const clearDates = () => { setDateFrom(undefined); setDateTo(undefined); setActivePreset(null); };
   const hasDateFilter = dateFrom || dateTo;
+
+  const [activePreset, setActivePreset] = useState<string | null>(null);
+
+  const applyPreset = (preset: string) => {
+    const today = new Date();
+    setActivePreset(preset);
+    switch (preset) {
+      case "today":
+        setDateFrom(today);
+        setDateTo(today);
+        break;
+      case "7days":
+        setDateFrom(subDays(today, 6));
+        setDateTo(today);
+        break;
+      case "this_month":
+        setDateFrom(startOfMonth(today));
+        setDateTo(today);
+        break;
+      case "last_month": {
+        const last = subMonths(today, 1);
+        setDateFrom(startOfMonth(last));
+        setDateTo(endOfMonth(last));
+        break;
+      }
+    }
+  };
+
+  const presets = [
+    { key: "today", label: "Today" },
+    { key: "7days", label: "Last 7 days" },
+    { key: "this_month", label: "This month" },
+    { key: "last_month", label: "Last month" },
+  ];
 
   // Fetch Paystack payments
   const { data: payments = [], isLoading: loadingPayments } = useQuery({
