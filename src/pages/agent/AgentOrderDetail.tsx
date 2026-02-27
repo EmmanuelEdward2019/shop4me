@@ -268,6 +268,7 @@ const AgentOrderDetail = () => {
 
   const updateOrderStatus = async (newStatus: OrderStatus) => {
     setUpdating(true);
+    impact("medium");
     try {
       const updateData: any = { status: newStatus };
 
