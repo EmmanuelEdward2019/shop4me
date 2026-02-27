@@ -54,6 +54,8 @@ interface FormData {
   has_vehicle: boolean;
   vehicle_type: string;
   experience_description: string;
+  password: string;
+  confirmPassword: string;
 }
 
 const RiderApplication = () => {
