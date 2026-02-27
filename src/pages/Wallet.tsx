@@ -101,6 +101,33 @@ const WalletPage = () => {
     }
   }, [user]);
 
+  // Real-time wallet balance subscription
+  useEffect(() => {
+    if (!wallet?.id) return;
+
+    const channel = supabase
+      .channel(`wallet-${wallet.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "wallets", filter: `id=eq.${wallet.id}` },
+        (payload) => {
+          setWallet((prev) => prev ? { ...prev, balance: payload.new.balance } : prev);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "wallet_transactions", filter: `wallet_id=eq.${wallet.id}` },
+        (payload) => {
+          setTransactions((prev) => [payload.new as Transaction, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [wallet?.id]);
+
   const fetchWalletData = async () => {
     setLoading(true);
     try {
@@ -114,7 +141,6 @@ const WalletPage = () => {
       setWallet(walletData);
 
       if (walletData) {
-        // Fetch all transactions (we'll filter client-side for flexibility)
         const { data: txData, error: txError } = await supabase
           .from("wallet_transactions")
           .select("*")
