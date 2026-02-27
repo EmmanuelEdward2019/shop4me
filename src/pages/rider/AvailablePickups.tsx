@@ -138,6 +138,7 @@ const ActiveDeliveryCard = ({ delivery, onArrived, onPickedUp, onCompleted }: {
 const AvailablePickups = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { impact, notification } = useHaptics();
   const [alerts, setAlerts] = useState<RiderAlert[]>([]);
   const [myDeliveries, setMyDeliveries] = useState<RiderAlert[]>([]);
   const [loading, setLoading] = useState(true);
