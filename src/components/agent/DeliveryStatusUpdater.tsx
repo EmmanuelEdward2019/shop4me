@@ -71,6 +71,7 @@ const DeliveryStatusUpdater = ({
   orderStatus,
 }: DeliveryStatusUpdaterProps) => {
   const { toast } = useToast();
+  const { impact, notification } = useHaptics();
   const [showCustom, setShowCustom] = useState(false);
   const [customMessage, setCustomMessage] = useState("");
   const [sending, setSending] = useState(false);
