@@ -101,7 +101,7 @@ serve(async (req) => {
         email,
         amount: Math.round(amount * 100), // Paystack uses kobo
         reference: reference,
-        callback_url: callbackUrl || `${req.headers.get('origin')}/dashboard/wallet?verify=${reference}`,
+        callback_url: callbackUrl || `${req.headers.get('origin')}/dashboard/wallet`,
         metadata: {
           payment_id: payment.id,
           user_id: user.id,
