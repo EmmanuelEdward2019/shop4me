@@ -49,7 +49,7 @@ serve(async (req) => {
     // Verify order exists and belongs to user
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("*")
+      .select("*, location_name")
       .eq("id", orderId)
       .eq("user_id", user.id)
       .single();
