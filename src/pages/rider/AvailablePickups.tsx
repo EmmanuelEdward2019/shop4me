@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useHaptics } from "@/lib/native";
 import { useAuth } from "@/contexts/AuthContext";
 import RiderDashboardLayout from "@/components/dashboard/RiderDashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
