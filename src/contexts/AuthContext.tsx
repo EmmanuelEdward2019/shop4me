@@ -38,6 +38,21 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // Send welcome email after email confirmation (not on signup)
+        if (event === "SIGNED_IN" && session?.user) {
+          const isFirstLogin = session.user.last_sign_in_at === session.user.created_at ||
+            (new Date(session.user.last_sign_in_at || "").getTime() - new Date(session.user.created_at || "").getTime()) < 60000;
+          if (isFirstLogin) {
+            const name = session.user.user_metadata?.full_name || "";
+            const email = session.user.email || "";
+            supabase.functions
+              .invoke("send-notification-email", {
+                body: { type: "welcome", data: { email, name } },
+              })
+              .catch((err) => console.error("Welcome email failed:", err));
+          }
+        }
       }
     );
 
@@ -52,7 +67,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   }, []);
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = "https://shop4meng.com/auth";
     
     const { error } = await supabase.auth.signUp({
       email,
@@ -77,12 +92,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         }
       }, 0);
 
-      // Send welcome email (fire-and-forget)
-      supabase.functions
-        .invoke("send-notification-email", {
-          body: { type: "welcome", data: { email, name: fullName } },
-        })
-        .catch((err) => console.error("Welcome email failed:", err));
+      // Welcome email is now sent after email confirmation via onAuthStateChange
     }
 
     return { error: error as Error | null };
@@ -101,7 +111,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const resetPassword = async (email: string) => {
-    const redirectTo = `${window.location.origin}/auth/reset-password`;
+    const redirectTo = "https://shop4meng.com/auth/reset-password";
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo,
     });

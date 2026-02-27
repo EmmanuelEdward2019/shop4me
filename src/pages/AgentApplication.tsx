@@ -68,6 +68,8 @@ interface FormData {
   market_knowledge: string[];
   experience_description: string;
   how_heard_about_us: string;
+  password: string;
+  confirmPassword: string;
 }
 
 const AgentApplication = () => {
@@ -103,6 +105,8 @@ const AgentApplication = () => {
     market_knowledge: [],
     experience_description: "",
     how_heard_about_us: "",
+    password: "",
+    confirmPassword: "",
   });
 
   useEffect(() => {
@@ -163,13 +167,46 @@ const AgentApplication = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please log in to submit your application.",
-        variant: "destructive",
+    let currentUser = user;
+
+    // If not logged in, create account first
+    if (!currentUser) {
+      if (!formData.password || formData.password.length < 6) {
+        toast({ title: "Password Required", description: "Password must be at least 6 characters.", variant: "destructive" });
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        toast({ title: "Passwords Don't Match", description: "Please confirm your password.", variant: "destructive" });
+        return;
+      }
+
+      setLoading(true);
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: "https://shop4meng.com/auth",
+          data: { full_name: formData.full_name },
+        },
       });
-      navigate("/auth", { state: { from: "/agent-application" } });
+
+      if (signUpError) {
+        toast({ title: "Sign Up Failed", description: signUpError.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      currentUser = signUpData.user;
+
+      // Update profile name
+      if (currentUser) {
+        await supabase.from("profiles").update({ full_name: formData.full_name, phone: formData.phone }).eq("user_id", currentUser.id);
+      }
+    }
+
+    if (!currentUser) {
+      toast({ title: "Error", description: "Could not create account. Please try again.", variant: "destructive" });
+      setLoading(false);
       return;
     }
 
@@ -187,8 +224,28 @@ const AgentApplication = () => {
       }
 
       const { error } = await supabase.from("agent_applications").insert({
-        user_id: user.id,
-        ...formData,
+        user_id: currentUser.id,
+        full_name: formData.full_name,
+        email: formData.email,
+        phone: formData.phone,
+        date_of_birth: formData.date_of_birth,
+        gender: formData.gender,
+        address: formData.address,
+        city: formData.city,
+        state: formData.state,
+        lga: formData.lga,
+        role_type: formData.role_type,
+        id_type: formData.id_type,
+        id_number: formData.id_number,
+        bank_name: formData.bank_name,
+        account_number: formData.account_number,
+        account_name: formData.account_name,
+        has_smartphone: formData.has_smartphone,
+        has_vehicle: formData.has_vehicle,
+        vehicle_type: formData.vehicle_type,
+        market_knowledge: formData.market_knowledge,
+        experience_description: formData.experience_description,
+        how_heard_about_us: formData.how_heard_about_us,
         photo_url: photoUrl,
         id_document_url: idDocUrl,
       });
@@ -197,7 +254,7 @@ const AgentApplication = () => {
 
       toast({
         title: "Application Submitted!",
-        description: "We'll review your application and get back to you within 48 hours.",
+        description: !user ? "Please check your email to verify your account. After verification you'll receive a welcome email." : "We'll review your application and get back to you within 48 hours.",
       });
 
       setStep(5); // Success step
@@ -219,7 +276,9 @@ const AgentApplication = () => {
   const canProceed = () => {
     switch (step) {
       case 1:
-        return formData.full_name && formData.email && formData.phone && formData.date_of_birth && formData.gender;
+        const baseStep1 = !!(formData.full_name && formData.email && formData.phone && formData.date_of_birth && formData.gender);
+        if (!user) return baseStep1 && formData.password.length >= 6 && formData.password === formData.confirmPassword;
+        return baseStep1;
       case 2:
         return formData.address && formData.city && formData.state && formData.role_type;
       case 3:
@@ -431,6 +490,35 @@ const AgentApplication = () => {
                       )}
                     </div>
                   </div>
+                  {!user && (
+                    <>
+                      <div className="border-t pt-4 mt-4">
+                        <h4 className="font-medium mb-3 text-foreground">Create Your Account</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="password">Password *</Label>
+                            <Input
+                              id="password"
+                              type="password"
+                              value={formData.password}
+                              onChange={(e) => handleInputChange("password", e.target.value)}
+                              placeholder="Min. 6 characters"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="confirmPassword">Confirm Password *</Label>
+                            <Input
+                              id="confirmPassword"
+                              type="password"
+                              value={formData.confirmPassword}
+                              onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
+                              placeholder="Re-enter password"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 

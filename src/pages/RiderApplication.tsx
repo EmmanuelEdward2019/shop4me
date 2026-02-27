@@ -54,6 +54,8 @@ interface FormData {
   has_vehicle: boolean;
   vehicle_type: string;
   experience_description: string;
+  password: string;
+  confirmPassword: string;
 }
 
 const RiderApplication = () => {
@@ -84,6 +86,8 @@ const RiderApplication = () => {
     has_vehicle: true,
     vehicle_type: "motorcycle",
     experience_description: "",
+    password: "",
+    confirmPassword: "",
   });
 
   useEffect(() => {
@@ -125,9 +129,43 @@ const RiderApplication = () => {
   };
 
   const handleSubmit = async () => {
-    if (!user) {
-      toast({ title: "Authentication Required", description: "Please log in first.", variant: "destructive" });
-      navigate("/auth", { state: { from: "/rider-application" } });
+    let currentUser = user;
+
+    if (!currentUser) {
+      if (!formData.password || formData.password.length < 6) {
+        toast({ title: "Password Required", description: "Password must be at least 6 characters.", variant: "destructive" });
+        return;
+      }
+      if (formData.password !== formData.confirmPassword) {
+        toast({ title: "Passwords Don't Match", description: "Please confirm your password.", variant: "destructive" });
+        return;
+      }
+
+      setLoading(true);
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: "https://shop4meng.com/auth",
+          data: { full_name: formData.full_name },
+        },
+      });
+
+      if (signUpError) {
+        toast({ title: "Sign Up Failed", description: signUpError.message, variant: "destructive" });
+        setLoading(false);
+        return;
+      }
+
+      currentUser = signUpData.user;
+      if (currentUser) {
+        await supabase.from("profiles").update({ full_name: formData.full_name, phone: formData.phone }).eq("user_id", currentUser.id);
+      }
+    }
+
+    if (!currentUser) {
+      toast({ title: "Error", description: "Could not create account.", variant: "destructive" });
+      setLoading(false);
       return;
     }
 
@@ -139,7 +177,7 @@ const RiderApplication = () => {
       if (idDocFile) idDocUrl = await uploadFile(idDocFile, "id-documents");
 
       const { error } = await supabase.from("agent_applications").insert({
-        user_id: user.id,
+        user_id: currentUser.id,
         full_name: formData.full_name,
         email: formData.email,
         phone: formData.phone,
@@ -165,7 +203,10 @@ const RiderApplication = () => {
 
       if (error) throw error;
 
-      toast({ title: "Application Submitted!", description: "We'll review your rider application within 48 hours." });
+      toast({
+        title: "Application Submitted!",
+        description: !user ? "Please check your email to verify your account." : "We'll review your rider application within 48 hours.",
+      });
       setStep(4);
     } catch (error: any) {
       toast({ title: "Submission Failed", description: error.message || "Please try again.", variant: "destructive" });
@@ -318,6 +359,21 @@ const RiderApplication = () => {
                     <Label>Profile Photo</Label>
                     <Input type="file" accept="image/*" onChange={(e) => setPhotoFile(e.target.files?.[0] || null)} />
                   </div>
+                  {!user && (
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-medium mb-3 text-foreground">Create Your Account</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Password *</Label>
+                          <Input type="password" value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} placeholder="Min. 6 characters" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Confirm Password *</Label>
+                          <Input type="password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} placeholder="Re-enter password" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 

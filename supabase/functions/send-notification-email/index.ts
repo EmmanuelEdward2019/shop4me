@@ -57,8 +57,8 @@ Deno.serve(async (req) => {
           subject,
           greetingLine(name || "there") +
             `<p style="color:#4a4a4a;font-size:16px;">Your account has been created successfully. You can now place orders and have a personal shopping agent bring items right to your doorstep.</p>` +
-            ctaButton("Start Shopping", "https://shop4me.lovable.app/dashboard") +
-            `<p style="color:#6b7280;font-size:14px;">Need help? Visit our <a href="https://shop4me.lovable.app/help" style="color:#16a34a;">Help Center</a>.</p>`
+            ctaButton("Start Shopping", "https://shop4meng.com/auth") +
+            `<p style="color:#6b7280;font-size:14px;">Need help? Visit our <a href="https://shop4meng.com/help" style="color:#16a34a;">Help Center</a>.</p>`
         );
         break;
       }
@@ -93,7 +93,7 @@ Deno.serve(async (req) => {
                <p style="margin:4px 0 0;"><strong>Amount:</strong> ${formatNGN(amount)}</p>`
             ) +
             `<p style="color:#4a4a4a;font-size:16px;">Your agent will begin delivery shortly.</p>` +
-            ctaButton("View Order", `https://shop4me.lovable.app/dashboard/orders/${orderId}`)
+            ctaButton("View Order", `https://shop4meng.com/dashboard/orders/${orderId}`)
         );
         break;
       }
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
                <p style="margin:4px 0 0;"><strong>Reference:</strong> ${reference || "N/A"}</p>`
             ) +
             `<p style="color:#4a4a4a;font-size:16px;">Please try again or use a different payment method.</p>` +
-            ctaButton("Retry Payment", "https://shop4me.lovable.app/dashboard/orders")
+            ctaButton("Retry Payment", "https://shop4meng.com/dashboard/orders")
         );
         break;
       }
@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
                <p style="margin:4px 0 0;"><strong>New Balance:</strong> ${formatNGN(newBalance)}</p>
                <p style="margin:4px 0 0;"><strong>Reference:</strong> ${reference || "N/A"}</p>`
             ) +
-            ctaButton("View Wallet", "https://shop4me.lovable.app/dashboard/wallet")
+            ctaButton("View Wallet", "https://shop4meng.com/dashboard/wallet")
         );
         break;
       }
@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
           greetingLine(name || "Agent") +
             `<p style="color:#4a4a4a;font-size:16px;">Great news! <strong>${buyerName}</strong> has completed payment of <strong>${formatNGN(amount)}</strong> for the order from <strong>${locationName}</strong>.</p>` +
             `<p style="color:#4a4a4a;font-size:16px;">You can now proceed with delivery.</p>` +
-            ctaButton("Start Delivery", `https://shop4me.lovable.app/agent/orders/${orderId}`)
+            ctaButton("Start Delivery", `https://shop4meng.com/agent/orders/${orderId}`)
         );
         break;
       }
@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
                <p style="margin:4px 0 0;"><strong>Agent:</strong> ${agentName || "N/A"}</p>
                <p style="margin:4px 0 0;"><strong>Amount:</strong> ${formatNGN(amount)}</p>`
             ) +
-            ctaButton("View in Admin", `https://shop4me.lovable.app/admin/orders/${orderId}`)
+            ctaButton("View in Admin", `https://shop4meng.com/admin/orders/${orderId}`)
         );
         break;
       }
@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
           greetingLine(name || "there") +
             `<p style="color:#4a4a4a;font-size:16px;">Your order from <strong>${locationName}</strong> has been delivered! 🎉</p>` +
             `<p style="color:#4a4a4a;font-size:16px;">We'd love to hear about your experience. Please rate your agent.</p>` +
-            ctaButton("Rate Your Agent", `https://shop4me.lovable.app/dashboard/orders/${orderId}`)
+            ctaButton("Rate Your Agent", `https://shop4meng.com/dashboard/orders/${orderId}`)
         );
         break;
       }
@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
                <p style="margin:0;font-size:18px;"><strong>Total: ${formatNGN(total)}</strong></p>`
             ) +
             `<p style="color:#4a4a4a;font-size:14px;">Log in to view the full invoice and download a PDF copy.</p>` +
-            ctaButton("View Invoice", "https://shop4me.lovable.app/dashboard/orders")
+            ctaButton("View Invoice", "https://shop4meng.com/dashboard/orders")
         );
         break;
       }
@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
                ${notes ? `<p style="margin:4px 0 0;"><strong>Details:</strong> ${notes}</p>` : ""}`
             ) +
             `<p style="color:#4a4a4a;font-size:16px;">You can now resume accepting orders and deliveries. Please ensure you maintain high performance standards going forward.</p>` +
-            ctaButton("Go to Dashboard", `https://shop4me.lovable.app/${role === "rider" ? "rider" : "agent"}/dashboard`)
+            ctaButton("Go to Dashboard", `https://shop4meng.com/${role === "rider" ? "rider" : "agent"}/dashboard`)
         );
         break;
       }

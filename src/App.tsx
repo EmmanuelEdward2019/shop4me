@@ -28,7 +28,7 @@ import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import CookiePolicy from "./pages/CookiePolicy";
 import Newsletter from "./pages/Newsletter";
-
+import RoleSelect from "./pages/RoleSelect";
 // Protected pages (Buyer)
 import Dashboard from "./pages/Dashboard";
 import OrdersPage from "./pages/Orders";
@@ -109,6 +109,7 @@ const App = () => (
             <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/cookies" element={<CookiePolicy />} />
             <Route path="/newsletter" element={<Newsletter />} />
+            <Route path="/get-started" element={<RoleSelect />} />
 
             {/* Protected routes */}
             <Route
