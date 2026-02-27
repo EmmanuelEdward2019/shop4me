@@ -23,9 +23,11 @@ const FinalCTA = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-                <Button variant="hero" size="xl">
-                  Get Started Free
-                  <ArrowRight className="w-5 h-5" />
+                <Button asChild variant="hero" size="xl">
+                  <Link to="/get-started">
+                    Get Started Free
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
                 </Button>
                 <Button variant="outline" size="xl">
                   Talk to Sales
