@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
                <p style="margin:4px 0 0;"><strong>New Balance:</strong> ${formatNGN(newBalance)}</p>
                <p style="margin:4px 0 0;"><strong>Reference:</strong> ${reference || "N/A"}</p>`
             ) +
-            ctaButton("View Wallet", "https://shop4me.lovable.app/dashboard/wallet")
+            ctaButton("View Wallet", "https://shop4meng.com/dashboard/wallet")
         );
         break;
       }
