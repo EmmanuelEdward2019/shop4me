@@ -68,6 +68,8 @@ interface FormData {
   market_knowledge: string[];
   experience_description: string;
   how_heard_about_us: string;
+  password: string;
+  confirmPassword: string;
 }
 
 const AgentApplication = () => {
