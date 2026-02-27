@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
           greetingLine(name || "Agent") +
             `<p style="color:#4a4a4a;font-size:16px;">Great news! <strong>${buyerName}</strong> has completed payment of <strong>${formatNGN(amount)}</strong> for the order from <strong>${locationName}</strong>.</p>` +
             `<p style="color:#4a4a4a;font-size:16px;">You can now proceed with delivery.</p>` +
-            ctaButton("Start Delivery", `https://shop4me.lovable.app/agent/orders/${orderId}`)
+            ctaButton("Start Delivery", `https://shop4meng.com/agent/orders/${orderId}`)
         );
         break;
       }
