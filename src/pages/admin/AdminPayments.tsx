@@ -344,7 +344,7 @@ const AdminPayments = () => {
                 <X className="h-4 w-4" />
               </Button>
             )}
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); resetPages(); }}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter" />
               </SelectTrigger>
