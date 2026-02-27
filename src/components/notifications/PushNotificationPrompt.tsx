@@ -2,17 +2,22 @@ import { useState, useEffect } from "react";
 import { Bell, BellOff, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { useNotifications } from "@shared/hooks";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const PushNotificationPrompt = () => {
-  const { isSupported, isSubscribed, isLoading, permission, subscribe, unsubscribe } = usePushNotifications();
+  const { user } = useAuth();
+  const { isSupported, isSubscribed, isLoading, permission, subscribe } = useNotifications({
+    client: supabase,
+    userId: user?.id,
+  });
   const [dismissed, setDismissed] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
 
   useEffect(() => {
-    // Show prompt after a short delay if not subscribed and not dismissed
-    const dismissed = localStorage.getItem("push-prompt-dismissed");
-    if (!dismissed && isSupported && !isSubscribed && permission === "default") {
+    const wasDismissed = localStorage.getItem("push-prompt-dismissed");
+    if (!wasDismissed && isSupported && !isSubscribed && permission === "default") {
       const timer = setTimeout(() => setShowPrompt(true), 3000);
       return () => clearTimeout(timer);
     }
@@ -75,7 +80,11 @@ export const PushNotificationPrompt = () => {
 };
 
 export const NotificationToggle = () => {
-  const { isSupported, isSubscribed, isLoading, subscribe, unsubscribe } = usePushNotifications();
+  const { user } = useAuth();
+  const { isSupported, isSubscribed, isLoading, channel, subscribe, unsubscribe } = useNotifications({
+    client: supabase,
+    userId: user?.id,
+  });
 
   if (!isSupported) {
     return (
@@ -84,7 +93,7 @@ export const NotificationToggle = () => {
           <BellOff className="w-5 h-5 text-muted-foreground" />
           <div>
             <p className="font-medium text-foreground">Push Notifications</p>
-            <p className="text-sm text-muted-foreground">Not supported in this browser</p>
+            <p className="text-sm text-muted-foreground">Not supported on this device</p>
           </div>
         </div>
       </div>
@@ -102,7 +111,9 @@ export const NotificationToggle = () => {
         <div>
           <p className="font-medium text-foreground">Push Notifications</p>
           <p className="text-sm text-muted-foreground">
-            {isSubscribed ? "Enabled - you'll receive message alerts" : "Disabled - enable to get alerts"}
+            {isSubscribed
+              ? `Enabled via ${channel === "native" ? "device" : "browser"}`
+              : "Disabled - enable to get alerts"}
           </p>
         </div>
       </div>

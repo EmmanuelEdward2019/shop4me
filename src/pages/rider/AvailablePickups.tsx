@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useHaptics } from "@/lib/native";
 import { useAuth } from "@/contexts/AuthContext";
 import RiderDashboardLayout from "@/components/dashboard/RiderDashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -137,6 +138,7 @@ const ActiveDeliveryCard = ({ delivery, onArrived, onPickedUp, onCompleted }: {
 const AvailablePickups = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { impact, notification } = useHaptics();
   const [alerts, setAlerts] = useState<RiderAlert[]>([]);
   const [myDeliveries, setMyDeliveries] = useState<RiderAlert[]>([]);
   const [loading, setLoading] = useState(true);
@@ -184,6 +186,7 @@ const AvailablePickups = () => {
 
   const acceptPickup = async (alertId: string) => {
     setAccepting(alertId);
+    impact("heavy");
     try {
       const { error } = await supabase
         .from("rider_alerts")
@@ -192,9 +195,11 @@ const AvailablePickups = () => {
         .is("rider_id", null);
 
       if (error) throw error;
+      notification("success");
       toast({ title: "Pickup Accepted!", description: "Head to the store. You must be within 100m to mark arrival." });
       fetchAlerts();
     } catch (error) {
+      notification("error");
       toast({ title: "Error", description: "Failed to accept pickup. It may have been taken.", variant: "destructive" });
     } finally {
       setAccepting(null);
@@ -202,6 +207,7 @@ const AvailablePickups = () => {
   };
 
   const markArrived = async (alertId: string) => {
+    impact("medium");
     try {
       const { error } = await supabase
         .from("rider_alerts")
@@ -210,6 +216,7 @@ const AvailablePickups = () => {
         .eq("rider_id", user?.id);
 
       if (error) throw error;
+      notification("success");
       toast({ title: "Arrived!", description: "You've confirmed arrival at the store." });
       fetchAlerts();
     } catch (error) {
@@ -218,6 +225,7 @@ const AvailablePickups = () => {
   };
 
   const markPickedUp = async (alertId: string) => {
+    impact("medium");
     try {
       const { error } = await supabase
         .from("rider_alerts")
@@ -226,6 +234,7 @@ const AvailablePickups = () => {
         .eq("rider_id", user?.id);
 
       if (error) throw error;
+      notification("success");
       toast({ title: "Order Picked Up!", description: "Now deliver to the customer." });
       fetchAlerts();
     } catch (error) {
@@ -234,6 +243,7 @@ const AvailablePickups = () => {
   };
 
   const markCompleted = async (alertId: string) => {
+    impact("heavy");
     try {
       const { error } = await supabase
         .from("rider_alerts")
@@ -242,6 +252,7 @@ const AvailablePickups = () => {
         .eq("rider_id", user?.id);
 
       if (error) throw error;
+      notification("success");
       toast({ title: "Delivery Complete!", description: "Great job!" });
       fetchAlerts();
     } catch (error) {
