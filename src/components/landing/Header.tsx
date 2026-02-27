@@ -58,7 +58,7 @@ const Header = () => {
                     <Link to="/auth">Log In</Link>
                   </Button>
                   <Button asChild size="sm">
-                    <Link to="/auth">Get Started</Link>
+                    <Link to="/get-started">Get Started</Link>
                   </Button>
                 </>
               )
