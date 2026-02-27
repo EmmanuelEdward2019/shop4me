@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CreditCard, Wallet, ArrowDownCircle, ArrowUpCircle, Search, CalendarIcon, X, TrendingUp } from "lucide-react";
+import { CreditCard, Wallet, ArrowDownCircle, ArrowUpCircle, Search, CalendarIcon, X, TrendingUp, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, isAfter, isBefore, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from "date-fns";
 import { cn } from "@/lib/utils";
 import AdminPaymentsExport from "@/components/admin/AdminPaymentsExport";
@@ -33,6 +33,9 @@ const AdminPayments = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
+  const [paystackPage, setPaystackPage] = useState(1);
+  const [walletPage, setWalletPage] = useState(1);
+  const pageSize = 20;
 
   const matchesDateRange = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -144,6 +147,15 @@ const AdminPayments = () => {
     const matchesStatus = statusFilter === "all" || t.type === statusFilter;
     return matchesSearch && matchesStatus && matchesDateRange(t.created_at);
   });
+
+  // Pagination
+  const paystackTotalPages = Math.max(1, Math.ceil(filteredPayments.length / pageSize));
+  const walletTotalPages = Math.max(1, Math.ceil(filteredWalletTxns.length / pageSize));
+  const paginatedPayments = filteredPayments.slice((paystackPage - 1) * pageSize, paystackPage * pageSize);
+  const paginatedWalletTxns = filteredWalletTxns.slice((walletPage - 1) * pageSize, walletPage * pageSize);
+
+  // Reset pages when filters change
+  const resetPages = () => { setPaystackPage(1); setWalletPage(1); };
 
   // Chart data computation
   const chartData = useMemo(() => {
@@ -301,7 +313,7 @@ const AdminPayments = () => {
               <Input
                 placeholder="Search by name, email, or reference..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); resetPages(); }}
                 className="pl-10"
               />
             </div>
@@ -332,7 +344,7 @@ const AdminPayments = () => {
                 <X className="h-4 w-4" />
               </Button>
             )}
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); resetPages(); }}>
               <SelectTrigger className="w-full sm:w-[180px]">
                 <SelectValue placeholder="Filter" />
               </SelectTrigger>
@@ -429,7 +441,7 @@ const AdminPayments = () => {
                       <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
                     ) : filteredPayments.length === 0 ? (
                       <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No payments found</TableCell></TableRow>
-                    ) : filteredPayments.map((p: any) => (
+                    ) : paginatedPayments.map((p: any) => (
                       <TableRow key={p.id}>
                         <TableCell className="text-sm">{format(new Date(p.created_at), "dd MMM yyyy, HH:mm")}</TableCell>
                         <TableCell>
@@ -449,6 +461,31 @@ const AdminPayments = () => {
                   </TableBody>
                 </Table>
               </CardContent>
+              {filteredPayments.length > pageSize && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {(paystackPage - 1) * pageSize + 1}–{Math.min(paystackPage * pageSize, filteredPayments.length)} of {filteredPayments.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={paystackPage <= 1} onClick={() => setPaystackPage(p => p - 1)}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    {Array.from({ length: Math.min(paystackTotalPages, 5) }, (_, i) => {
+                      const start = Math.max(1, Math.min(paystackPage - 2, paystackTotalPages - 4));
+                      const page = start + i;
+                      if (page > paystackTotalPages) return null;
+                      return (
+                        <Button key={page} variant={page === paystackPage ? "default" : "outline"} size="icon" className="h-8 w-8 text-xs" onClick={() => setPaystackPage(page)}>
+                          {page}
+                        </Button>
+                      );
+                    })}
+                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={paystackPage >= paystackTotalPages} onClick={() => setPaystackPage(p => p + 1)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Card>
           </TabsContent>
 
@@ -471,7 +508,7 @@ const AdminPayments = () => {
                       <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading...</TableCell></TableRow>
                     ) : filteredWalletTxns.length === 0 ? (
                       <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No transactions found</TableCell></TableRow>
-                    ) : filteredWalletTxns.map((t: any) => (
+                    ) : paginatedWalletTxns.map((t: any) => (
                       <TableRow key={t.id}>
                         <TableCell className="text-sm">{format(new Date(t.created_at), "dd MMM yyyy, HH:mm")}</TableCell>
                         <TableCell>
@@ -491,6 +528,31 @@ const AdminPayments = () => {
                   </TableBody>
                 </Table>
               </CardContent>
+              {filteredWalletTxns.length > pageSize && (
+                <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+                  <p className="text-sm text-muted-foreground">
+                    Showing {(walletPage - 1) * pageSize + 1}–{Math.min(walletPage * pageSize, filteredWalletTxns.length)} of {filteredWalletTxns.length}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={walletPage <= 1} onClick={() => setWalletPage(p => p - 1)}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    {Array.from({ length: Math.min(walletTotalPages, 5) }, (_, i) => {
+                      const start = Math.max(1, Math.min(walletPage - 2, walletTotalPages - 4));
+                      const page = start + i;
+                      if (page > walletTotalPages) return null;
+                      return (
+                        <Button key={page} variant={page === walletPage ? "default" : "outline"} size="icon" className="h-8 w-8 text-xs" onClick={() => setWalletPage(page)}>
+                          {page}
+                        </Button>
+                      );
+                    })}
+                    <Button variant="outline" size="icon" className="h-8 w-8" disabled={walletPage >= walletTotalPages} onClick={() => setWalletPage(p => p + 1)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </Card>
           </TabsContent>
         </Tabs>
