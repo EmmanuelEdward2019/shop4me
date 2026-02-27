@@ -19,6 +19,9 @@ type EmailType =
   | "payment_success"
   | "payment_failed"
   | "wallet_topup"
+  | "wallet_topup_admin"
+  | "wallet_spent"
+  | "wallet_spent_admin"
   | "order_paid_agent"
   | "order_paid_admin"
   | "order_delivered"
@@ -134,6 +137,63 @@ Deno.serve(async (req) => {
             ctaButton("View Wallet", "https://shop4meng.com/dashboard/wallet")
         );
         break;
+      }
+
+      // ─── Wallet Topup (Admin notification) ────────────────
+      case "wallet_topup_admin": {
+        const { email, amount, newBalance, buyerName, buyerEmail, reference } = data;
+        to = email;
+        subject = `[Admin] Wallet Funded - ${formatNGN(amount)}`;
+        body = emailLayout(
+          subject,
+          `<p style="color:#4a4a4a;font-size:16px;">A user has funded their wallet.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>User:</strong> ${buyerName || "N/A"} (${buyerEmail || "N/A"})</p>
+               <p style="margin:4px 0 0;"><strong>Amount:</strong> ${formatNGN(amount)}</p>
+               <p style="margin:4px 0 0;"><strong>New Balance:</strong> ${formatNGN(newBalance)}</p>
+               <p style="margin:4px 0 0;"><strong>Reference:</strong> ${reference || "N/A"}</p>`
+            ) +
+            ctaButton("View in Admin", "https://shop4meng.com/admin")
+        );
+        break;
+      }
+
+      // ─── Wallet Spent (Buyer) ─────────────────────────────
+      case "wallet_spent": {
+        const { email, name, amount, newBalance, orderId, locationName } = data;
+        to = email;
+        subject = `Wallet Payment - ${formatNGN(amount)}`;
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">A payment of <strong>${formatNGN(amount)}</strong> was made from your wallet for your order from <strong>${locationName || "a store"}</strong>.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>Amount Deducted:</strong> ${formatNGN(amount)}</p>
+               <p style="margin:4px 0 0;"><strong>Remaining Balance:</strong> ${formatNGN(newBalance)}</p>
+               <p style="margin:4px 0 0;"><strong>Order:</strong> #${orderId?.slice(0, 8) || "N/A"}</p>`
+            ) +
+            ctaButton("View Order", `https://shop4meng.com/dashboard/orders/${orderId}`)
+        );
+        break;
+      }
+
+      // ─── Wallet Spent (Admin notification) ────────────────
+      case "wallet_spent_admin": {
+        const { email, amount, newBalance, buyerName, orderId, locationName } = data;
+        to = email;
+        subject = `[Admin] Wallet Payment - ${formatNGN(amount)}`;
+        body = emailLayout(
+          subject,
+          `<p style="color:#4a4a4a;font-size:16px;">A wallet payment has been processed.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>Buyer:</strong> ${buyerName || "N/A"}</p>
+               <p style="margin:4px 0 0;"><strong>Amount:</strong> ${formatNGN(amount)}</p>
+               <p style="margin:4px 0 0;"><strong>Remaining Balance:</strong> ${formatNGN(newBalance)}</p>
+               <p style="margin:4px 0 0;"><strong>Order:</strong> #${orderId?.slice(0, 8) || "N/A"}</p>
+               <p style="margin:4px 0 0;"><strong>Location:</strong> ${locationName || "N/A"}</p>`
+            ) +
+            ctaButton("View in Admin", `https://shop4meng.com/admin/orders/${orderId}`)
+        );
       }
 
       // ─── Order Paid (Agent notification) ──────────────────

@@ -49,7 +49,7 @@ serve(async (req) => {
     // Verify order exists and belongs to user
     const { data: order, error: orderError } = await supabase
       .from("orders")
-      .select("*")
+      .select("*, location_name")
       .eq("id", orderId)
       .eq("user_id", user.id)
       .single();
@@ -145,6 +145,57 @@ serve(async (req) => {
         type: "service_fee",
         status: "pending",
       });
+    }
+
+    // Send email notifications (fire-and-forget)
+    const supabaseFnUrl = `${supabaseUrl}/functions/v1/send-notification-email`;
+    const emailHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` };
+
+    // Get buyer profile
+    const { data: buyerProfile } = await supabase.from("profiles").select("full_name, email").eq("user_id", user.id).single();
+
+    // Email to buyer
+    if (buyerProfile?.email) {
+      fetch(supabaseFnUrl, {
+        method: 'POST',
+        headers: emailHeaders,
+        body: JSON.stringify({
+          type: 'wallet_spent',
+          data: {
+            email: buyerProfile.email,
+            name: buyerProfile.full_name,
+            amount,
+            newBalance: walletResult.new_balance,
+            orderId,
+            locationName: order.location_name,
+          },
+        }),
+      }).catch(e => console.error('Buyer wallet spent email error:', e));
+    }
+
+    // Email to admin(s)
+    const { data: adminRoles } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
+    if (adminRoles) {
+      for (const admin of adminRoles) {
+        const { data: adminProfile } = await supabase.from("profiles").select("email").eq("user_id", admin.user_id).single();
+        if (adminProfile?.email) {
+          fetch(supabaseFnUrl, {
+            method: 'POST',
+            headers: emailHeaders,
+            body: JSON.stringify({
+              type: 'wallet_spent_admin',
+              data: {
+                email: adminProfile.email,
+                amount,
+                newBalance: walletResult.new_balance,
+                buyerName: buyerProfile?.full_name || 'A user',
+                orderId,
+                locationName: order.location_name,
+              },
+            }),
+          }).catch(e => console.error('Admin wallet spent email error:', e));
+        }
+      }
     }
 
     console.log(`Wallet payment successful for order ${orderId}`);
