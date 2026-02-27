@@ -33,6 +33,10 @@ const AdminPayments = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
+  const [paystackPage, setPaystackPage] = useState(1);
+  const [walletPage, setWalletPage] = useState(1);
+  const pageSize = 20;
+  const [dateTo, setDateTo] = useState<Date | undefined>();
 
   const matchesDateRange = (dateStr: string) => {
     const date = new Date(dateStr);
