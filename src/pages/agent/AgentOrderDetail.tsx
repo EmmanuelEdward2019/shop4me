@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useHaptics } from "@/lib/native";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AgentDashboardLayout from "@/components/dashboard/AgentDashboardLayout";
@@ -74,6 +75,7 @@ const AgentOrderDetail = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { impact, notification } = useHaptics();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [customerProfile, setCustomerProfile] = useState<CustomerProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -266,6 +268,7 @@ const AgentOrderDetail = () => {
 
   const updateOrderStatus = async (newStatus: OrderStatus) => {
     setUpdating(true);
+    impact("medium");
     try {
       const updateData: any = { status: newStatus };
 
@@ -286,6 +289,7 @@ const AgentOrderDetail = () => {
       if (error) throw error;
 
       setOrder((prev) => prev ? { ...prev, status: newStatus } : null);
+      notification("success");
       toast({
         title: "Status Updated",
         description: `Order status changed to ${newStatus.replace("_", " ")}`,
@@ -308,6 +312,7 @@ const AgentOrderDetail = () => {
       }
     } catch (error) {
       console.error("Error updating order status:", error);
+      notification("error");
       toast({
         title: "Error",
         description: "Failed to update order status",

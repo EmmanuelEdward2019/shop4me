@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useHaptics } from "@/lib/native";
 import { useAuth } from "@/contexts/AuthContext";
 import AgentDashboardLayout from "@/components/dashboard/AgentDashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +26,7 @@ interface AvailableOrder extends Order {
 const AvailableOrders = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const { impact, notification } = useHaptics();
   const [orders, setOrders] = useState<AvailableOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState<string | null>(null);
@@ -63,6 +65,7 @@ const AvailableOrders = () => {
 
   const acceptOrder = async (orderId: string) => {
     setAccepting(orderId);
+    impact("heavy");
     try {
       const { error } = await supabase
         .from("orders")
@@ -76,6 +79,7 @@ const AvailableOrders = () => {
 
       if (error) throw error;
 
+      notification("success");
       toast({
         title: "Order Accepted!",
         description: "You can now start shopping for this order.",
@@ -85,6 +89,7 @@ const AvailableOrders = () => {
       setOrders(orders.filter((o) => o.id !== orderId));
     } catch (error) {
       console.error("Error accepting order:", error);
+      notification("error");
       toast({
         title: "Error",
         description: "Failed to accept order. It may have been taken by another agent.",
