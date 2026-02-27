@@ -18,7 +18,9 @@
 9. [Push Notifications (Expo)](#9-push-notifications-expo)
 10. [Deep Linking & Payment Callbacks](#10-deep-linking--payment-callbacks)
 11. [Role-Based Navigation](#11-role-based-navigation)
-12. [Master Prompt for AI Code Generation](#12-master-prompt-for-ai-code-generation)
+12. [Shared Types Package](#12-shared-types-package)
+13. [Master Prompt for AI Code Generation](#13-master-prompt-for-ai-code-generation)
+
 
 ---
 
@@ -1030,6 +1032,80 @@ expo_push_tokens, agent_reviews, agent_earnings.
 | `update_wallet_balance(...)` | Atomic wallet credit/debit | user_id, amount, type, description?, reference? |
 | `generate_invoice_number()` | Generate next invoice number | (none) |
 | `delete_user_account(user_id)` | Delete user's own account data | uuid (must be auth.uid()) |
+
+---
+
+## 12. Shared Types Package
+
+The project includes a **platform-agnostic TypeScript types package** at `shared/types/` that must be used by both the web app and React Native app to ensure type consistency.
+
+### Location
+
+```
+shared/
+└── types/
+    ├── index.ts      ← All exported types, constants, enums
+    ├── package.json   ← @shop4me/shared-types
+    └── README.md
+```
+
+### Setup in React Native (Expo)
+
+1. Copy or symlink the `shared/types/` directory into your Expo project root
+2. Add path alias in `tsconfig.json`:
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@shop4me/shared-types": ["./shared/types"]
+    }
+  }
+}
+```
+
+3. Import types:
+
+```ts
+import type { Order, ChatMessage, UserProfile, AppRole } from "@shop4me/shared-types";
+import { BRAND, DEEP_LINK_ROUTES, REALTIME_CHANNELS } from "@shop4me/shared-types";
+```
+
+### Available Exports
+
+| Category | Types / Constants |
+|----------|-------------------|
+| **Enums** | `AppRole`, `OrderStatus`, `ApplicationStatus`, `MessageType`, `PaymentProvider`, `PaymentStatus`, `WalletTransactionType`, `InvoiceStatus` |
+| **Auth** | `UserProfile`, `UserRole` |
+| **Orders** | `Order`, `OrderItem` |
+| **Chat** | `ChatMessage`, `ShoppingListItem`, `ShoppingListMetadata`, `InvoiceItem`, `InvoiceMetadata`, `InvoiceResponseMetadata` |
+| **Invoices** | `Invoice`, `InvoiceLineItem` |
+| **Wallet** | `Wallet`, `WalletTransaction`, `Payment`, `PaymentCard` |
+| **Delivery** | `DeliveryAddress`, `AgentLocation`, `DeliveryUpdate` |
+| **Agent** | `AgentApplication`, `AgentEarning`, `AgentReview` |
+| **Rider** | `RiderAlert` |
+| **Notifications** | `PushSubscription`, `ExpoPushToken` |
+| **Content** | `BlogPost`, `NewsletterSubscription`, `ContactSubmission` |
+| **Platform** | `PlatformSetting`, `ComplianceAction`, `AdminAnnouncement` |
+| **Edge Function Payloads** | `PaystackInitializePayload`, `PaystackVerifyPayload`, `WalletTopupPayload`, `WalletPayPayload`, `ChargeCardPayload`, `SendPushPayload`, `SendEmailPayload`, `SendInvoiceEmailPayload` |
+| **Constants** | `BRAND` (colors, fonts, storage buckets), `DEEP_LINK_ROUTES`, `REALTIME_CHANNELS` |
+
+### Rules
+
+- **No platform-specific imports** — no React, React Native, DOM, or Supabase client code
+- **JSON-serializable** — all types must work over the wire
+- **Single source of truth** — both apps import from here, never duplicate type definitions
+
+### Branding Constants (from `BRAND`)
+
+```ts
+BRAND.colors.primaryGreen    // "#1F7A4D"
+BRAND.colors.accentOrange    // "#F4A261"
+BRAND.colors.backgroundLight // "#F9FAFB"
+BRAND.colors.error           // "#EF4444"
+BRAND.fonts.display          // "Playfair Display"
+BRAND.fonts.body             // "Inter"
+```
 
 ---
 
