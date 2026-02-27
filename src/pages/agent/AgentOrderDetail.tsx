@@ -289,6 +289,7 @@ const AgentOrderDetail = () => {
       if (error) throw error;
 
       setOrder((prev) => prev ? { ...prev, status: newStatus } : null);
+      notification("success");
       toast({
         title: "Status Updated",
         description: `Order status changed to ${newStatus.replace("_", " ")}`,
