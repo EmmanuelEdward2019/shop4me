@@ -186,6 +186,7 @@ const AvailablePickups = () => {
 
   const acceptPickup = async (alertId: string) => {
     setAccepting(alertId);
+    impact("heavy");
     try {
       const { error } = await supabase
         .from("rider_alerts")
