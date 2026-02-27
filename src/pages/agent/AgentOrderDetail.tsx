@@ -166,6 +166,16 @@ const AgentOrderDetail = () => {
       if (error) throw error;
       setRiderAlertSent(true);
       toast({ title: "Rider Notified!", description: "Nearby riders have been alerted about this pickup." });
+
+      // Send push notification to all riders
+      supabase.functions.invoke("send-push-notification", {
+        body: {
+          role: "rider",
+          title: "🚴 New Pickup Available!",
+          body: `A new order from ${order.location_name} needs pickup. Accept it now!`,
+          url: "/rider/available-pickups",
+        },
+      }).catch((err) => console.error("Push notification error:", err));
     } catch (error) {
       console.error("Error notifying rider:", error);
       toast({ title: "Error", description: "Failed to notify rider", variant: "destructive" });
@@ -183,6 +193,16 @@ const AgentOrderDetail = () => {
       if (error) throw error;
       setRiderAlertPacked(true);
       toast({ title: "Order Packed!", description: "The rider has been notified that the order is ready for pickup." });
+
+      // Send push notification to all riders
+      supabase.functions.invoke("send-push-notification", {
+        body: {
+          role: "rider",
+          title: "📦 Order Packed & Ready!",
+          body: `Order from ${order.location_name} is packed and ready for pickup!`,
+          url: "/rider/available-pickups",
+        },
+      }).catch((err) => console.error("Push notification error:", err));
     } catch (error) {
       console.error("Error marking packed:", error);
       toast({ title: "Error", description: "Failed to update", variant: "destructive" });

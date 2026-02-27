@@ -3,15 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Web Push VAPID keys - in production, generate your own
-const VAPID_PUBLIC_KEY = "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U";
-const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") || "";
-
 interface PushPayload {
-  userId: string;
+  userId?: string;
+  role?: string; // broadcast to all users with this role
   title: string;
   body: string;
   url?: string;
@@ -28,15 +25,45 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const payload: PushPayload = await req.json();
-    const { userId, title, body, url } = payload;
+    const { userId, role, title, body, url } = payload;
 
-    console.log(`Sending push notification to user: ${userId}`);
+    let userIds: string[] = [];
 
-    // Get user's push subscriptions
+    if (role) {
+      // Broadcast to all users with this role
+      console.log(`Broadcasting push notification to all ${role}s`);
+      const { data: roleUsers, error: roleError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", role);
+
+      if (roleError) {
+        console.error("Error fetching role users:", roleError);
+        throw roleError;
+      }
+      userIds = (roleUsers || []).map((r) => r.user_id);
+    } else if (userId) {
+      userIds = [userId];
+    } else {
+      return new Response(
+        JSON.stringify({ success: false, error: "userId or role required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (userIds.length === 0) {
+      console.log("No users found for notification target");
+      return new Response(
+        JSON.stringify({ success: true, message: "No users found" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get push subscriptions for all target users
     const { data: subscriptions, error: subError } = await supabase
       .from("push_subscriptions")
       .select("*")
-      .eq("user_id", userId);
+      .in("user_id", userIds);
 
     if (subError) {
       console.error("Error fetching subscriptions:", subError);
@@ -44,24 +71,21 @@ serve(async (req) => {
     }
 
     if (!subscriptions || subscriptions.length === 0) {
-      console.log("No push subscriptions found for user");
+      console.log("No push subscriptions found");
       return new Response(
         JSON.stringify({ success: true, message: "No subscriptions" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Found ${subscriptions.length} subscriptions`);
+    console.log(`Found ${subscriptions.length} subscriptions for ${userIds.length} users`);
 
     // Send to each subscription
     const results = await Promise.allSettled(
       subscriptions.map(async (sub) => {
         try {
-          // Create push notification using web-push compatible format
           const pushPayload = JSON.stringify({ title, body, url });
 
-          // For now, we'll use a simple fetch to the push endpoint
-          // In production, you'd use a proper web-push library
           const response = await fetch(sub.endpoint, {
             method: "POST",
             headers: {
@@ -73,7 +97,6 @@ serve(async (req) => {
           });
 
           if (!response.ok && response.status === 410) {
-            // Subscription expired, remove it
             console.log("Removing expired subscription:", sub.endpoint);
             await supabase
               .from("push_subscriptions")
