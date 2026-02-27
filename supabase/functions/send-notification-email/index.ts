@@ -232,7 +232,7 @@ Deno.serve(async (req) => {
                <p style="margin:0;font-size:18px;"><strong>Total: ${formatNGN(total)}</strong></p>`
             ) +
             `<p style="color:#4a4a4a;font-size:14px;">Log in to view the full invoice and download a PDF copy.</p>` +
-            ctaButton("View Invoice", "https://shop4me.lovable.app/dashboard/orders")
+            ctaButton("View Invoice", "https://shop4meng.com/dashboard/orders")
         );
         break;
       }
