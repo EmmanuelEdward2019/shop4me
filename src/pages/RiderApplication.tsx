@@ -86,6 +86,8 @@ const RiderApplication = () => {
     has_vehicle: true,
     vehicle_type: "motorcycle",
     experience_description: "",
+    password: "",
+    confirmPassword: "",
   });
 
   useEffect(() => {
