@@ -313,7 +313,7 @@ const AdminPayments = () => {
               <Input
                 placeholder="Search by name, email, or reference..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => { setSearchTerm(e.target.value); resetPages(); }}
                 className="pl-10"
               />
             </div>
