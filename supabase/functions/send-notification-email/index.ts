@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
                <p style="margin:4px 0 0;"><strong>Agent:</strong> ${agentName || "N/A"}</p>
                <p style="margin:4px 0 0;"><strong>Amount:</strong> ${formatNGN(amount)}</p>`
             ) +
-            ctaButton("View in Admin", `https://shop4me.lovable.app/admin/orders/${orderId}`)
+            ctaButton("View in Admin", `https://shop4meng.com/admin/orders/${orderId}`)
         );
         break;
       }
