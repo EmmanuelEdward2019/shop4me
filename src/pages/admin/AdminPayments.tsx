@@ -30,6 +30,18 @@ const statusColor = (status: string) => {
 const AdminPayments = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
+
+  const matchesDateRange = (dateStr: string) => {
+    const date = new Date(dateStr);
+    if (dateFrom && isBefore(date, startOfDay(dateFrom))) return false;
+    if (dateTo && isAfter(date, endOfDay(dateTo))) return false;
+    return true;
+  };
+
+  const clearDates = () => { setDateFrom(undefined); setDateTo(undefined); };
+  const hasDateFilter = dateFrom || dateTo;
 
   // Fetch Paystack payments
   const { data: payments = [], isLoading: loadingPayments } = useQuery({
