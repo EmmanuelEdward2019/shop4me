@@ -48,6 +48,7 @@ const AdminPayments = () => {
   const hasDateFilter = dateFrom || dateTo;
 
   const [chartView, setChartView] = useState<"daily" | "weekly">("daily");
+  const [chartType, setChartType] = useState<"bar" | "area">("bar");
   const [activePreset, setActivePreset] = useState<string | null>(null);
 
   const applyPreset = (preset: string) => {
