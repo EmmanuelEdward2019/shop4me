@@ -199,6 +199,7 @@ const AvailablePickups = () => {
       toast({ title: "Pickup Accepted!", description: "Head to the store. You must be within 100m to mark arrival." });
       fetchAlerts();
     } catch (error) {
+      notification("error");
       toast({ title: "Error", description: "Failed to accept pickup. It may have been taken.", variant: "destructive" });
     } finally {
       setAccepting(null);
