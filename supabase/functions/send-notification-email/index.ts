@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
                ${notes ? `<p style="margin:4px 0 0;"><strong>Details:</strong> ${notes}</p>` : ""}`
             ) +
             `<p style="color:#4a4a4a;font-size:16px;">You can now resume accepting orders and deliveries. Please ensure you maintain high performance standards going forward.</p>` +
-            ctaButton("Go to Dashboard", `https://shop4me.lovable.app/${role === "rider" ? "rider" : "agent"}/dashboard`)
+            ctaButton("Go to Dashboard", `https://shop4meng.com/${role === "rider" ? "rider" : "agent"}/dashboard`)
         );
         break;
       }
