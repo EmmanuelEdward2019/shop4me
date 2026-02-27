@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CreditCard, Wallet, ArrowDownCircle, ArrowUpCircle, Search, DollarSign } from "lucide-react";
 import { format } from "date-fns";
+import AdminPaymentsExport from "@/components/admin/AdminPaymentsExport";
 
 const formatNaira = (amount: number) => `₦${amount.toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
@@ -159,10 +160,52 @@ const AdminPayments = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="paystack" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="paystack" className="gap-2"><CreditCard className="h-4 w-4" /> Paystack Payments</TabsTrigger>
-            <TabsTrigger value="wallet" className="gap-2"><Wallet className="h-4 w-4" /> Wallet Transactions</TabsTrigger>
-          </TabsList>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <TabsList>
+              <TabsTrigger value="paystack" className="gap-2"><CreditCard className="h-4 w-4" /> Paystack Payments</TabsTrigger>
+              <TabsTrigger value="wallet" className="gap-2"><Wallet className="h-4 w-4" /> Wallet Transactions</TabsTrigger>
+            </TabsList>
+            <div className="flex gap-2">
+              <AdminPaymentsExport
+                data={filteredPayments}
+                filenamePrefix="paystack-payments"
+                title="Paystack Payments Report"
+                disabled={loadingPayments}
+                summaryItems={[
+                  { label: "Total Revenue", value: formatNaira(totalPaystackRevenue) },
+                  { label: "Successful", value: String(payments.filter((p: any) => p.status === "success").length) },
+                ]}
+                columns={[
+                  { header: "Date", accessor: (r: any) => format(new Date(r.created_at), "dd MMM yyyy, HH:mm") },
+                  { header: "User", accessor: (r: any) => r.profiles?.full_name || "—" },
+                  { header: "Email", accessor: (r: any) => r.profiles?.email || "" },
+                  { header: "Type", accessor: (r: any) => r.payment_method === "wallet_topup" ? "Wallet Top-up" : r.payment_method || "Card" },
+                  { header: "Amount", accessor: (r: any) => formatNaira(Number(r.amount)) },
+                  { header: "Reference", accessor: (r: any) => r.provider_reference || "—" },
+                  { header: "Status", accessor: (r: any) => r.status },
+                ]}
+              />
+              <AdminPaymentsExport
+                data={filteredWalletTxns}
+                filenamePrefix="wallet-transactions"
+                title="Wallet Transactions Report"
+                disabled={loadingWallet}
+                summaryItems={[
+                  { label: "Total Credits", value: formatNaira(totalWalletCredits) },
+                  { label: "Total Debits", value: formatNaira(totalWalletDebits) },
+                ]}
+                columns={[
+                  { header: "Date", accessor: (r: any) => format(new Date(r.created_at), "dd MMM yyyy, HH:mm") },
+                  { header: "User", accessor: (r: any) => r.profile?.full_name || "—" },
+                  { header: "Email", accessor: (r: any) => r.profile?.email || "" },
+                  { header: "Type", accessor: (r: any) => r.type === "credit" ? "Credit" : "Debit" },
+                  { header: "Amount", accessor: (r: any) => formatNaira(Number(r.amount)) },
+                  { header: "Description", accessor: (r: any) => r.description || "—" },
+                  { header: "Reference", accessor: (r: any) => r.reference || "—" },
+                ]}
+              />
+            </div>
+          </div>
 
           <TabsContent value="paystack">
             <Card>
