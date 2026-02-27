@@ -128,6 +128,7 @@ const DeliveryStatusUpdater = ({
       setShowCustom(false);
     } catch (error) {
       console.error("Error sending update:", error);
+      notification("error");
       toast({
         title: "Error",
         description: "Failed to send update. Please try again.",
