@@ -57,8 +57,8 @@ Deno.serve(async (req) => {
           subject,
           greetingLine(name || "there") +
             `<p style="color:#4a4a4a;font-size:16px;">Your account has been created successfully. You can now place orders and have a personal shopping agent bring items right to your doorstep.</p>` +
-            ctaButton("Start Shopping", "https://shop4me.lovable.app/dashboard") +
-            `<p style="color:#6b7280;font-size:14px;">Need help? Visit our <a href="https://shop4me.lovable.app/help" style="color:#16a34a;">Help Center</a>.</p>`
+            ctaButton("Start Shopping", "https://shop4meng.com/auth") +
+            `<p style="color:#6b7280;font-size:14px;">Need help? Visit our <a href="https://shop4meng.com/help" style="color:#16a34a;">Help Center</a>.</p>`
         );
         break;
       }

@@ -111,7 +111,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const resetPassword = async (email: string) => {
-    const redirectTo = `${window.location.origin}/auth/reset-password`;
+    const redirectTo = "https://shop4meng.com/auth/reset-password";
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo,
     });
