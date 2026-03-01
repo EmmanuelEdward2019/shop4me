@@ -92,7 +92,7 @@ const AuthPage = () => {
       }
     } else {
       toast.success("Welcome back!");
-      navigate(from, { replace: true });
+      // Redirect will happen via useEffect when role loads
     }
   };
 
