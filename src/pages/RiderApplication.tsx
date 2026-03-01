@@ -157,7 +157,22 @@ const RiderApplication = () => {
         return;
       }
 
-      currentUser = signUpData.user;
+      // If no session (email confirmation required), sign in to establish session
+      if (!signUpData.session) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+        if (signInError) {
+          toast({ title: "Sign Up Successful", description: "Please verify your email, then log in and resubmit your application.", variant: "default" });
+          setLoading(false);
+          return;
+        }
+        currentUser = signInData.user;
+      } else {
+        currentUser = signUpData.user;
+      }
+
       if (currentUser) {
         await supabase.from("profiles").update({ full_name: formData.full_name, phone: formData.phone }).eq("user_id", currentUser.id);
       }
