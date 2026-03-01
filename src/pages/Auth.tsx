@@ -42,16 +42,25 @@ const AuthPage = () => {
   const [showReset, setShowReset] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { signIn, signUp, resetPassword, user, loading } = useAuth();
+  const { role, loading: roleLoading, isAdmin, isAgent, isRider } = useUserRole();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = (location.state as { from?: string })?.from || "/dashboard";
+  const from = (location.state as { from?: string })?.from;
+
+  const getRoleDashboard = () => {
+    if (from) return from;
+    if (isAdmin) return "/admin";
+    if (isAgent) return "/agent";
+    if (isRider) return "/rider";
+    return "/dashboard";
+  };
 
   useEffect(() => {
-    if (!loading && user) {
-      navigate(from, { replace: true });
+    if (!loading && !roleLoading && user && role) {
+      navigate(getRoleDashboard(), { replace: true });
     }
-  }, [user, loading, navigate, from]);
+  }, [user, loading, roleLoading, role, navigate]);
 
   const loginForm = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
