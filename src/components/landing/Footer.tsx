@@ -46,6 +46,9 @@ const Footer = () => {
             <Link to="/" className="flex items-center mb-4">
               <img src={logo} alt="Shop4Me" className="h-10 brightness-0 invert" />
             </Link>
+            <p className="text-background/70 mb-2 max-w-sm">
+              Smart Shopping. Delivered.
+            </p>
             <p className="text-background/70 mb-4 max-w-sm">
               Shop from any market in Nigeria without leaving home. 
               Trusted agents, transparent pricing, doorstep delivery.

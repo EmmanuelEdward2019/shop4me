@@ -36,6 +36,9 @@ const DashboardFooter = () => {
             <Link to="/" className="flex items-center mb-3">
               <img src={logo} alt="Shop4Me" className="h-8 brightness-0 invert" />
             </Link>
+            <p className="text-background/70 text-sm font-medium mb-1">
+              Smart Shopping. Delivered.
+            </p>
             <p className="text-background/70 text-sm mb-4">
               Shop from any market in Nigeria without leaving home.
             </p>
