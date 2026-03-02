@@ -20,9 +20,9 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { icon: Facebook, href: "#", label: "Facebook" },
-  { icon: Twitter, href: "#", label: "Twitter" },
-  { icon: Instagram, href: "#", label: "Instagram" },
+  { icon: Facebook, href: "https://www.facebook.com/share/16sDCz9Gio/", label: "Facebook" },
+  { icon: Twitter, href: "https://x.com/Shop4memarkets", label: "Twitter" },
+  { icon: Instagram, href: "https://www.instagram.com/shop4memarkets", label: "Instagram" },
   { icon: Linkedin, href: "#", label: "LinkedIn" },
 ];
 
@@ -36,6 +36,9 @@ const DashboardFooter = () => {
             <Link to="/" className="flex items-center mb-3">
               <img src={logo} alt="Shop4Me" className="h-8 brightness-0 invert" />
             </Link>
+            <p className="text-background/70 text-sm font-medium mb-1">
+              Smart Shopping. Delivered.
+            </p>
             <p className="text-background/70 text-sm mb-4">
               Shop from any market in Nigeria without leaving home.
             </p>
