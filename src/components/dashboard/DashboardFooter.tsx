@@ -20,9 +20,9 @@ const footerLinks = {
 };
 
 const socialLinks = [
-  { icon: Facebook, href: "#", label: "Facebook" },
-  { icon: Twitter, href: "#", label: "Twitter" },
-  { icon: Instagram, href: "#", label: "Instagram" },
+  { icon: Facebook, href: "https://www.facebook.com/share/16sDCz9Gio/", label: "Facebook" },
+  { icon: Twitter, href: "https://x.com/Shop4memarkets", label: "Twitter" },
+  { icon: Instagram, href: "https://www.instagram.com/shop4memarkets", label: "Instagram" },
   { icon: Linkedin, href: "#", label: "LinkedIn" },
 ];
 
