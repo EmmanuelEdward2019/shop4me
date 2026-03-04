@@ -18,6 +18,7 @@ import ForAgentsPage from "./pages/ForAgents";
 import LocationsPage from "./pages/Locations";
 import FAQPage from "./pages/FAQ";
 import AuthPage from "./pages/Auth";
+import ResetPasswordPage from "./pages/ResetPassword";
 import AboutUs from "./pages/AboutUs";
 import Careers from "./pages/Careers";
 import Press from "./pages/Press";
