@@ -126,13 +126,17 @@ const NewOrderPage = () => {
       if (orderError) throw orderError;
 
       // Create order items
-      const orderItems = data.items.map((item) => ({
-        order_id: order.id,
-        name: item.name,
-        description: item.description,
-        quantity: item.quantity,
-        estimated_price: item.estimatedPrice,
-      }));
+      const orderItems = data.items.map((item) => {
+        const unitLabel = UNIT_OPTIONS.find(u => u.value === item.unit)?.label || item.unit;
+        const displayName = item.unit !== "pcs" ? `${item.name} (${item.quantity} ${unitLabel})` : item.name;
+        return {
+          order_id: order.id,
+          name: displayName,
+          description: item.description,
+          quantity: item.quantity,
+          estimated_price: item.estimatedPrice,
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from("order_items")
