@@ -99,6 +99,7 @@ const App = () => (
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
             <Route path="/agent-application" element={<AgentApplication />} />
             <Route path="/rider-application" element={<RiderApplication />} />
             <Route path="/about" element={<AboutUs />} />
