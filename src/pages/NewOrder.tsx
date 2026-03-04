@@ -263,26 +263,68 @@ const NewOrderPage = () => {
                     )}
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label>Item Name *</Label>
-                      <Input
-                        placeholder="e.g., Samsung Galaxy S24 Ultra"
-                        {...register(`items.${index}.name`)}
-                      />
-                      {errors.items?.[index]?.name && (
-                        <p className="text-sm text-destructive">
-                          {errors.items[index]?.name?.message}
-                        </p>
-                      )}
-                    </div>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <div className="space-y-2 sm:col-span-3">
+                        <Label>Item Name *</Label>
+                        <Input
+                          placeholder="e.g., Samsung Galaxy S24 Ultra"
+                          {...register(`items.${index}.name`)}
+                        />
+                        {errors.items?.[index]?.name && (
+                          <p className="text-sm text-destructive">
+                            {errors.items[index]?.name?.message}
+                          </p>
+                        )}
+                      </div>
 
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label>Description (optional)</Label>
-                      <Textarea
-                        placeholder="Color, size, brand preferences, etc."
-                        {...register(`items.${index}.description`)}
-                      />
+                      <div className="space-y-2 sm:col-span-3">
+                        <Label>Description (optional)</Label>
+                        <Textarea
+                          placeholder="Color, size, brand preferences, etc."
+                          {...register(`items.${index}.description`)}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Quantity</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          {...register(`items.${index}.quantity`, {
+                            valueAsNumber: true,
+                          })}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Unit</Label>
+                        <Select
+                          value={watch(`items.${index}.unit`) || "pcs"}
+                          onValueChange={(value) => setValue(`items.${index}.unit`, value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Unit" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {UNIT_OPTIONS.map((unit) => (
+                              <SelectItem key={unit.value} value={unit.value}>
+                                {unit.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Estimated Price (₦)</Label>
+                        <Input
+                          type="number"
+                          placeholder="Optional"
+                          {...register(`items.${index}.estimatedPrice`, {
+                            valueAsNumber: true,
+                          })}
+                        />
+                      </div>
                     </div>
 
                     <div className="space-y-2">
