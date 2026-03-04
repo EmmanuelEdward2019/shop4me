@@ -26,6 +26,7 @@ export const ShoppingListMessage = ({ metadata }: ShoppingListMessageProps) => {
           <div key={item.id} className="flex justify-between">
             <span>
               {index + 1}. {item.name} x{item.quantity}
+              {item.unitLabel && item.unitLabel !== "Pieces" ? ` ${item.unitLabel}` : ""}
             </span>
             {item.estimatedPrice && (
               <span className="opacity-70">~{formatCurrency(item.estimatedPrice)}</span>
