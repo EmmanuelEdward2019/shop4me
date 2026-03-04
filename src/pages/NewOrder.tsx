@@ -27,6 +27,19 @@ const locations = [
   ...portHarcourtLocations,
 ];
 
+const UNIT_OPTIONS = [
+  { value: "pcs", label: "Pieces" },
+  { value: "packs", label: "Packs" },
+  { value: "cartons", label: "Cartons" },
+  { value: "kg", label: "Kg" },
+  { value: "sachets", label: "Sachets" },
+  { value: "bags", label: "Bags" },
+  { value: "bottles", label: "Bottles" },
+  { value: "crates", label: "Crates" },
+  { value: "litres", label: "Litres" },
+  { value: "dozens", label: "Dozens" },
+];
+
 const orderSchema = z.object({
   location: z.string().min(1, "Please select a location"),
   notes: z.string().optional(),
@@ -36,6 +49,7 @@ const orderSchema = z.object({
         name: z.string().min(1, "Item name is required"),
         description: z.string().optional(),
         quantity: z.number().min(1, "Quantity must be at least 1"),
+        unit: z.string().default("pcs"),
         estimatedPrice: z.number().optional(),
       })
     )
