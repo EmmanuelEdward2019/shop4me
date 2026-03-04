@@ -18,6 +18,7 @@ import ForAgentsPage from "./pages/ForAgents";
 import LocationsPage from "./pages/Locations";
 import FAQPage from "./pages/FAQ";
 import AuthPage from "./pages/Auth";
+import ResetPasswordPage from "./pages/ResetPassword";
 import AboutUs from "./pages/AboutUs";
 import Careers from "./pages/Careers";
 import Press from "./pages/Press";
@@ -98,6 +99,7 @@ const App = () => (
             <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
             <Route path="/agent-application" element={<AgentApplication />} />
             <Route path="/rider-application" element={<RiderApplication />} />
             <Route path="/about" element={<AboutUs />} />

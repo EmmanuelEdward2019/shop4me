@@ -1,6 +1,6 @@
 const BRAND_COLOR = "#16a34a";
 const BRAND_NAME = "Shop4Me";
-const SENDER_EMAIL = "info@techfieldsdigital.com.ng";
+const SENDER_EMAIL = "Support@shop4meng.com";
 const SENDER_NAME = "Shop4Me";
 
 export const FROM_EMAIL = `${SENDER_NAME} <${SENDER_EMAIL}>`;
