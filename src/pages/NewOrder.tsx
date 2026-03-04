@@ -76,7 +76,7 @@ const NewOrderPage = () => {
     defaultValues: {
       location: preselectedStore || "",
       notes: "",
-      items: [{ name: "", description: "", quantity: 1, estimatedPrice: undefined }],
+      items: [{ name: "", description: "", quantity: 1, unit: "pcs", estimatedPrice: undefined }],
     },
   });
 
