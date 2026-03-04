@@ -116,17 +116,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       redirectTo,
     });
 
-    if (!error) {
-      // Send branded password reset email (fire-and-forget)
-      supabase.functions
-        .invoke("send-notification-email", {
-          body: {
-            type: "password_reset",
-            data: { email, name: "", resetLink: redirectTo },
-          },
-        })
-        .catch((err) => console.error("Password reset email failed:", err));
-    }
+    // Note: branded password reset email is now handled by the auth-send-email hook
+    // No need to manually send via send-notification-email
 
     return { error: error as Error | null };
   };
