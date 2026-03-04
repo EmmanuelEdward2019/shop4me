@@ -327,29 +327,6 @@ const NewOrderPage = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label>Quantity</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        {...register(`items.${index}.quantity`, {
-                          valueAsNumber: true,
-                        })}
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Estimated Price (₦)</Label>
-                      <Input
-                        type="number"
-                        placeholder="Optional"
-                        {...register(`items.${index}.estimatedPrice`, {
-                          valueAsNumber: true,
-                        })}
-                      />
-                    </div>
-                  </div>
-                </div>
               ))}
 
               <Button
