@@ -151,13 +151,18 @@ const NewOrderPage = () => {
         message_type: "shopping_list",
         content: `Shopping list for ${data.location}`,
         metadata: {
-          items: data.items.map((item, idx) => ({
-            id: crypto.randomUUID(),
-            name: item.name,
-            quantity: item.quantity,
-            estimatedPrice: item.estimatedPrice,
-            description: item.description,
-          })),
+          items: data.items.map((item) => {
+            const unitLabel = UNIT_OPTIONS.find(u => u.value === item.unit)?.label || item.unit;
+            return {
+              id: crypto.randomUUID(),
+              name: item.name,
+              quantity: item.quantity,
+              unit: item.unit,
+              unitLabel,
+              estimatedPrice: item.estimatedPrice,
+              description: item.description,
+            };
+          }),
         },
       });
 
