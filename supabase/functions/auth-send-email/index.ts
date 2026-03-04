@@ -1,4 +1,3 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   emailLayout,
   greetingLine,
@@ -17,11 +16,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 /**
  * Supabase Auth "Send Email" Hook
  *
- * This edge function is called by Supabase Auth whenever it needs to send an
- * email (signup confirmation, password recovery, magic link, email change, invite).
- *
- * It replaces the default Supabase auth emails with branded Shop4Me emails
- * sent via the already-verified Resend account (Support@shop4meng.com).
+ * Called by Supabase Auth whenever it needs to send an email.
+ * Replaces default Supabase auth emails with branded Shop4Me emails
+ * sent via Resend (Support@shop4meng.com).
  *
  * Configure in Supabase Dashboard → Authentication → Hooks → Send Email
  */
