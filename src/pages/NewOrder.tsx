@@ -361,6 +361,7 @@ const NewOrderPage = () => {
                     name: "",
                     description: "",
                     quantity: 1,
+                    unit: "pcs",
                     estimatedPrice: undefined,
                   })
                 }
