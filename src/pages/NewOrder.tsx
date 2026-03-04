@@ -27,6 +27,19 @@ const locations = [
   ...portHarcourtLocations,
 ];
 
+const UNIT_OPTIONS = [
+  { value: "pcs", label: "Pieces" },
+  { value: "packs", label: "Packs" },
+  { value: "cartons", label: "Cartons" },
+  { value: "kg", label: "Kg" },
+  { value: "sachets", label: "Sachets" },
+  { value: "bags", label: "Bags" },
+  { value: "bottles", label: "Bottles" },
+  { value: "crates", label: "Crates" },
+  { value: "litres", label: "Litres" },
+  { value: "dozens", label: "Dozens" },
+];
+
 const orderSchema = z.object({
   location: z.string().min(1, "Please select a location"),
   notes: z.string().optional(),
@@ -36,6 +49,7 @@ const orderSchema = z.object({
         name: z.string().min(1, "Item name is required"),
         description: z.string().optional(),
         quantity: z.number().min(1, "Quantity must be at least 1"),
+        unit: z.string().default("pcs"),
         estimatedPrice: z.number().optional(),
       })
     )
@@ -62,7 +76,7 @@ const NewOrderPage = () => {
     defaultValues: {
       location: preselectedStore || "",
       notes: "",
-      items: [{ name: "", description: "", quantity: 1, estimatedPrice: undefined }],
+      items: [{ name: "", description: "", quantity: 1, unit: "pcs", estimatedPrice: undefined }],
     },
   });
 
@@ -112,13 +126,17 @@ const NewOrderPage = () => {
       if (orderError) throw orderError;
 
       // Create order items
-      const orderItems = data.items.map((item) => ({
-        order_id: order.id,
-        name: item.name,
-        description: item.description,
-        quantity: item.quantity,
-        estimated_price: item.estimatedPrice,
-      }));
+      const orderItems = data.items.map((item) => {
+        const unitLabel = UNIT_OPTIONS.find(u => u.value === item.unit)?.label || item.unit;
+        const displayName = item.unit !== "pcs" ? `${item.name} (${item.quantity} ${unitLabel})` : item.name;
+        return {
+          order_id: order.id,
+          name: displayName,
+          description: item.description,
+          quantity: item.quantity,
+          estimated_price: item.estimatedPrice,
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from("order_items")
@@ -133,13 +151,18 @@ const NewOrderPage = () => {
         message_type: "shopping_list",
         content: `Shopping list for ${data.location}`,
         metadata: {
-          items: data.items.map((item, idx) => ({
-            id: crypto.randomUUID(),
-            name: item.name,
-            quantity: item.quantity,
-            estimatedPrice: item.estimatedPrice,
-            description: item.description,
-          })),
+          items: data.items.map((item) => {
+            const unitLabel = UNIT_OPTIONS.find(u => u.value === item.unit)?.label || item.unit;
+            return {
+              id: crypto.randomUUID(),
+              name: item.name,
+              quantity: item.quantity,
+              unit: item.unit,
+              unitLabel,
+              estimatedPrice: item.estimatedPrice,
+              description: item.description,
+            };
+          }),
         },
       });
 
@@ -240,50 +263,69 @@ const NewOrderPage = () => {
                     )}
                   </div>
 
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label>Item Name *</Label>
-                      <Input
-                        placeholder="e.g., Samsung Galaxy S24 Ultra"
-                        {...register(`items.${index}.name`)}
-                      />
-                      {errors.items?.[index]?.name && (
-                        <p className="text-sm text-destructive">
-                          {errors.items[index]?.name?.message}
-                        </p>
-                      )}
-                    </div>
+                    <div className="grid gap-4 sm:grid-cols-3">
+                      <div className="space-y-2 sm:col-span-3">
+                        <Label>Item Name *</Label>
+                        <Input
+                          placeholder="e.g., Samsung Galaxy S24 Ultra"
+                          {...register(`items.${index}.name`)}
+                        />
+                        {errors.items?.[index]?.name && (
+                          <p className="text-sm text-destructive">
+                            {errors.items[index]?.name?.message}
+                          </p>
+                        )}
+                      </div>
 
-                    <div className="space-y-2 sm:col-span-2">
-                      <Label>Description (optional)</Label>
-                      <Textarea
-                        placeholder="Color, size, brand preferences, etc."
-                        {...register(`items.${index}.description`)}
-                      />
-                    </div>
+                      <div className="space-y-2 sm:col-span-3">
+                        <Label>Description (optional)</Label>
+                        <Textarea
+                          placeholder="Color, size, brand preferences, etc."
+                          {...register(`items.${index}.description`)}
+                        />
+                      </div>
 
-                    <div className="space-y-2">
-                      <Label>Quantity</Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        {...register(`items.${index}.quantity`, {
-                          valueAsNumber: true,
-                        })}
-                      />
-                    </div>
+                      <div className="space-y-2">
+                        <Label>Quantity</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          {...register(`items.${index}.quantity`, {
+                            valueAsNumber: true,
+                          })}
+                        />
+                      </div>
 
-                    <div className="space-y-2">
-                      <Label>Estimated Price (₦)</Label>
-                      <Input
-                        type="number"
-                        placeholder="Optional"
-                        {...register(`items.${index}.estimatedPrice`, {
-                          valueAsNumber: true,
-                        })}
-                      />
+                      <div className="space-y-2">
+                        <Label>Unit</Label>
+                        <Select
+                          value={watch(`items.${index}.unit`) || "pcs"}
+                          onValueChange={(value) => setValue(`items.${index}.unit`, value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Unit" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {UNIT_OPTIONS.map((unit) => (
+                              <SelectItem key={unit.value} value={unit.value}>
+                                {unit.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>Estimated Price (₦)</Label>
+                        <Input
+                          type="number"
+                          placeholder="Optional"
+                          {...register(`items.${index}.estimatedPrice`, {
+                            valueAsNumber: true,
+                          })}
+                        />
+                      </div>
                     </div>
-                  </div>
                 </div>
               ))}
 
@@ -296,6 +338,7 @@ const NewOrderPage = () => {
                     name: "",
                     description: "",
                     quantity: 1,
+                    unit: "pcs",
                     estimatedPrice: undefined,
                   })
                 }

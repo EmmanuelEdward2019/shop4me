@@ -121,6 +121,8 @@ export interface ShoppingListItem {
   id: string;
   name: string;
   quantity: number;
+  unit?: string;
+  unitLabel?: string;
   estimatedPrice?: number;
   description?: string;
 }
