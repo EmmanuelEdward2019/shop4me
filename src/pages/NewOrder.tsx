@@ -326,8 +326,6 @@ const NewOrderPage = () => {
                         />
                       </div>
                     </div>
-                    </div>
-                  </div>
                 </div>
               ))}
 
