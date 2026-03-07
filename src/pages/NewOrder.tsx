@@ -18,9 +18,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, MapPin, ShoppingCart, Loader2 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Plus, Trash2, MapPin, ShoppingCart, Loader2, Home, Building } from "lucide-react";
 import { toast } from "sonner";
 import { portHarcourtLocations } from "@/lib/port-harcourt-stores";
+
+interface SavedAddress {
+  id: string;
+  label: string;
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  state: string;
+  landmark: string | null;
+  is_default: boolean;
+}
 
 // Port Harcourt stores (primary) + other cities coming soon
 const locations = [
