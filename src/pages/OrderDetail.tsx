@@ -50,8 +50,12 @@ interface Order {
 }
 
 interface DeliveryAddress {
+  label: string;
+  address_line1: string;
+  address_line2: string | null;
   city: string;
   state: string;
+  landmark: string | null;
 }
 
 interface OrderItem {
@@ -167,7 +171,7 @@ const OrderDetailPage = () => {
       if (orderData.delivery_address_id) {
         const { data: addressData } = await supabase
           .from("delivery_addresses")
-          .select("city, state")
+          .select("label, address_line1, address_line2, city, state, landmark")
           .eq("id", orderData.delivery_address_id)
           .single();
         if (addressData) {
@@ -476,7 +480,7 @@ const OrderDetailPage = () => {
         <div className="grid md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="font-display">Location</CardTitle>
+              <CardTitle className="font-display">Shopping Location</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-start gap-3">
@@ -499,6 +503,37 @@ const OrderDetailPage = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Delivery Address */}
+          {deliveryAddress ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-display">Delivery Address</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-accent/50 flex items-center justify-center flex-shrink-0">
+                    <Truck className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">{deliveryAddress.label}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {deliveryAddress.address_line1}
+                      {deliveryAddress.address_line2 ? `, ${deliveryAddress.address_line2}` : ""}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {deliveryAddress.city}, {deliveryAddress.state}
+                    </p>
+                    {deliveryAddress.landmark && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Near: {deliveryAddress.landmark}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>
