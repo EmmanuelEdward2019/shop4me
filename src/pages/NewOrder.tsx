@@ -316,7 +316,141 @@ const NewOrderPage = () => {
             </CardContent>
           </Card>
 
-          {/* Shopping List */}
+          {/* Delivery Address Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Home className="w-5 h-5 text-primary" />
+                Delivery Address
+              </CardTitle>
+              <CardDescription>
+                Where should we deliver your items?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loadingAddresses ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading addresses...
+                </div>
+              ) : savedAddresses.length > 0 ? (
+                <RadioGroup
+                  value={selectedAddressId}
+                  onValueChange={(value) => {
+                    if (value === "new") {
+                      setShowNewAddress(true);
+                      setValue("delivery_address_id", "");
+                    } else {
+                      setShowNewAddress(false);
+                      setValue("delivery_address_id", value);
+                    }
+                  }}
+                  className="space-y-3"
+                >
+                  {savedAddresses.map((addr) => (
+                    <div key={addr.id} className="flex items-start space-x-3 p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value={addr.id} id={`addr-${addr.id}`} className="mt-1" />
+                      <label htmlFor={`addr-${addr.id}`} className="flex-1 cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground text-sm">{addr.label}</span>
+                          {addr.is_default && (
+                            <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Default</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          {addr.address_line1}{addr.address_line2 ? `, ${addr.address_line2}` : ""}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{addr.city}, {addr.state}</p>
+                        {addr.landmark && (
+                          <p className="text-xs text-muted-foreground">Near: {addr.landmark}</p>
+                        )}
+                      </label>
+                    </div>
+                  ))}
+                  <div
+                    className={`flex items-center space-x-3 p-3 border border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${showNewAddress ? "border-primary bg-primary/5" : ""}`}
+                    onClick={() => {
+                      setShowNewAddress(true);
+                      setValue("delivery_address_id", "");
+                    }}
+                  >
+                    <RadioGroupItem value="new" id="addr-new" className="mt-0" />
+                    <label htmlFor="addr-new" className="flex items-center gap-2 cursor-pointer text-sm font-medium text-foreground">
+                      <Plus className="w-4 h-4" />
+                      Add new address
+                    </label>
+                  </div>
+                </RadioGroup>
+              ) : (
+                <div className="text-center py-4">
+                  <MapPin className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground mb-3">No saved addresses</p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowNewAddress(true)}>
+                    <Plus className="w-4 h-4 mr-1" /> Add Address
+                  </Button>
+                </div>
+              )}
+
+              {(showNewAddress || savedAddresses.length === 0) && (showNewAddress || savedAddresses.length === 0) && (
+                <div className="p-4 border border-border rounded-lg space-y-3 bg-muted/30">
+                  <p className="text-sm font-medium text-foreground">New Delivery Address</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label className="text-xs">Label</Label>
+                      <Input
+                        placeholder="e.g., Home, Office"
+                        value={newAddress.label}
+                        onChange={(e) => setNewAddress(p => ({ ...p, label: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label className="text-xs">Street Address *</Label>
+                      <Input
+                        placeholder="e.g., 12 Aba Road"
+                        value={newAddress.address_line1}
+                        onChange={(e) => setNewAddress(p => ({ ...p, address_line1: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">City *</Label>
+                      <Input
+                        placeholder="e.g., Port Harcourt"
+                        value={newAddress.city}
+                        onChange={(e) => setNewAddress(p => ({ ...p, city: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">State *</Label>
+                      <Input
+                        placeholder="e.g., Rivers"
+                        value={newAddress.state}
+                        onChange={(e) => setNewAddress(p => ({ ...p, state: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label className="text-xs">Landmark (optional)</Label>
+                      <Input
+                        placeholder="Near a popular location"
+                        value={newAddress.landmark}
+                        onChange={(e) => setNewAddress(p => ({ ...p, landmark: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <Button type="button" size="sm" onClick={handleSaveNewAddress} disabled={savingAddress}>
+                    {savingAddress ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                    Save & Use This Address
+                  </Button>
+                </div>
+              )}
+
+              {errors.delivery_address_id && (
+                <p className="text-sm text-destructive">
+                  {errors.delivery_address_id.message}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
