@@ -163,6 +163,7 @@ const NewOrderPage = () => {
           user_id: user.id,
           location_name: data.location,
           location_type: locationData?.type || "market",
+          delivery_address_id: data.delivery_address_id,
           notes: data.notes,
           estimated_total: estimatedTotal > 0 ? estimatedTotal : null,
           status: "pending",
