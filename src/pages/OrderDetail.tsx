@@ -504,7 +504,37 @@ const OrderDetailPage = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          {/* Delivery Address */}
+          {deliveryAddress ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="font-display">Delivery Address</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-accent/50 flex items-center justify-center flex-shrink-0">
+                    <Truck className="w-5 h-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">{deliveryAddress.label}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {deliveryAddress.address_line1}
+                      {deliveryAddress.address_line2 ? `, ${deliveryAddress.address_line2}` : ""}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {deliveryAddress.city}, {deliveryAddress.state}
+                    </p>
+                    {deliveryAddress.landmark && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Near: {deliveryAddress.landmark}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+
             <CardHeader>
               <CardTitle className="font-display">Order Summary</CardTitle>
             </CardHeader>
