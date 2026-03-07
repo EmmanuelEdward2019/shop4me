@@ -18,9 +18,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, MapPin, ShoppingCart, Loader2 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Plus, Trash2, MapPin, ShoppingCart, Loader2, Home, Building } from "lucide-react";
 import { toast } from "sonner";
 import { portHarcourtLocations } from "@/lib/port-harcourt-stores";
+
+interface SavedAddress {
+  id: string;
+  label: string;
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  state: string;
+  landmark: string | null;
+  is_default: boolean;
+}
 
 // Port Harcourt stores (primary) + other cities coming soon
 const locations = [
@@ -42,6 +54,7 @@ const UNIT_OPTIONS = [
 
 const orderSchema = z.object({
   location: z.string().min(1, "Please select a location"),
+  delivery_address_id: z.string().min(1, "Please select a delivery address"),
   notes: z.string().optional(),
   items: z
     .array(
@@ -63,6 +76,17 @@ const NewOrderPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
+  const [showNewAddress, setShowNewAddress] = useState(false);
+  const [newAddress, setNewAddress] = useState({
+    label: "Home",
+    address_line1: "",
+    city: "",
+    state: "",
+    landmark: "",
+  });
+  const [savingAddress, setSavingAddress] = useState(false);
   const preselectedStore = searchParams.get("store");
   const {
     register,
@@ -75,10 +99,71 @@ const NewOrderPage = () => {
     resolver: zodResolver(orderSchema),
     defaultValues: {
       location: preselectedStore || "",
+      delivery_address_id: "",
       notes: "",
       items: [{ name: "", description: "", quantity: 1, unit: "pcs", estimatedPrice: undefined }],
     },
   });
+
+  // Fetch saved addresses
+  useEffect(() => {
+    if (!user) return;
+    const fetchAddresses = async () => {
+      setLoadingAddresses(true);
+      const { data } = await supabase
+        .from("delivery_addresses")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("is_default", { ascending: false });
+      const addresses = (data || []) as SavedAddress[];
+      setSavedAddresses(addresses);
+      // Auto-select default address
+      const defaultAddr = addresses.find(a => a.is_default);
+      if (defaultAddr) {
+        setValue("delivery_address_id", defaultAddr.id);
+      }
+      setLoadingAddresses(false);
+    };
+    fetchAddresses();
+  }, [user, setValue]);
+
+  const handleSaveNewAddress = async () => {
+    if (!user || !newAddress.address_line1 || !newAddress.city || !newAddress.state) {
+      toast.error("Please fill in all required address fields");
+      return;
+    }
+    setSavingAddress(true);
+    try {
+      const isFirst = savedAddresses.length === 0;
+      const { data, error } = await supabase
+        .from("delivery_addresses")
+        .insert({
+          user_id: user.id,
+          label: newAddress.label || "Home",
+          address_line1: newAddress.address_line1,
+          city: newAddress.city,
+          state: newAddress.state,
+          landmark: newAddress.landmark || null,
+          is_default: isFirst,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      const addr = data as SavedAddress;
+      setSavedAddresses(prev => [...prev, addr]);
+      setValue("delivery_address_id", addr.id);
+      setShowNewAddress(false);
+      setNewAddress({ label: "Home", address_line1: "", city: "", state: "", landmark: "" });
+      toast.success("Address saved!");
+    } catch (error) {
+      console.error("Error saving address:", error);
+      toast.error("Failed to save address");
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  const selectedAddressId = watch("delivery_address_id");
 
   // Set preselected store when URL param changes
   useEffect(() => {
@@ -116,6 +201,7 @@ const NewOrderPage = () => {
           user_id: user.id,
           location_name: data.location,
           location_type: locationData?.type || "market",
+          delivery_address_id: data.delivery_address_id,
           notes: data.notes,
           estimated_total: estimatedTotal > 0 ? estimatedTotal : null,
           status: "pending",
@@ -230,7 +316,141 @@ const NewOrderPage = () => {
             </CardContent>
           </Card>
 
-          {/* Shopping List */}
+          {/* Delivery Address Selection */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Home className="w-5 h-5 text-primary" />
+                Delivery Address
+              </CardTitle>
+              <CardDescription>
+                Where should we deliver your items?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {loadingAddresses ? (
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading addresses...
+                </div>
+              ) : savedAddresses.length > 0 ? (
+                <RadioGroup
+                  value={selectedAddressId}
+                  onValueChange={(value) => {
+                    if (value === "new") {
+                      setShowNewAddress(true);
+                      setValue("delivery_address_id", "");
+                    } else {
+                      setShowNewAddress(false);
+                      setValue("delivery_address_id", value);
+                    }
+                  }}
+                  className="space-y-3"
+                >
+                  {savedAddresses.map((addr) => (
+                    <div key={addr.id} className="flex items-start space-x-3 p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value={addr.id} id={`addr-${addr.id}`} className="mt-1" />
+                      <label htmlFor={`addr-${addr.id}`} className="flex-1 cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-foreground text-sm">{addr.label}</span>
+                          {addr.is_default && (
+                            <span className="px-1.5 py-0.5 bg-primary/10 text-primary text-xs rounded-full">Default</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-0.5">
+                          {addr.address_line1}{addr.address_line2 ? `, ${addr.address_line2}` : ""}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{addr.city}, {addr.state}</p>
+                        {addr.landmark && (
+                          <p className="text-xs text-muted-foreground">Near: {addr.landmark}</p>
+                        )}
+                      </label>
+                    </div>
+                  ))}
+                  <div
+                    className={`flex items-center space-x-3 p-3 border border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors ${showNewAddress ? "border-primary bg-primary/5" : ""}`}
+                    onClick={() => {
+                      setShowNewAddress(true);
+                      setValue("delivery_address_id", "");
+                    }}
+                  >
+                    <RadioGroupItem value="new" id="addr-new" className="mt-0" />
+                    <label htmlFor="addr-new" className="flex items-center gap-2 cursor-pointer text-sm font-medium text-foreground">
+                      <Plus className="w-4 h-4" />
+                      Add new address
+                    </label>
+                  </div>
+                </RadioGroup>
+              ) : (
+                <div className="text-center py-4">
+                  <MapPin className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground mb-3">No saved addresses</p>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setShowNewAddress(true)}>
+                    <Plus className="w-4 h-4 mr-1" /> Add Address
+                  </Button>
+                </div>
+              )}
+
+              {(showNewAddress || savedAddresses.length === 0) && (showNewAddress || savedAddresses.length === 0) && (
+                <div className="p-4 border border-border rounded-lg space-y-3 bg-muted/30">
+                  <p className="text-sm font-medium text-foreground">New Delivery Address</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label className="text-xs">Label</Label>
+                      <Input
+                        placeholder="e.g., Home, Office"
+                        value={newAddress.label}
+                        onChange={(e) => setNewAddress(p => ({ ...p, label: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label className="text-xs">Street Address *</Label>
+                      <Input
+                        placeholder="e.g., 12 Aba Road"
+                        value={newAddress.address_line1}
+                        onChange={(e) => setNewAddress(p => ({ ...p, address_line1: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">City *</Label>
+                      <Input
+                        placeholder="e.g., Port Harcourt"
+                        value={newAddress.city}
+                        onChange={(e) => setNewAddress(p => ({ ...p, city: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">State *</Label>
+                      <Input
+                        placeholder="e.g., Rivers"
+                        value={newAddress.state}
+                        onChange={(e) => setNewAddress(p => ({ ...p, state: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1 sm:col-span-2">
+                      <Label className="text-xs">Landmark (optional)</Label>
+                      <Input
+                        placeholder="Near a popular location"
+                        value={newAddress.landmark}
+                        onChange={(e) => setNewAddress(p => ({ ...p, landmark: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  <Button type="button" size="sm" onClick={handleSaveNewAddress} disabled={savingAddress}>
+                    {savingAddress ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
+                    Save & Use This Address
+                  </Button>
+                </div>
+              )}
+
+              {errors.delivery_address_id && (
+                <p className="text-sm text-destructive">
+                  {errors.delivery_address_id.message}
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
