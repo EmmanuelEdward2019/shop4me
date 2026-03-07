@@ -50,8 +50,12 @@ interface Order {
 }
 
 interface DeliveryAddress {
+  label: string;
+  address_line1: string;
+  address_line2: string | null;
   city: string;
   state: string;
+  landmark: string | null;
 }
 
 interface OrderItem {
