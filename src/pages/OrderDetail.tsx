@@ -171,7 +171,7 @@ const OrderDetailPage = () => {
       if (orderData.delivery_address_id) {
         const { data: addressData } = await supabase
           .from("delivery_addresses")
-          .select("city, state")
+          .select("label, address_line1, address_line2, city, state, landmark")
           .eq("id", orderData.delivery_address_id)
           .single();
         if (addressData) {
