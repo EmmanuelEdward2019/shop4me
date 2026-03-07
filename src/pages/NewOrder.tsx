@@ -76,6 +76,17 @@ const NewOrderPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
+  const [showNewAddress, setShowNewAddress] = useState(false);
+  const [newAddress, setNewAddress] = useState({
+    label: "Home",
+    address_line1: "",
+    city: "",
+    state: "",
+    landmark: "",
+  });
+  const [savingAddress, setSavingAddress] = useState(false);
   const preselectedStore = searchParams.get("store");
   const {
     register,
@@ -88,10 +99,33 @@ const NewOrderPage = () => {
     resolver: zodResolver(orderSchema),
     defaultValues: {
       location: preselectedStore || "",
+      delivery_address_id: "",
       notes: "",
       items: [{ name: "", description: "", quantity: 1, unit: "pcs", estimatedPrice: undefined }],
     },
   });
+
+  // Fetch saved addresses
+  useEffect(() => {
+    if (!user) return;
+    const fetchAddresses = async () => {
+      setLoadingAddresses(true);
+      const { data } = await supabase
+        .from("delivery_addresses")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("is_default", { ascending: false });
+      const addresses = (data || []) as SavedAddress[];
+      setSavedAddresses(addresses);
+      // Auto-select default address
+      const defaultAddr = addresses.find(a => a.is_default);
+      if (defaultAddr) {
+        setValue("delivery_address_id", defaultAddr.id);
+      }
+      setLoadingAddresses(false);
+    };
+    fetchAddresses();
+  }, [user, setValue]);
 
   // Set preselected store when URL param changes
   useEffect(() => {
