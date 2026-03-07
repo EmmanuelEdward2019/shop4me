@@ -127,6 +127,44 @@ const NewOrderPage = () => {
     fetchAddresses();
   }, [user, setValue]);
 
+  const handleSaveNewAddress = async () => {
+    if (!user || !newAddress.address_line1 || !newAddress.city || !newAddress.state) {
+      toast.error("Please fill in all required address fields");
+      return;
+    }
+    setSavingAddress(true);
+    try {
+      const isFirst = savedAddresses.length === 0;
+      const { data, error } = await supabase
+        .from("delivery_addresses")
+        .insert({
+          user_id: user.id,
+          label: newAddress.label || "Home",
+          address_line1: newAddress.address_line1,
+          city: newAddress.city,
+          state: newAddress.state,
+          landmark: newAddress.landmark || null,
+          is_default: isFirst,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      const addr = data as SavedAddress;
+      setSavedAddresses(prev => [...prev, addr]);
+      setValue("delivery_address_id", addr.id);
+      setShowNewAddress(false);
+      setNewAddress({ label: "Home", address_line1: "", city: "", state: "", landmark: "" });
+      toast.success("Address saved!");
+    } catch (error) {
+      console.error("Error saving address:", error);
+      toast.error("Failed to save address");
+    } finally {
+      setSavingAddress(false);
+    }
+  };
+
+  const selectedAddressId = watch("delivery_address_id");
+
   // Set preselected store when URL param changes
   useEffect(() => {
     if (preselectedStore) {
