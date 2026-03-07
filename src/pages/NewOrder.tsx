@@ -54,6 +54,7 @@ const UNIT_OPTIONS = [
 
 const orderSchema = z.object({
   location: z.string().min(1, "Please select a location"),
+  delivery_address_id: z.string().min(1, "Please select a delivery address"),
   notes: z.string().optional(),
   items: z
     .array(
