@@ -480,7 +480,7 @@ const OrderDetailPage = () => {
         <div className="grid md:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
-              <CardTitle className="font-display">Location</CardTitle>
+              <CardTitle className="font-display">Shopping Location</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-start gap-3">
