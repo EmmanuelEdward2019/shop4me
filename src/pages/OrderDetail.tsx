@@ -535,6 +535,7 @@ const OrderDetailPage = () => {
             </Card>
           ) : null}
 
+          <Card>
             <CardHeader>
               <CardTitle className="font-display">Order Summary</CardTitle>
             </CardHeader>
