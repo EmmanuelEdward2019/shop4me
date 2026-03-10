@@ -111,7 +111,7 @@ const Hero = () => {
             <p className="text-sm text-primary-foreground/70 mb-3">
               Download the app
             </p>
-            <AppDownloadButtons variant="light" />
+            <AppDownloadButtons variant="light" className="justify-start" />
           </motion.div>
 
           {/* Trust Indicators */}
