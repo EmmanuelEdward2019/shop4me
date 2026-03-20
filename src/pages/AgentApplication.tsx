@@ -70,6 +70,9 @@ interface FormData {
   how_heard_about_us: string;
   password: string;
   confirmPassword: string;
+  business_type: string;
+  business_name: string;
+  business_address: string;
 }
 
 const AgentApplication = () => {
