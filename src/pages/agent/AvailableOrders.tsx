@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHaptics } from "@/lib/native";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,9 +6,10 @@ import AgentDashboardLayout from "@/components/dashboard/AgentDashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Package, MapPin, Clock, ShoppingCart, RefreshCw } from "lucide-react";
+import { Package, MapPin, Clock, ShoppingCart, RefreshCw, User } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useOrderNotificationSound } from "@/hooks/useOrderNotificationSound";
 import type { Database } from "@/integrations/supabase/types";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
@@ -21,6 +22,7 @@ interface AvailableOrder extends Order {
     city: string;
     state: string;
   } | null;
+  buyer_name?: string;
 }
 
 const AvailableOrders = () => {
@@ -31,11 +33,16 @@ const AvailableOrders = () => {
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState<string | null>(null);
 
+  // Real-time notification sound for new orders
+  useOrderNotificationSound("orders", {
+    onNewRecord: () => fetchAvailableOrders(),
+  });
+
   useEffect(() => {
     fetchAvailableOrders();
   }, []);
 
-  const fetchAvailableOrders = async () => {
+  const fetchAvailableOrders = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -50,7 +57,20 @@ const AvailableOrders = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setOrders((data as AvailableOrder[]) || []);
+
+      // Fetch buyer names for each order
+      const ordersWithBuyers = await Promise.all(
+        (data || []).map(async (order: any) => {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("user_id", order.user_id)
+            .single();
+          return { ...order, buyer_name: profile?.full_name || null } as AvailableOrder;
+        })
+      );
+
+      setOrders(ordersWithBuyers);
     } catch (error) {
       console.error("Error fetching available orders:", error);
       toast({
@@ -61,7 +81,7 @@ const AvailableOrders = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   const acceptOrder = async (orderId: string) => {
     setAccepting(orderId);
@@ -174,8 +194,14 @@ const AvailableOrders = () => {
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-lg font-display">{order.location_name}</CardTitle>
+                    <CardTitle className="text-lg font-display">{order.location_name}</CardTitle>
                       <Badge variant="outline" className="mt-1">{order.location_type}</Badge>
+                      {order.buyer_name && (
+                        <div className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground">
+                          <User className="w-3.5 h-3.5" />
+                          <span>{order.buyer_name}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-primary">

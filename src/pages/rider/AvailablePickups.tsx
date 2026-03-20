@@ -6,11 +6,12 @@ import RiderDashboardLayout from "@/components/dashboard/RiderDashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Package, MapPin, Clock, CheckCircle, Bike, Navigation, ShieldCheck } from "lucide-react";
+import { Package, MapPin, Clock, CheckCircle, Bike, Navigation, ShieldCheck, User, Phone } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useRiderGeofence, formatDistance } from "@/hooks/useRiderGeofence";
 import GeofenceStatus from "@/components/rider/GeofenceStatus";
+import { useOrderNotificationSound } from "@/hooks/useOrderNotificationSound";
 
 interface RiderAlert {
   id: string;
@@ -25,6 +26,11 @@ interface RiderAlert {
   store_longitude: number | null;
   rider_arrived_at: string | null;
   order_picked_up_at: string | null;
+  buyer_name: string | null;
+  buyer_phone: string | null;
+  delivery_address: string | null;
+  delivery_latitude: number | null;
+  delivery_longitude: number | null;
 }
 
 // Geofenced delivery card for accepted pickups
@@ -70,6 +76,31 @@ const ActiveDeliveryCard = ({ delivery, onArrived, onPickedUp, onCompleted }: {
           </div>
         </div>
       </div>
+
+      {/* Buyer Info */}
+      {(delivery.buyer_name || delivery.buyer_phone || delivery.delivery_address) && (
+        <div className="p-3 bg-muted/50 rounded-lg space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Delivery To</p>
+          {delivery.buyer_name && (
+            <div className="flex items-center gap-2 text-sm">
+              <User className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="font-medium text-foreground">{delivery.buyer_name}</span>
+            </div>
+          )}
+          {delivery.buyer_phone && (
+            <div className="flex items-center gap-2 text-sm">
+              <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+              <a href={`tel:${delivery.buyer_phone}`} className="text-primary hover:underline">{delivery.buyer_phone}</a>
+            </div>
+          )}
+          {delivery.delivery_address && (
+            <div className="flex items-start gap-2 text-sm">
+              <MapPin className="w-3.5 h-3.5 text-muted-foreground mt-0.5" />
+              <span className="text-muted-foreground">{delivery.delivery_address}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Geofence Status */}
       {!hasPickedUp && (
@@ -139,6 +170,11 @@ const AvailablePickups = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { impact, notification } = useHaptics();
+  
+  // Real-time notification sound for new rider alerts
+  useOrderNotificationSound("rider_alerts", {
+    onNewRecord: () => fetchAlerts(),
+  });
   const [alerts, setAlerts] = useState<RiderAlert[]>([]);
   const [myDeliveries, setMyDeliveries] = useState<RiderAlert[]>([]);
   const [loading, setLoading] = useState(true);

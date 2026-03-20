@@ -70,6 +70,9 @@ interface FormData {
   how_heard_about_us: string;
   password: string;
   confirmPassword: string;
+  business_type: string;
+  business_name: string;
+  business_address: string;
 }
 
 const AgentApplication = () => {
@@ -107,6 +110,9 @@ const AgentApplication = () => {
     how_heard_about_us: "",
     password: "",
     confirmPassword: "",
+    business_type: "individual",
+    business_name: "",
+    business_address: "",
   });
 
   useEffect(() => {
@@ -262,6 +268,9 @@ const AgentApplication = () => {
         how_heard_about_us: formData.how_heard_about_us,
         photo_url: photoUrl,
         id_document_url: idDocUrl,
+        business_type: formData.business_type,
+        business_name: formData.business_name || null,
+        business_address: formData.business_address || null,
       });
 
       if (error) throw error;
@@ -602,6 +611,52 @@ const AgentApplication = () => {
                       </div>
                     </RadioGroup>
                   </div>
+
+                  {/* Business Type for SMEs/Vendors */}
+                  <div className="space-y-2 border-t pt-4 mt-4">
+                    <Label>Business Type *</Label>
+                    <RadioGroup
+                      value={formData.business_type}
+                      onValueChange={(v) => handleInputChange("business_type", v)}
+                      className="space-y-2"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="individual" id="individual" />
+                        <Label htmlFor="individual">Individual Agent - Freelance shopper/rider</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="shop_owner" id="shop_owner" />
+                        <Label htmlFor="shop_owner">Shop/Store Owner - I own a shop and want to take orders directly</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="vendor" id="vendor" />
+                        <Label htmlFor="vendor">Vendor/Supplier - I supply specific products</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {(formData.business_type === "shop_owner" || formData.business_type === "vendor") && (
+                    <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                      <div className="space-y-2">
+                        <Label htmlFor="business_name">Business/Shop Name *</Label>
+                        <Input
+                          id="business_name"
+                          value={formData.business_name}
+                          onChange={(e) => handleInputChange("business_name", e.target.value)}
+                          placeholder="e.g., Mama Nkechi Supermarket"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="business_address">Business Address *</Label>
+                        <Input
+                          id="business_address"
+                          value={formData.business_address}
+                          onChange={(e) => handleInputChange("business_address", e.target.value)}
+                          placeholder="e.g., Shop 4, Mile 3 Market, Port Harcourt"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
 

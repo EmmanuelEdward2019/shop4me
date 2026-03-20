@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { useForm, useFieldArray } from "react-hook-form";
@@ -21,7 +21,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, MapPin, ShoppingCart, Loader2, Home, Building } from "lucide-react";
 import { toast } from "sonner";
-import { portHarcourtLocations } from "@/lib/port-harcourt-stores";
+import { useStoreCategories, useAllStores } from "@/hooks/useStores";
 
 interface SavedAddress {
   id: string;
@@ -34,10 +34,7 @@ interface SavedAddress {
   is_default: boolean;
 }
 
-// Port Harcourt stores (primary) + other cities coming soon
-const locations = [
-  ...portHarcourtLocations,
-];
+// Locations are now loaded from DB via useStores hook
 
 const UNIT_OPTIONS = [
   { value: "pcs", label: "Pieces" },
@@ -79,6 +76,7 @@ const NewOrderPage = () => {
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(true);
   const [showNewAddress, setShowNewAddress] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [newAddress, setNewAddress] = useState({
     label: "Home",
     address_line1: "",
@@ -88,6 +86,16 @@ const NewOrderPage = () => {
   });
   const [savingAddress, setSavingAddress] = useState(false);
   const preselectedStore = searchParams.get("store");
+
+  // Load categories and stores from DB
+  const { categories, loading: loadingCategories } = useStoreCategories();
+  const { stores: allStores, loading: loadingStores } = useAllStores();
+
+  // Filter stores by selected category
+  const filteredStores = useMemo(() => {
+    if (!selectedCategoryId) return allStores;
+    return allStores.filter(s => s.category_id === selectedCategoryId);
+  }, [allStores, selectedCategoryId]);
   const {
     register,
     control,
@@ -167,13 +175,13 @@ const NewOrderPage = () => {
 
   // Set preselected store when URL param changes
   useEffect(() => {
-    if (preselectedStore) {
-      const storeExists = locations.some(l => l.name === preselectedStore);
+    if (preselectedStore && allStores.length > 0) {
+      const storeExists = allStores.some(s => s.name === preselectedStore);
       if (storeExists) {
         setValue("location", preselectedStore);
       }
     }
-  }, [preselectedStore, setValue]);
+  }, [preselectedStore, allStores, setValue]);
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -181,7 +189,7 @@ const NewOrderPage = () => {
   });
 
   const selectedLocation = watch("location");
-  const locationData = locations.find((l) => l.name === selectedLocation);
+  const locationData = allStores.find((s) => s.name === selectedLocation);
 
   const onSubmit = async (data: OrderFormData) => {
     if (!user) return;
@@ -194,13 +202,14 @@ const NewOrderPage = () => {
         0
       );
 
-      // Create order
+      // Create order - find the category name for the location_type
+      const storeCat = categories.find(c => c.id === locationData?.category_id);
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
           user_id: user.id,
           location_name: data.location,
-          location_type: locationData?.type || "market",
+          location_type: storeCat?.slug || locationData?.category_id || "market",
           delivery_address_id: data.delivery_address_id,
           notes: data.notes,
           estimated_total: estimatedTotal > 0 ? estimatedTotal : null,
@@ -287,25 +296,55 @@ const NewOrderPage = () => {
                 Choose where you want us to shop for you
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Category Filter */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Category</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant={selectedCategoryId === "" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedCategoryId("")}
+                  >
+                    All
+                  </Button>
+                  {categories.map((cat) => (
+                    <Button
+                      key={cat.id}
+                      type="button"
+                      variant={selectedCategoryId === cat.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedCategoryId(cat.id)}
+                    >
+                      {cat.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Store Select */}
               <Select
                 value={selectedLocation}
                 onValueChange={(value) => setValue("location", value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a location" />
+                  <SelectValue placeholder={loadingStores ? "Loading stores..." : "Select a store"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.name} value={loc.name}>
+                  {filteredStores.map((store) => (
+                    <SelectItem key={store.id} value={store.name}>
                       <div className="flex items-center gap-2">
-                        <span>{loc.name}</span>
+                        <span>{store.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          ({loc.type} • {loc.city})
+                          ({store.area} • {store.city})
                         </span>
                       </div>
                     </SelectItem>
                   ))}
+                  {filteredStores.length === 0 && !loadingStores && (
+                    <SelectItem value="_none" disabled>No stores in this category</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
               {errors.location && (
