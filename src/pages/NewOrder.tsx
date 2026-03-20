@@ -21,7 +21,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, MapPin, ShoppingCart, Loader2, Home, Building } from "lucide-react";
 import { toast } from "sonner";
-import { portHarcourtLocations } from "@/lib/port-harcourt-stores";
+import { useStoreCategories, useAllStores } from "@/hooks/useStores";
 
 interface SavedAddress {
   id: string;
