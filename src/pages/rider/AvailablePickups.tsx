@@ -6,11 +6,12 @@ import RiderDashboardLayout from "@/components/dashboard/RiderDashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Package, MapPin, Clock, CheckCircle, Bike, Navigation, ShieldCheck } from "lucide-react";
+import { Package, MapPin, Clock, CheckCircle, Bike, Navigation, ShieldCheck, User, Phone } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useRiderGeofence, formatDistance } from "@/hooks/useRiderGeofence";
 import GeofenceStatus from "@/components/rider/GeofenceStatus";
+import { useOrderNotificationSound } from "@/hooks/useOrderNotificationSound";
 
 interface RiderAlert {
   id: string;
