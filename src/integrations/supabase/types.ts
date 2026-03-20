@@ -45,6 +45,9 @@ export type Database = {
           address: string
           admin_notes: string | null
           bank_name: string
+          business_address: string | null
+          business_name: string | null
+          business_type: string | null
           city: string
           created_at: string
           date_of_birth: string
@@ -67,6 +70,9 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           role_type: string
+          service_latitude: number | null
+          service_longitude: number | null
+          service_radius_km: number | null
           state: string
           status: Database["public"]["Enums"]["application_status"]
           updated_at: string
@@ -79,6 +85,9 @@ export type Database = {
           address: string
           admin_notes?: string | null
           bank_name: string
+          business_address?: string | null
+          business_name?: string | null
+          business_type?: string | null
           city: string
           created_at?: string
           date_of_birth: string
@@ -101,6 +110,9 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           role_type?: string
+          service_latitude?: number | null
+          service_longitude?: number | null
+          service_radius_km?: number | null
           state: string
           status?: Database["public"]["Enums"]["application_status"]
           updated_at?: string
@@ -113,6 +125,9 @@ export type Database = {
           address?: string
           admin_notes?: string | null
           bank_name?: string
+          business_address?: string | null
+          business_name?: string | null
+          business_type?: string | null
           city?: string
           created_at?: string
           date_of_birth?: string
@@ -135,6 +150,9 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           role_type?: string
+          service_latitude?: number | null
+          service_longitude?: number | null
+          service_radius_km?: number | null
           state?: string
           status?: Database["public"]["Enums"]["application_status"]
           updated_at?: string
@@ -452,6 +470,8 @@ export type Database = {
           is_default: boolean
           label: string
           landmark: string | null
+          latitude: number | null
+          longitude: number | null
           state: string
           updated_at: string
           user_id: string
@@ -465,6 +485,8 @@ export type Database = {
           is_default?: boolean
           label?: string
           landmark?: string | null
+          latitude?: number | null
+          longitude?: number | null
           state: string
           updated_at?: string
           user_id: string
@@ -478,6 +500,8 @@ export type Database = {
           is_default?: boolean
           label?: string
           landmark?: string | null
+          latitude?: number | null
+          longitude?: number | null
           state?: string
           updated_at?: string
           user_id?: string
@@ -959,7 +983,12 @@ export type Database = {
       rider_alerts: {
         Row: {
           agent_id: string
+          buyer_name: string | null
+          buyer_phone: string | null
           created_at: string
+          delivery_address: string | null
+          delivery_latitude: number | null
+          delivery_longitude: number | null
           id: string
           order_id: string
           order_packed: boolean
@@ -974,7 +1003,12 @@ export type Database = {
         }
         Insert: {
           agent_id: string
+          buyer_name?: string | null
+          buyer_phone?: string | null
           created_at?: string
+          delivery_address?: string | null
+          delivery_latitude?: number | null
+          delivery_longitude?: number | null
           id?: string
           order_id: string
           order_packed?: boolean
@@ -989,7 +1023,12 @@ export type Database = {
         }
         Update: {
           agent_id?: string
+          buyer_name?: string | null
+          buyer_phone?: string | null
           created_at?: string
+          delivery_address?: string | null
+          delivery_latitude?: number | null
+          delivery_longitude?: number | null
           id?: string
           order_id?: string
           order_packed?: boolean
@@ -1008,6 +1047,92 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_categories: {
+        Row: {
+          created_at: string
+          display_order: number
+          icon: string
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          icon?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          icon?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      stores: {
+        Row: {
+          area: string
+          category_id: string | null
+          city: string
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          latitude: number | null
+          longitude: number | null
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          area: string
+          category_id?: string | null
+          city?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          area?: string
+          category_id?: string | null
+          city?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stores_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "store_categories"
             referencedColumns: ["id"]
           },
         ]
