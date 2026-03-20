@@ -296,25 +296,55 @@ const NewOrderPage = () => {
                 Choose where you want us to shop for you
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {/* Category Filter */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Category</Label>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant={selectedCategoryId === "" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedCategoryId("")}
+                  >
+                    All
+                  </Button>
+                  {categories.map((cat) => (
+                    <Button
+                      key={cat.id}
+                      type="button"
+                      variant={selectedCategoryId === cat.id ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setSelectedCategoryId(cat.id)}
+                    >
+                      {cat.name}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Store Select */}
               <Select
                 value={selectedLocation}
                 onValueChange={(value) => setValue("location", value)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a location" />
+                  <SelectValue placeholder={loadingStores ? "Loading stores..." : "Select a store"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {locations.map((loc) => (
-                    <SelectItem key={loc.name} value={loc.name}>
+                  {filteredStores.map((store) => (
+                    <SelectItem key={store.id} value={store.name}>
                       <div className="flex items-center gap-2">
-                        <span>{loc.name}</span>
+                        <span>{store.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          ({loc.type} • {loc.city})
+                          ({store.area} • {store.city})
                         </span>
                       </div>
                     </SelectItem>
                   ))}
+                  {filteredStores.length === 0 && !loadingStores && (
+                    <SelectItem value="_none" disabled>No stores in this category</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
               {errors.location && (
