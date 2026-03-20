@@ -194,8 +194,14 @@ const AvailableOrders = () => {
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-lg font-display">{order.location_name}</CardTitle>
+                    <CardTitle className="text-lg font-display">{order.location_name}</CardTitle>
                       <Badge variant="outline" className="mt-1">{order.location_type}</Badge>
+                      {order.buyer_name && (
+                        <div className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground">
+                          <User className="w-3.5 h-3.5" />
+                          <span>{order.buyer_name}</span>
+                        </div>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold text-primary">
