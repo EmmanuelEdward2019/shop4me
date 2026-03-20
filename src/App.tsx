@@ -352,6 +352,14 @@ const App = () => (
                 </AdminProtectedRoute>
               }
             />
+            <Route
+              path="/admin/stores"
+              element={
+                <AdminProtectedRoute>
+                  <AdminStores />
+                </AdminProtectedRoute>
+              }
+            />
 
             {/* Rider routes */}
             <Route path="/rider" element={<RiderProtectedRoute><RiderDashboard /></RiderProtectedRoute>} />
