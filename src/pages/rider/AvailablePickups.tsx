@@ -25,6 +25,11 @@ interface RiderAlert {
   store_longitude: number | null;
   rider_arrived_at: string | null;
   order_picked_up_at: string | null;
+  buyer_name: string | null;
+  buyer_phone: string | null;
+  delivery_address: string | null;
+  delivery_latitude: number | null;
+  delivery_longitude: number | null;
 }
 
 // Geofenced delivery card for accepted pickups
