@@ -54,6 +54,7 @@ const navItems = [
   { label: "Messages", href: "/admin/messages", icon: MessageSquare },
   { label: "Blog", href: "/admin/blog", icon: FileText },
   { label: "Payments", href: "/admin/payments", icon: DollarSign },
+  { label: "Stores", href: "/admin/stores", icon: Store },
   { label: "Submissions", href: "/admin/submissions", icon: Inbox },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];
