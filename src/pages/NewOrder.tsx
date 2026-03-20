@@ -175,13 +175,13 @@ const NewOrderPage = () => {
 
   // Set preselected store when URL param changes
   useEffect(() => {
-    if (preselectedStore) {
-      const storeExists = locations.some(l => l.name === preselectedStore);
+    if (preselectedStore && allStores.length > 0) {
+      const storeExists = allStores.some(s => s.name === preselectedStore);
       if (storeExists) {
         setValue("location", preselectedStore);
       }
     }
-  }, [preselectedStore, setValue]);
+  }, [preselectedStore, allStores, setValue]);
 
   const { fields, append, remove } = useFieldArray({
     control,
