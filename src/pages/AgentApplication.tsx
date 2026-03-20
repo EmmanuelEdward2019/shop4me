@@ -110,6 +110,9 @@ const AgentApplication = () => {
     how_heard_about_us: "",
     password: "",
     confirmPassword: "",
+    business_type: "individual",
+    business_name: "",
+    business_address: "",
   });
 
   useEffect(() => {
