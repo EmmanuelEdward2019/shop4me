@@ -189,7 +189,7 @@ const NewOrderPage = () => {
   });
 
   const selectedLocation = watch("location");
-  const locationData = locations.find((l) => l.name === selectedLocation);
+  const locationData = allStores.find((s) => s.name === selectedLocation);
 
   const onSubmit = async (data: OrderFormData) => {
     if (!user) return;
