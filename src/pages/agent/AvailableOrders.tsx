@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useHaptics } from "@/lib/native";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,9 +6,10 @@ import AgentDashboardLayout from "@/components/dashboard/AgentDashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Package, MapPin, Clock, ShoppingCart, RefreshCw } from "lucide-react";
+import { Package, MapPin, Clock, ShoppingCart, RefreshCw, User } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useOrderNotificationSound } from "@/hooks/useOrderNotificationSound";
 import type { Database } from "@/integrations/supabase/types";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
@@ -21,6 +22,7 @@ interface AvailableOrder extends Order {
     city: string;
     state: string;
   } | null;
+  buyer_name?: string;
 }
 
 const AvailableOrders = () => {
