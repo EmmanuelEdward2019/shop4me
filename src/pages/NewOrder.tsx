@@ -76,6 +76,7 @@ const NewOrderPage = () => {
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [loadingAddresses, setLoadingAddresses] = useState(true);
   const [showNewAddress, setShowNewAddress] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
   const [newAddress, setNewAddress] = useState({
     label: "Home",
     address_line1: "",
@@ -85,6 +86,16 @@ const NewOrderPage = () => {
   });
   const [savingAddress, setSavingAddress] = useState(false);
   const preselectedStore = searchParams.get("store");
+
+  // Load categories and stores from DB
+  const { categories, loading: loadingCategories } = useStoreCategories();
+  const { stores: allStores, loading: loadingStores } = useAllStores();
+
+  // Filter stores by selected category
+  const filteredStores = useMemo(() => {
+    if (!selectedCategoryId) return allStores;
+    return allStores.filter(s => s.category_id === selectedCategoryId);
+  }, [allStores, selectedCategoryId]);
   const {
     register,
     control,
