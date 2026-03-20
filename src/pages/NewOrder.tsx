@@ -202,13 +202,14 @@ const NewOrderPage = () => {
         0
       );
 
-      // Create order
+      // Create order - find the category name for the location_type
+      const storeCat = categories.find(c => c.id === locationData?.category_id);
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
           user_id: user.id,
           location_name: data.location,
-          location_type: locationData?.type || "market",
+          location_type: storeCat?.slug || locationData?.category_id || "market",
           delivery_address_id: data.delivery_address_id,
           notes: data.notes,
           estimated_total: estimatedTotal > 0 ? estimatedTotal : null,
