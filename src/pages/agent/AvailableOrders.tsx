@@ -33,6 +33,11 @@ const AvailableOrders = () => {
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState<string | null>(null);
 
+  // Real-time notification sound for new orders
+  useOrderNotificationSound("orders", {
+    onNewRecord: () => fetchAvailableOrders(),
+  });
+
   useEffect(() => {
     fetchAvailableOrders();
   }, []);
