@@ -268,6 +268,9 @@ const AgentApplication = () => {
         how_heard_about_us: formData.how_heard_about_us,
         photo_url: photoUrl,
         id_document_url: idDocUrl,
+        business_type: formData.business_type,
+        business_name: formData.business_name || null,
+        business_address: formData.business_address || null,
       });
 
       if (error) throw error;
