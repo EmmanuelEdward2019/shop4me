@@ -77,6 +77,31 @@ const ActiveDeliveryCard = ({ delivery, onArrived, onPickedUp, onCompleted }: {
         </div>
       </div>
 
+      {/* Buyer Info */}
+      {(delivery.buyer_name || delivery.buyer_phone || delivery.delivery_address) && (
+        <div className="p-3 bg-muted/50 rounded-lg space-y-1.5">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Delivery To</p>
+          {delivery.buyer_name && (
+            <div className="flex items-center gap-2 text-sm">
+              <User className="w-3.5 h-3.5 text-muted-foreground" />
+              <span className="font-medium text-foreground">{delivery.buyer_name}</span>
+            </div>
+          )}
+          {delivery.buyer_phone && (
+            <div className="flex items-center gap-2 text-sm">
+              <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+              <a href={`tel:${delivery.buyer_phone}`} className="text-primary hover:underline">{delivery.buyer_phone}</a>
+            </div>
+          )}
+          {delivery.delivery_address && (
+            <div className="flex items-start gap-2 text-sm">
+              <MapPin className="w-3.5 h-3.5 text-muted-foreground mt-0.5" />
+              <span className="text-muted-foreground">{delivery.delivery_address}</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Geofence Status */}
       {!hasPickedUp && (
         <GeofenceStatus
