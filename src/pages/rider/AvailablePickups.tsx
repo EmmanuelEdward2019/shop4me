@@ -170,6 +170,11 @@ const AvailablePickups = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { impact, notification } = useHaptics();
+  
+  // Real-time notification sound for new rider alerts
+  useOrderNotificationSound("rider_alerts", {
+    onNewRecord: () => fetchAlerts(),
+  });
   const [alerts, setAlerts] = useState<RiderAlert[]>([]);
   const [myDeliveries, setMyDeliveries] = useState<RiderAlert[]>([]);
   const [loading, setLoading] = useState(true);

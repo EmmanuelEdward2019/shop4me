@@ -157,6 +157,36 @@ const AgentOrderDetail = () => {
       // Get store coordinates for geofencing
       const storeCoords = getLocationCoordinates(order.location_name);
       
+      // Get buyer info for rider
+      let buyerName = customerProfile?.full_name || null;
+      let buyerPhone = customerProfile?.phone || null;
+      let deliveryAddr = "";
+      let deliveryLat: number | null = null;
+      let deliveryLng: number | null = null;
+
+      if (order.delivery_addresses) {
+        deliveryAddr = [
+          order.delivery_addresses.address_line1,
+          order.delivery_addresses.address_line2,
+          order.delivery_addresses.city,
+          order.delivery_addresses.state,
+          order.delivery_addresses.landmark ? `(Near: ${order.delivery_addresses.landmark})` : "",
+        ].filter(Boolean).join(", ");
+      }
+
+      // Try to get GPS coords from delivery address
+      if (order.delivery_address_id) {
+        const { data: addrData } = await supabase
+          .from("delivery_addresses")
+          .select("latitude, longitude")
+          .eq("id", order.delivery_address_id)
+          .single();
+        if (addrData) {
+          deliveryLat = addrData.latitude;
+          deliveryLng = addrData.longitude;
+        }
+      }
+
       const { error } = await supabase.from("rider_alerts").insert({
         order_id: order.id,
         agent_id: user.id,
@@ -164,6 +194,11 @@ const AgentOrderDetail = () => {
         status: "pending",
         store_latitude: storeCoords.latitude,
         store_longitude: storeCoords.longitude,
+        buyer_name: buyerName,
+        buyer_phone: buyerPhone,
+        delivery_address: deliveryAddr,
+        delivery_latitude: deliveryLat,
+        delivery_longitude: deliveryLng,
       });
       if (error) throw error;
       setRiderAlertSent(true);
