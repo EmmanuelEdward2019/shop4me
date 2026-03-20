@@ -34,10 +34,7 @@ interface SavedAddress {
   is_default: boolean;
 }
 
-// Port Harcourt stores (primary) + other cities coming soon
-const locations = [
-  ...portHarcourtLocations,
-];
+// Locations are now loaded from DB via useStores hook
 
 const UNIT_OPTIONS = [
   { value: "pcs", label: "Pieces" },
