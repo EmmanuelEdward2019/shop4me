@@ -42,7 +42,7 @@ const AvailableOrders = () => {
     fetchAvailableOrders();
   }, []);
 
-  const fetchAvailableOrders = async () => {
+  const fetchAvailableOrders = useCallback(async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
@@ -57,7 +57,20 @@ const AvailableOrders = () => {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setOrders((data as AvailableOrder[]) || []);
+
+      // Fetch buyer names for each order
+      const ordersWithBuyers = await Promise.all(
+        (data || []).map(async (order: any) => {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name")
+            .eq("user_id", order.user_id)
+            .single();
+          return { ...order, buyer_name: profile?.full_name || null } as AvailableOrder;
+        })
+      );
+
+      setOrders(ordersWithBuyers);
     } catch (error) {
       console.error("Error fetching available orders:", error);
       toast({
@@ -68,7 +81,7 @@ const AvailableOrders = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   const acceptOrder = async (orderId: string) => {
     setAccepting(orderId);
