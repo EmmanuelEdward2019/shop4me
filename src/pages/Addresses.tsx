@@ -63,6 +63,8 @@ const AddressesPage = () => {
       city: "",
       state: "",
       landmark: "",
+      latitude: null,
+      longitude: null,
     },
   });
 
