@@ -6,6 +6,25 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/**
+ * send-push-notification Edge Function
+ *
+ * Supports two caller shapes:
+ *
+ * A) Client invoke (legacy / general):
+ *    { role?: string, userId?: string, title, body, url?, data?: { orderId?, service_zone?, ... } }
+ *
+ * B) Database Webhook on orders INSERT:
+ *    { type: "INSERT", table: "orders", record: { id, status, agent_id, service_zone, location_name, ... } }
+ *
+ * Zone-filtering policy for agent notifications:
+ *   - If order.service_zone is set → only agents whose profiles.service_zone matches (case-insensitive trim).
+ *   - If order.service_zone is NULL → only agents whose profiles.service_zone IS NULL ("floater" agents).
+ *   - This prevents spamming every zoned agent with unzoned legacy orders.
+ *
+ * Rider notifications are left unchanged (no zone filter applied).
+ */
+
 interface PushPayload {
   userId?: string;
   role?: string;
@@ -13,6 +32,14 @@ interface PushPayload {
   body: string;
   url?: string;
   data?: Record<string, string>;
+}
+
+interface WebhookPayload {
+  type: string;
+  table: string;
+  record: Record<string, unknown>;
+  schema: string;
+  old_record?: Record<string, unknown>;
 }
 
 serve(async (req) => {
@@ -25,12 +52,59 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const payload: PushPayload = await req.json();
+    const rawBody = await req.json();
+
+    // ── Detect Database Webhook shape ──
+    if (rawBody.type === "INSERT" && rawBody.table === "orders" && rawBody.record) {
+      const webhook = rawBody as WebhookPayload;
+      const order = webhook.record;
+
+      // Only notify for new pending orders without an agent
+      if (order.status !== "pending" || order.agent_id) {
+        return new Response(
+          JSON.stringify({ success: true, message: "Not a new pending order, skipping" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const serviceZone = order.service_zone ? String(order.service_zone).trim().toLowerCase() : null;
+      const locationName = String(order.location_name || "a store");
+
+      // Get agent user_ids filtered by zone
+      const agentUserIds = await getZonedAgentIds(supabase, serviceZone);
+
+      if (agentUserIds.length === 0) {
+        console.log(`No agents found for zone "${serviceZone}"`);
+        return new Response(
+          JSON.stringify({ success: true, message: "No matching agents" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const title = "🛒 New Order Available!";
+      const body = `New order from ${locationName}. Accept it now!`;
+      const data = { orderId: String(order.id), service_zone: serviceZone || "" };
+
+      const results = await sendPushToUsers(supabase, agentUserIds, title, body, undefined, data);
+
+      console.log(`Webhook push: zone="${serviceZone}", agents=${agentUserIds.length}`);
+      return new Response(
+        JSON.stringify({ success: true, results }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ── Legacy client invoke shape ──
+    const payload: PushPayload = rawBody;
     const { userId, role, title, body, url, data } = payload;
 
     let userIds: string[] = [];
 
-    if (role) {
+    if (role === "agent" && data?.service_zone) {
+      // Zone-filtered agent push from client invoke
+      const serviceZone = data.service_zone.trim().toLowerCase();
+      userIds = await getZonedAgentIds(supabase, serviceZone);
+    } else if (role) {
       console.log(`Broadcasting push notification to all ${role}s`);
       const { data: roleUsers, error: roleError } = await supabase
         .from("user_roles")
@@ -41,7 +115,7 @@ serve(async (req) => {
         console.error("Error fetching role users:", roleError);
         throw roleError;
       }
-      userIds = (roleUsers || []).map((r) => r.user_id);
+      userIds = (roleUsers || []).map((r: { user_id: string }) => r.user_id);
     } else if (userId) {
       userIds = [userId];
     } else {
@@ -59,108 +133,10 @@ serve(async (req) => {
       );
     }
 
-    // ── 1. Web Push (existing) ──
-    const { data: webSubs, error: webSubError } = await supabase
-      .from("push_subscriptions")
-      .select("*")
-      .in("user_id", userIds);
-
-    if (webSubError) {
-      console.error("Error fetching web subscriptions:", webSubError);
-    }
-
-    const webResults = await Promise.allSettled(
-      (webSubs || []).map(async (sub) => {
-        try {
-          const pushPayload = JSON.stringify({ title, body, url });
-          const response = await fetch(sub.endpoint, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Content-Encoding": "aes128gcm",
-              "TTL": "86400",
-            },
-            body: pushPayload,
-          });
-
-          if (!response.ok && response.status === 410) {
-            console.log("Removing expired web subscription:", sub.endpoint);
-            await supabase.from("push_subscriptions").delete().eq("id", sub.id);
-          }
-
-          return { success: response.ok, type: "web", endpoint: sub.endpoint };
-        } catch (error) {
-          console.error("Error sending web push:", sub.endpoint, error);
-          return { success: false, type: "web", endpoint: sub.endpoint, error };
-        }
-      })
-    );
-
-    // ── 2. Expo Push (new for React Native) ──
-    const { data: expoTokens, error: expoError } = await supabase
-      .from("expo_push_tokens")
-      .select("*")
-      .in("user_id", userIds);
-
-    if (expoError) {
-      console.error("Error fetching Expo tokens:", expoError);
-    }
-
-    let expoResults: PromiseSettledResult<any>[] = [];
-
-    if (expoTokens && expoTokens.length > 0) {
-      // Batch Expo notifications (max 100 per request)
-      const expoMessages = expoTokens.map((t) => ({
-        to: t.token,
-        sound: "default",
-        title,
-        body,
-        data: { url, ...data },
-      }));
-
-      const chunks: typeof expoMessages[] = [];
-      for (let i = 0; i < expoMessages.length; i += 100) {
-        chunks.push(expoMessages.slice(i, i + 100));
-      }
-
-      expoResults = await Promise.allSettled(
-        chunks.map(async (chunk) => {
-          const response = await fetch("https://exp.host/--/api/v2/push/send", {
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Accept-Encoding": "gzip, deflate",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(chunk),
-          });
-
-          const result = await response.json();
-
-          // Clean up invalid tokens
-          if (result.data) {
-            for (let i = 0; i < result.data.length; i++) {
-              if (result.data[i].status === "error" &&
-                  result.data[i].details?.error === "DeviceNotRegistered") {
-                console.log("Removing invalid Expo token:", chunk[i].to);
-                await supabase
-                  .from("expo_push_tokens")
-                  .delete()
-                  .eq("token", chunk[i].to);
-              }
-            }
-          }
-
-          return { success: response.ok, type: "expo", count: chunk.length, result };
-        })
-      );
-    }
-
-    const allResults = { web: webResults, expo: expoResults };
-    console.log(`Push sent: ${webSubs?.length || 0} web, ${expoTokens?.length || 0} expo tokens`);
+    const results = await sendPushToUsers(supabase, userIds, title, body, url, data);
 
     return new Response(
-      JSON.stringify({ success: true, results: allResults }),
+      JSON.stringify({ success: true, results }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
@@ -172,3 +148,168 @@ serve(async (req) => {
     );
   }
 });
+
+/**
+ * Returns agent user_ids filtered by service_zone.
+ * - If zone is provided: agents where profiles.service_zone matches (case-insensitive).
+ * - If zone is null: agents where profiles.service_zone IS NULL (floater agents).
+ */
+async function getZonedAgentIds(
+  supabase: ReturnType<typeof createClient>,
+  serviceZone: string | null
+): Promise<string[]> {
+  // Get all agent user_ids
+  const { data: agentRoles, error: rolesError } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "agent");
+
+  if (rolesError || !agentRoles || agentRoles.length === 0) {
+    console.error("Error or no agents found:", rolesError);
+    return [];
+  }
+
+  const agentIds = agentRoles.map((r: { user_id: string }) => r.user_id);
+
+  // Fetch agent profiles with service_zone
+  const { data: profiles, error: profilesError } = await supabase
+    .from("profiles")
+    .select("user_id, service_zone")
+    .in("user_id", agentIds);
+
+  if (profilesError || !profiles) {
+    console.error("Error fetching agent profiles:", profilesError);
+    return [];
+  }
+
+  // Filter by zone
+  if (serviceZone) {
+    return profiles
+      .filter((p: { service_zone: string | null }) =>
+        p.service_zone && p.service_zone.trim().toLowerCase() === serviceZone
+      )
+      .map((p: { user_id: string }) => p.user_id);
+  } else {
+    // Null zone → only floater agents (no zone set)
+    return profiles
+      .filter((p: { service_zone: string | null }) => !p.service_zone)
+      .map((p: { user_id: string }) => p.user_id);
+  }
+}
+
+/**
+ * Sends push notifications (Web + Expo) to a list of user IDs.
+ */
+async function sendPushToUsers(
+  supabase: ReturnType<typeof createClient>,
+  userIds: string[],
+  title: string,
+  body: string,
+  url?: string,
+  data?: Record<string, string>
+) {
+  // ── 1. Web Push ──
+  const { data: webSubs, error: webSubError } = await supabase
+    .from("push_subscriptions")
+    .select("*")
+    .in("user_id", userIds);
+
+  if (webSubError) {
+    console.error("Error fetching web subscriptions:", webSubError);
+  }
+
+  const webResults = await Promise.allSettled(
+    (webSubs || []).map(async (sub: { endpoint: string; id: string }) => {
+      try {
+        const pushPayload = JSON.stringify({ title, body, url });
+        const response = await fetch(sub.endpoint, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Encoding": "aes128gcm",
+            "TTL": "86400",
+          },
+          body: pushPayload,
+        });
+
+        if (!response.ok && response.status === 410) {
+          console.log("Removing expired web subscription:", sub.endpoint);
+          await supabase.from("push_subscriptions").delete().eq("id", sub.id);
+        }
+
+        return { success: response.ok, type: "web", endpoint: sub.endpoint };
+      } catch (error) {
+        console.error("Error sending web push:", sub.endpoint, error);
+        return { success: false, type: "web", endpoint: sub.endpoint, error };
+      }
+    })
+  );
+
+  // ── 2. Expo Push ──
+  const { data: expoTokens, error: expoError } = await supabase
+    .from("expo_push_tokens")
+    .select("*")
+    .in("user_id", userIds);
+
+  if (expoError) {
+    console.error("Error fetching Expo tokens:", expoError);
+  }
+
+  let expoResults: PromiseSettledResult<unknown>[] = [];
+
+  if (expoTokens && expoTokens.length > 0) {
+    const expoMessages = expoTokens.map((t: { token: string }) => ({
+      to: t.token,
+      sound: "default",
+      title,
+      body,
+      data: { url, ...data },
+      channelId: "orders",
+    }));
+
+    const chunks: (typeof expoMessages)[] = [];
+    for (let i = 0; i < expoMessages.length; i += 100) {
+      chunks.push(expoMessages.slice(i, i + 100));
+    }
+
+    expoResults = await Promise.allSettled(
+      chunks.map(async (chunk) => {
+        const response = await fetch("https://exp.host/--/api/v2/push/send", {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Accept-Encoding": "gzip, deflate",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(chunk),
+        });
+
+        const result = await response.json();
+
+        // Clean up invalid tokens
+        if (result.data) {
+          for (let i = 0; i < result.data.length; i++) {
+            if (
+              result.data[i].status === "error" &&
+              result.data[i].details?.error === "DeviceNotRegistered"
+            ) {
+              console.log("Removing invalid Expo token:", chunk[i].to);
+              await supabase
+                .from("expo_push_tokens")
+                .delete()
+                .eq("token", chunk[i].to);
+            }
+          }
+        }
+
+        return { success: response.ok, type: "expo", count: chunk.length, result };
+      })
+    );
+  }
+
+  const allResults = { web: webResults, expo: expoResults };
+  console.log(
+    `Push sent: ${webSubs?.length || 0} web, ${expoTokens?.length || 0} expo tokens`
+  );
+  return allResults;
+}
