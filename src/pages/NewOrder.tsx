@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, MapPin, ShoppingCart, Loader2, Home, Building } from "lucide-react";
+import MapPinPicker from "@/components/address/MapPinPicker";
 import { toast } from "sonner";
 import { useStoreCategories, useAllStores } from "@/hooks/useStores";
 
@@ -83,6 +84,8 @@ const NewOrderPage = () => {
     city: "",
     state: "",
     landmark: "",
+    latitude: null as number | null,
+    longitude: null as number | null,
   });
   const [savingAddress, setSavingAddress] = useState(false);
   const preselectedStore = searchParams.get("store");
@@ -152,6 +155,8 @@ const NewOrderPage = () => {
           city: newAddress.city,
           state: newAddress.state,
           landmark: newAddress.landmark || null,
+          latitude: newAddress.latitude,
+          longitude: newAddress.longitude,
           is_default: isFirst,
         })
         .select()
@@ -161,7 +166,7 @@ const NewOrderPage = () => {
       setSavedAddresses(prev => [...prev, addr]);
       setValue("delivery_address_id", addr.id);
       setShowNewAddress(false);
-      setNewAddress({ label: "Home", address_line1: "", city: "", state: "", landmark: "" });
+      setNewAddress({ label: "Home", address_line1: "", city: "", state: "", landmark: "", latitude: null, longitude: null });
       toast.success("Address saved!");
     } catch (error) {
       console.error("Error saving address:", error);
@@ -472,6 +477,13 @@ const NewOrderPage = () => {
                         placeholder="Near a popular location"
                         value={newAddress.landmark}
                         onChange={(e) => setNewAddress(p => ({ ...p, landmark: e.target.value }))}
+                      />
+                    </div>
+                    <div className="sm:col-span-2">
+                      <MapPinPicker
+                        latitude={newAddress.latitude}
+                        longitude={newAddress.longitude}
+                        onLocationSelect={(lat, lng) => setNewAddress(p => ({ ...p, latitude: lat, longitude: lng }))}
                       />
                     </div>
                   </div>

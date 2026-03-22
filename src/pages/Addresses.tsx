@@ -21,6 +21,7 @@ import {
 import { MapPin, Plus, Trash2, Star, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import MapPinPicker from "@/components/address/MapPinPicker";
 
 interface Address {
   id: string;
@@ -40,6 +41,8 @@ const addressSchema = z.object({
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
   landmark: z.string().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
 });
 
 type AddressFormData = z.infer<typeof addressSchema>;
@@ -60,6 +63,8 @@ const AddressesPage = () => {
       city: "",
       state: "",
       landmark: "",
+      latitude: null,
+      longitude: null,
     },
   });
 
@@ -102,6 +107,8 @@ const AddressesPage = () => {
         city: data.city,
         state: data.state,
         landmark: data.landmark || null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
         is_default: isFirstAddress,
       });
 
@@ -248,6 +255,15 @@ const AddressesPage = () => {
                       {...form.register("landmark")}
                     />
                   </div>
+
+                  <MapPinPicker
+                    latitude={form.watch("latitude")}
+                    longitude={form.watch("longitude")}
+                    onLocationSelect={(lat, lng) => {
+                      form.setValue("latitude", lat);
+                      form.setValue("longitude", lng);
+                    }}
+                  />
                 </div>
                 <DialogFooter>
                   <Button
