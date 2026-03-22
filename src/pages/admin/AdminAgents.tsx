@@ -4,14 +4,14 @@ import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { Search, TrendingUp, Package, Wallet } from "lucide-react";
+import { toast } from "sonner";
+import { SERVICE_ZONES } from "@/lib/service-zones";
 
 interface AgentWithStats {
   user_id: string;
@@ -22,6 +22,7 @@ interface AgentWithStats {
   completed_orders: number;
   total_earnings: number;
   pending_earnings: number;
+  service_zone: string | null;
 }
 
 const AdminAgents = () => {
@@ -35,14 +36,12 @@ const AdminAgents = () => {
 
   const fetchAgents = async () => {
     try {
-      // Get all agents
       const { data: agentRoles, error: rolesError } = await supabase
         .from("user_roles")
         .select("user_id")
         .eq("role", "agent");
 
       if (rolesError) throw rolesError;
-
       if (!agentRoles || agentRoles.length === 0) {
         setAgents([]);
         setLoading(false);
@@ -51,7 +50,6 @@ const AdminAgents = () => {
 
       const agentIds = agentRoles.map((r) => r.user_id);
 
-      // Fetch profiles, orders, and earnings in parallel
       const [profilesResult, ordersResult, earningsResult] = await Promise.all([
         supabase.from("profiles").select("*").in("user_id", agentIds),
         supabase.from("orders").select("agent_id, status").in("agent_id", agentIds),
@@ -65,14 +63,9 @@ const AdminAgents = () => {
       const agentsWithStats: AgentWithStats[] = profiles.map((profile) => {
         const agentOrders = orders.filter((o) => o.agent_id === profile.user_id);
         const completedOrders = agentOrders.filter((o) => o.status === "delivered").length;
-
         const agentEarnings = earnings.filter((e) => e.agent_id === profile.user_id);
-        const totalEarnings = agentEarnings
-          .filter((e) => e.status === "paid")
-          .reduce((sum, e) => sum + Number(e.amount), 0);
-        const pendingEarnings = agentEarnings
-          .filter((e) => e.status === "pending")
-          .reduce((sum, e) => sum + Number(e.amount), 0);
+        const totalEarnings = agentEarnings.filter((e) => e.status === "paid").reduce((sum, e) => sum + Number(e.amount), 0);
+        const pendingEarnings = agentEarnings.filter((e) => e.status === "pending").reduce((sum, e) => sum + Number(e.amount), 0);
 
         return {
           user_id: profile.user_id,
@@ -83,6 +76,7 @@ const AdminAgents = () => {
           completed_orders: completedOrders,
           total_earnings: totalEarnings,
           pending_earnings: pendingEarnings,
+          service_zone: profile.service_zone,
         };
       });
 
@@ -94,22 +88,33 @@ const AdminAgents = () => {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-    }).format(amount);
+  const handleZoneChange = async (userId: string, zone: string) => {
+    const value = zone === "__none__" ? null : zone;
+    const { error } = await supabase
+      .from("profiles")
+      .update({ service_zone: value })
+      .eq("user_id", userId);
+
+    if (error) {
+      toast.error("Failed to update zone");
+      return;
+    }
+    setAgents((prev) =>
+      prev.map((a) => (a.user_id === userId ? { ...a, service_zone: value } : a))
+    );
+    toast.success("Service zone updated");
   };
 
-  const filteredAgents = agents.filter((agent) => {
-    return (
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(amount);
+
+  const filteredAgents = agents.filter(
+    (agent) =>
       agent.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
       agent.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       agent.phone?.includes(searchQuery)
-    );
-  });
+  );
 
-  // Calculate summary stats
   const totalAgents = agents.length;
   const totalCompletedOrders = agents.reduce((sum, a) => sum + a.completed_orders, 0);
   const totalPaidEarnings = agents.reduce((sum, a) => sum + a.total_earnings, 0);
@@ -119,68 +124,47 @@ const AdminAgents = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-display font-bold text-foreground">Agent Management</h1>
-          <p className="text-muted-foreground">View agent performance and earnings.</p>
+          <p className="text-muted-foreground">View agent performance, earnings, and assign service zones.</p>
         </div>
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Agents
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Agents</CardTitle>
               <TrendingUp className="h-5 w-5 text-purple-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalAgents}</div>
-            </CardContent>
+            <CardContent><div className="text-2xl font-bold">{totalAgents}</div></CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Completed Deliveries
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Completed Deliveries</CardTitle>
               <Package className="h-5 w-5 text-green-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalCompletedOrders}</div>
-            </CardContent>
+            <CardContent><div className="text-2xl font-bold">{totalCompletedOrders}</div></CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Paid Earnings
-              </CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Paid Earnings</CardTitle>
               <Wallet className="h-5 w-5 text-emerald-500" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(totalPaidEarnings)}</div>
-            </CardContent>
+            <CardContent><div className="text-2xl font-bold">{formatCurrency(totalPaidEarnings)}</div></CardContent>
           </Card>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle>All Agents</CardTitle>
-            <CardDescription>
-              {filteredAgents.length} agent{filteredAgents.length !== 1 ? "s" : ""} found
-            </CardDescription>
+            <CardDescription>{filteredAgents.length} agent{filteredAgents.length !== 1 ? "s" : ""} found</CardDescription>
           </CardHeader>
           <CardContent>
-            {/* Search */}
             <div className="mb-6">
               <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by name, email, or phone..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+                <Input placeholder="Search by name, email, or phone..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10" />
               </div>
             </div>
 
-            {/* Agents Table */}
             {loading ? (
               <div className="space-y-4">
                 {[...Array(5)].map((_, i) => (
@@ -195,10 +179,11 @@ const AdminAgents = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Agent</TableHead>
+                      <TableHead>Service Zone</TableHead>
                       <TableHead>Phone</TableHead>
-                      <TableHead>Completed Orders</TableHead>
-                      <TableHead>Total Earnings</TableHead>
-                      <TableHead>Pending Earnings</TableHead>
+                      <TableHead>Completed</TableHead>
+                      <TableHead>Earnings</TableHead>
+                      <TableHead>Pending</TableHead>
                       <TableHead>Joined</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -211,21 +196,33 @@ const AdminAgents = () => {
                             <p className="text-sm text-muted-foreground">{agent.email}</p>
                           </div>
                         </TableCell>
+                        <TableCell>
+                          <Select
+                            value={agent.service_zone || "__none__"}
+                            onValueChange={(v) => handleZoneChange(agent.user_id, v)}
+                          >
+                            <SelectTrigger className="w-[140px] h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">
+                                <span className="text-muted-foreground">No zone (floater)</span>
+                              </SelectItem>
+                              {SERVICE_ZONES.map((z) => (
+                                <SelectItem key={z.slug} value={z.slug}>{z.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                         <TableCell>{agent.phone || "-"}</TableCell>
                         <TableCell>
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
                             {agent.completed_orders}
                           </span>
                         </TableCell>
-                        <TableCell className="font-medium text-green-600">
-                          {formatCurrency(agent.total_earnings)}
-                        </TableCell>
-                        <TableCell className="text-orange-600">
-                          {formatCurrency(agent.pending_earnings)}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(agent.created_at).toLocaleDateString()}
-                        </TableCell>
+                        <TableCell className="font-medium text-green-600">{formatCurrency(agent.total_earnings)}</TableCell>
+                        <TableCell className="text-orange-600">{formatCurrency(agent.pending_earnings)}</TableCell>
+                        <TableCell>{new Date(agent.created_at).toLocaleDateString()}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
