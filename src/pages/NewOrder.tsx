@@ -83,6 +83,8 @@ const NewOrderPage = () => {
     city: "",
     state: "",
     landmark: "",
+    latitude: null as number | null,
+    longitude: null as number | null,
   });
   const [savingAddress, setSavingAddress] = useState(false);
   const preselectedStore = searchParams.get("store");
