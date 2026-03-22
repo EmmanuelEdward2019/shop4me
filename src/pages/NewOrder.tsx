@@ -155,6 +155,8 @@ const NewOrderPage = () => {
           city: newAddress.city,
           state: newAddress.state,
           landmark: newAddress.landmark || null,
+          latitude: newAddress.latitude,
+          longitude: newAddress.longitude,
           is_default: isFirst,
         })
         .select()
@@ -164,7 +166,7 @@ const NewOrderPage = () => {
       setSavedAddresses(prev => [...prev, addr]);
       setValue("delivery_address_id", addr.id);
       setShowNewAddress(false);
-      setNewAddress({ label: "Home", address_line1: "", city: "", state: "", landmark: "" });
+      setNewAddress({ label: "Home", address_line1: "", city: "", state: "", landmark: "", latitude: null, longitude: null });
       toast.success("Address saved!");
     } catch (error) {
       console.error("Error saving address:", error);
