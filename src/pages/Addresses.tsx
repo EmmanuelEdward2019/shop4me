@@ -21,6 +21,7 @@ import {
 import { MapPin, Plus, Trash2, Star, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import MapPinPicker from "@/components/address/MapPinPicker";
 
 interface Address {
   id: string;
