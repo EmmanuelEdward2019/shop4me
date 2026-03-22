@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Plus, Trash2, MapPin, ShoppingCart, Loader2, Home, Building } from "lucide-react";
+import MapPinPicker from "@/components/address/MapPinPicker";
 import { toast } from "sonner";
 import { useStoreCategories, useAllStores } from "@/hooks/useStores";
 
