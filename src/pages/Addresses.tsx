@@ -107,6 +107,8 @@ const AddressesPage = () => {
         city: data.city,
         state: data.state,
         landmark: data.landmark || null,
+        latitude: data.latitude ?? null,
+        longitude: data.longitude ?? null,
         is_default: isFirstAddress,
       });
 
