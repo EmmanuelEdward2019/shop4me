@@ -255,6 +255,15 @@ const AddressesPage = () => {
                       {...form.register("landmark")}
                     />
                   </div>
+
+                  <MapPinPicker
+                    latitude={form.watch("latitude")}
+                    longitude={form.watch("longitude")}
+                    onLocationSelect={(lat, lng) => {
+                      form.setValue("latitude", lat);
+                      form.setValue("longitude", lng);
+                    }}
+                  />
                 </div>
                 <DialogFooter>
                   <Button
