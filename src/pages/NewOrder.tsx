@@ -479,6 +479,13 @@ const NewOrderPage = () => {
                         onChange={(e) => setNewAddress(p => ({ ...p, landmark: e.target.value }))}
                       />
                     </div>
+                    <div className="sm:col-span-2">
+                      <MapPinPicker
+                        latitude={newAddress.latitude}
+                        longitude={newAddress.longitude}
+                        onLocationSelect={(lat, lng) => setNewAddress(p => ({ ...p, latitude: lat, longitude: lng }))}
+                      />
+                    </div>
                   </div>
                   <Button type="button" size="sm" onClick={handleSaveNewAddress} disabled={savingAddress}>
                     {savingAddress ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : null}
