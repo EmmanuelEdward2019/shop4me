@@ -41,6 +41,8 @@ const addressSchema = z.object({
   city: z.string().min(1, "City is required"),
   state: z.string().min(1, "State is required"),
   landmark: z.string().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
 });
 
 type AddressFormData = z.infer<typeof addressSchema>;
