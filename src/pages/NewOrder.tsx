@@ -210,18 +210,28 @@ const NewOrderPage = () => {
         0
       );
 
-      // Create order - find the category name for the location_type
+      // Create order - set service_zone from store area for zone-based agent routing
       const storeCat = categories.find(c => c.id === locationData?.category_id);
+      const serviceZone = locationData?.area ? areaToZoneSlug(locationData.area) : null;
+      const shopCategory = storeCat?.slug || locationData?.category_id || "market";
+
+      // Get delivery GPS from the selected address
+      const selectedAddr = savedAddresses.find(a => a.id === data.delivery_address_id);
+
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
           user_id: user.id,
           location_name: data.location,
-          location_type: storeCat?.slug || locationData?.category_id || "market",
+          location_type: shopCategory,
           delivery_address_id: data.delivery_address_id,
           notes: data.notes,
           estimated_total: estimatedTotal > 0 ? estimatedTotal : null,
           status: "pending",
+          service_zone: serviceZone,
+          shop_category: shopCategory,
+          delivery_latitude: selectedAddr?.latitude ?? null,
+          delivery_longitude: selectedAddr?.longitude ?? null,
         })
         .select()
         .single();
