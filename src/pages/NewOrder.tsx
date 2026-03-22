@@ -23,6 +23,7 @@ import { Plus, Trash2, MapPin, ShoppingCart, Loader2, Home, Building } from "luc
 import MapPinPicker from "@/components/address/MapPinPicker";
 import { toast } from "sonner";
 import { useStoreCategories, useAllStores } from "@/hooks/useStores";
+import { areaToZoneSlug } from "@/lib/service-zones";
 
 interface SavedAddress {
   id: string;
@@ -33,6 +34,8 @@ interface SavedAddress {
   state: string;
   landmark: string | null;
   is_default: boolean;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 // Locations are now loaded from DB via useStores hook
