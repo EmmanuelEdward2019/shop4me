@@ -6,7 +6,7 @@ import howItWorksVideo from "@/assets/how-it-works.mp4";
 import logo from "@/assets/logo.png";
 
 const VideoSection = () => {
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
   const videoRef = useRef<HTMLVideoElement>(null);
 
