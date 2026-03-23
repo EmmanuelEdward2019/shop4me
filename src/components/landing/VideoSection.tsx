@@ -50,6 +50,7 @@ const VideoSection = () => {
             <video
               ref={videoRef}
               className="w-full aspect-video object-cover"
+              autoPlay
               loop
               muted={isMuted}
               playsInline
