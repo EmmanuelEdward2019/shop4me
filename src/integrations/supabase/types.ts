@@ -1242,6 +1242,37 @@ export type Database = {
     Functions: {
       delete_user_account: { Args: { p_user_id: string }; Returns: Json }
       generate_invoice_number: { Args: never; Returns: string }
+      get_available_orders_nearby: {
+        Args: { p_agent_id: string }
+        Returns: {
+          agent_id: string | null
+          created_at: string
+          delivery_address_id: string | null
+          delivery_fee: number | null
+          delivery_latitude: number | null
+          delivery_longitude: number | null
+          estimated_minutes: number | null
+          estimated_total: number | null
+          final_total: number | null
+          id: string
+          location_name: string
+          location_type: string
+          notes: string | null
+          service_fee: number | null
+          service_zone: string | null
+          shop_category: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          timer_started_at: string | null
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "orders"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

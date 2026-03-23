@@ -45,6 +45,22 @@ const AvailableOrders = () => {
   const fetchAvailableOrders = useCallback(async () => {
     setLoading(true);
     try {
+      // Use PostGIS-powered RPC to get orders within agent's service radius
+      // Falls back to zone matching if agent has no GPS coordinates
+      const { data: nearbyOrders, error: rpcError } = await supabase
+        .rpc("get_available_orders_nearby", { p_agent_id: user?.id });
+
+      if (rpcError) throw rpcError;
+
+      const orderIds = (nearbyOrders || []).map((o: any) => o.id);
+
+      if (orderIds.length === 0) {
+        setOrders([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch full order data with relations for matched orders
       const { data, error } = await supabase
         .from("orders")
         .select(`
@@ -52,8 +68,7 @@ const AvailableOrders = () => {
           order_items(*),
           delivery_addresses(address_line1, city, state)
         `)
-        .eq("status", "pending")
-        .is("agent_id", null)
+        .in("id", orderIds)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
