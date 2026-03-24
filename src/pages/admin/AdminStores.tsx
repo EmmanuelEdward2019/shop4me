@@ -195,6 +195,29 @@ const AdminStores = () => {
     fetchData();
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const filePath = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("store-images")
+        .upload(filePath, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage
+        .from("store-images")
+        .getPublicUrl(filePath);
+      setStoreForm(p => ({ ...p, image_url: publicUrl }));
+      toast.success("Image uploaded");
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const deleteStore = async (id: string) => {
     if (!confirm("Delete this store?")) return;
     await supabase.from("stores").delete().eq("id", id);
