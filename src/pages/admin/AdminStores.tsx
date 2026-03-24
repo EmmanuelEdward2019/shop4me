@@ -30,7 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, Store, Tag, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Store, Tag, Loader2, Upload, Image } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 
