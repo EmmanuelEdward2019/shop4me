@@ -430,6 +430,25 @@ const AdminStores = () => {
               <Label>Description</Label>
               <Input value={storeForm.description} onChange={e => setStoreForm(p => ({ ...p, description: e.target.value }))} placeholder="Brief description" />
             </div>
+            <div className="space-y-2">
+              <Label>Store Image</Label>
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <Input value={storeForm.image_url} onChange={e => setStoreForm(p => ({ ...p, image_url: e.target.value }))} placeholder="https://... or upload below" />
+                </div>
+                <label className="cursor-pointer">
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                  <Button type="button" variant="outline" size="sm" disabled={uploadingImage} asChild>
+                    <span>
+                      {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    </span>
+                  </Button>
+                </label>
+              </div>
+              {storeForm.image_url && (
+                <img src={storeForm.image_url} alt="Preview" className="w-full h-32 object-cover rounded-lg border border-border mt-2" />
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Latitude</Label>
