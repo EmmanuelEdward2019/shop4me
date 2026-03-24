@@ -154,7 +154,7 @@ const AdminStores = () => {
       setEditingStore(null);
       setStoreForm({
         name: "", slug: "", category_id: "", area: "", city: "Port Harcourt",
-        description: "", latitude: "", longitude: "",
+        description: "", latitude: "", longitude: "", image_url: "",
       });
     }
     setStoreDialogOpen(true);
