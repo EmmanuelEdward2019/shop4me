@@ -14,24 +14,37 @@ const StoreCard = ({ store, compact = false }: { store: StoreType; compact?: boo
   return (
     <Link
       to={`/dashboard/orders/new?store=${encodeURIComponent(store.name)}`}
-      className={`group flex flex-col items-center rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-glow transition-all duration-300 cursor-pointer flex-shrink-0 ${
-        compact ? "p-3 w-32" : "p-4"
+      className={`group flex flex-col items-center rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-glow transition-all duration-300 cursor-pointer flex-shrink-0 overflow-hidden ${
+        compact ? "w-32" : ""
       }`}
     >
-      <div className={`rounded-xl bg-accent text-accent-foreground flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300 shadow-soft ${
-        compact ? "w-10 h-10" : "w-14 h-14 mb-3"
-      }`}>
-        <Store className={compact ? "w-5 h-5" : "w-7 h-7"} />
+      {store.image_url ? (
+        <div className={`w-full overflow-hidden ${compact ? "h-20" : "h-28"}`}>
+          <img
+            src={store.image_url}
+            alt={store.name}
+            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+            loading="lazy"
+          />
+        </div>
+      ) : (
+        <div className={`rounded-xl bg-accent text-accent-foreground flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-soft ${
+          compact ? "w-10 h-10 mt-3 mb-2" : "w-14 h-14 mt-4 mb-3"
+        }`}>
+          <Store className={compact ? "w-5 h-5" : "w-7 h-7"} />
+        </div>
+      )}
+      <div className={compact ? "p-2 pt-1" : "p-3 pt-1"}>
+        <h4 className={`font-semibold text-foreground text-center leading-tight mb-1 group-hover:text-primary transition-colors ${
+          compact ? "text-xs" : "text-sm"
+        }`}>
+          {store.name}
+        </h4>
+        <span className={`text-muted-foreground flex items-center justify-center gap-1 ${compact ? "text-[10px]" : "text-xs"}`}>
+          <MapPin className={compact ? "w-2.5 h-2.5" : "w-3 h-3"} />
+          {store.area}
+        </span>
       </div>
-      <h4 className={`font-semibold text-foreground text-center leading-tight mb-1 group-hover:text-primary transition-colors ${
-        compact ? "text-xs" : "text-sm"
-      }`}>
-        {store.name}
-      </h4>
-      <span className={`text-muted-foreground flex items-center gap-1 ${compact ? "text-[10px]" : "text-xs"}`}>
-        <MapPin className={compact ? "w-2.5 h-2.5" : "w-3 h-3"} />
-        {store.area}
-      </span>
     </Link>
   );
 };
