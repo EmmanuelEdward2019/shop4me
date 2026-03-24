@@ -148,6 +148,7 @@ const AdminStores = () => {
         name: store.name, slug: store.slug, category_id: store.category_id || "",
         area: store.area, city: store.city, description: store.description || "",
         latitude: store.latitude?.toString() || "", longitude: store.longitude?.toString() || "",
+        image_url: store.image_url || "",
       });
     } else {
       setEditingStore(null);
