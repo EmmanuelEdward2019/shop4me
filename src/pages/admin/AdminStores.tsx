@@ -54,6 +54,7 @@ interface StoreRecord {
   latitude: number | null;
   longitude: number | null;
   is_active: boolean;
+  image_url: string | null;
 }
 
 const AdminStores = () => {
