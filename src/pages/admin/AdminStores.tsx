@@ -73,8 +73,9 @@ const AdminStores = () => {
   const [editingStore, setEditingStore] = useState<StoreRecord | null>(null);
   const [storeForm, setStoreForm] = useState({
     name: "", slug: "", category_id: "", area: "", city: "Port Harcourt",
-    description: "", latitude: "", longitude: "",
+    description: "", latitude: "", longitude: "", image_url: "",
   });
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [storeSaving, setStoreSaving] = useState(false);
 
   useEffect(() => { fetchData(); }, []);
