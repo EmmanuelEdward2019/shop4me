@@ -170,6 +170,7 @@ const AdminStores = () => {
       description: storeForm.description,
       latitude: storeForm.latitude ? parseFloat(storeForm.latitude) : null,
       longitude: storeForm.longitude ? parseFloat(storeForm.longitude) : null,
+      image_url: storeForm.image_url || null,
     };
     try {
       if (editingStore) {

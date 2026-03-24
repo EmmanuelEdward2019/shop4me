@@ -21,6 +21,7 @@ export interface Store {
   latitude: number | null;
   longitude: number | null;
   is_active: boolean;
+  image_url: string | null;
 }
 
 export const useStoreCategories = () => {
