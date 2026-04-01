@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/app/reset-password", "destination": "/app/reset-password/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Shop4Me — Reset password</title>
+<!--
+    Deploy this file at the URL configured in app.json → extra.passwordResetWebHandoffUrl
+    Example: https://www.shop4meng.com/app/reset-password/index.html
+    (path must match Supabase Auth → Redirect URLs exactly)
+
+    Supabase redirects here with tokens in the hash (#access_token=...) or PKCE ?code=...
+    This page forwards them to the native app scheme so the mobile app opens.
+  -->
+<style>
+body { font-family: system-ui, sans-serif; text-align: center; padding: 2rem; color: #1a1a1a; }
+a { color: #1F7A4D; font-weight: 600; }
+</style>
+</head>
+<body>
+<p>Opening the Shop4Me app…</p>
+<p><a id="open" href="#">Tap here to open the app</a></p>
+<script>
+    (function () {
+      var hash = window.location.hash || '';
+      var search = window.location.search || '';
+      var target = 'shop4me://reset-password';
+      if (hash) target += hash;
+      else if (search) target += search;
+      document.getElementById('open').href = target;
+      window.location.replace(target);
+    })();
+</script>
+</body>
+</html>
