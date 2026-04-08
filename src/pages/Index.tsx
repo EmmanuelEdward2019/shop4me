@@ -5,6 +5,7 @@ import Features from "@/components/landing/Features";
 import VideoSection from "@/components/landing/VideoSection";
 import ExploreStores from "@/components/landing/ExploreStores";
 import AgentsShowcase from "@/components/landing/AgentsShowcase";
+import AppShowcase from "@/components/landing/AppShowcase";
 import LocationsCarousel from "@/components/landing/LocationsCarousel";
 import FAQ from "@/components/landing/FAQ";
 import FinalCTA from "@/components/landing/FinalCTA";
@@ -22,6 +23,7 @@ const Index = () => {
         <VideoSection />
         <ExploreStores />
         <Features />
+        <AppShowcase />
         <AgentsShowcase />
         <RiderCTA />
         <LocationsCarousel />

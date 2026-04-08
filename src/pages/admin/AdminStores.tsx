@@ -55,11 +55,18 @@ interface StoreRecord {
   longitude: number | null;
   is_active: boolean;
   image_url: string | null;
+  assigned_agent_id: string | null;
+}
+
+interface AgentOption {
+  user_id: string;
+  full_name: string;
 }
 
 const AdminStores = () => {
   const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [stores, setStores] = useState<StoreRecord[]>([]);
+  const [agents, setAgents] = useState<AgentOption[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Category dialog
@@ -74,6 +81,7 @@ const AdminStores = () => {
   const [storeForm, setStoreForm] = useState({
     name: "", slug: "", category_id: "", area: "", city: "Port Harcourt",
     description: "", latitude: "", longitude: "", image_url: "",
+    assigned_agent_id: "",
   });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [storeSaving, setStoreSaving] = useState(false);
@@ -82,12 +90,14 @@ const AdminStores = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [catRes, storeRes] = await Promise.all([
+    const [catRes, storeRes, agentRes] = await Promise.all([
       supabase.from("store_categories").select("*").order("display_order"),
       supabase.from("stores").select("*").order("name"),
+      supabase.from("agent_applications").select("user_id, full_name").eq("status", "approved"),
     ]);
     setCategories((catRes.data as StoreCategory[]) || []);
     setStores((storeRes.data as StoreRecord[]) || []);
+    setAgents((agentRes.data as AgentOption[]) || []);
     setLoading(false);
   };
 
@@ -148,13 +158,14 @@ const AdminStores = () => {
         name: store.name, slug: store.slug, category_id: store.category_id || "",
         area: store.area, city: store.city, description: store.description || "",
         latitude: store.latitude?.toString() || "", longitude: store.longitude?.toString() || "",
-        image_url: store.image_url || "",
+        image_url: store.image_url || "", assigned_agent_id: store.assigned_agent_id || "",
       });
     } else {
       setEditingStore(null);
       setStoreForm({
         name: "", slug: "", category_id: "", area: "", city: "Port Harcourt",
         description: "", latitude: "", longitude: "", image_url: "",
+        assigned_agent_id: "",
       });
     }
     setStoreDialogOpen(true);
@@ -171,6 +182,7 @@ const AdminStores = () => {
       latitude: storeForm.latitude ? parseFloat(storeForm.latitude) : null,
       longitude: storeForm.longitude ? parseFloat(storeForm.longitude) : null,
       image_url: storeForm.image_url || null,
+      assigned_agent_id: storeForm.assigned_agent_id || null,
     };
     try {
       if (editingStore) {
@@ -448,6 +460,20 @@ const AdminStores = () => {
               {storeForm.image_url && (
                 <img src={storeForm.image_url} alt="Preview" className="w-full h-32 object-cover rounded-lg border border-border mt-2" />
               )}
+            </div>
+            {/* Dedicated Agent Assignment */}
+            <div className="space-y-2">
+              <Label>Dedicated Agent (optional)</Label>
+              <Select value={storeForm.assigned_agent_id} onValueChange={v => setStoreForm(p => ({ ...p, assigned_agent_id: v === "_none" ? "" : v }))}>
+                <SelectTrigger><SelectValue placeholder="No dedicated agent" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">No dedicated agent</SelectItem>
+                  {agents.map(a => (
+                    <SelectItem key={a.user_id} value={a.user_id}>{a.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">If set, order notifications go only to this agent</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
