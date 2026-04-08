@@ -6,25 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-/**
- * send-push-notification Edge Function
- *
- * Supports two caller shapes:
- *
- * A) Client invoke (legacy / general):
- *    { role?: string, userId?: string, title, body, url?, data?: { orderId?, service_zone?, ... } }
- *
- * B) Database Webhook on orders INSERT:
- *    { type: "INSERT", table: "orders", record: { id, status, agent_id, service_zone, location_name, ... } }
- *
- * Zone-filtering policy for agent notifications:
- *   - If order.service_zone is set → only agents whose profiles.service_zone matches (case-insensitive trim).
- *   - If order.service_zone is NULL → only agents whose profiles.service_zone IS NULL ("floater" agents).
- *   - This prevents spamming every zoned agent with unzoned legacy orders.
- *
- * Rider notifications are left unchanged (no zone filter applied).
- */
-
 interface PushPayload {
   userId?: string;
   role?: string;
@@ -59,7 +40,6 @@ serve(async (req) => {
       const webhook = rawBody as WebhookPayload;
       const order = webhook.record;
 
-      // Only notify for new pending orders without an agent
       if (order.status !== "pending" || order.agent_id) {
         return new Response(
           JSON.stringify({ success: true, message: "Not a new pending order, skipping" }),
@@ -70,11 +50,28 @@ serve(async (req) => {
       const serviceZone = order.service_zone ? String(order.service_zone).trim().toLowerCase() : null;
       const locationName = String(order.location_name || "a store");
 
-      // Get agent user_ids filtered by zone
-      const agentUserIds = await getZonedAgentIds(supabase, serviceZone);
+      // ── Check for dedicated store agent first ──
+      const { data: storeData } = await supabase
+        .from("stores")
+        .select("assigned_agent_id")
+        .ilike("name", locationName)
+        .not("assigned_agent_id", "is", null)
+        .limit(1)
+        .maybeSingle();
+
+      let agentUserIds: string[] = [];
+
+      if (storeData?.assigned_agent_id) {
+        // Dedicated agent for this store — notify only them
+        agentUserIds = [storeData.assigned_agent_id];
+        console.log(`Dedicated agent ${storeData.assigned_agent_id} for store "${locationName}"`);
+      } else {
+        // Fall back to zone-based routing
+        agentUserIds = await getZonedAgentIds(supabase, serviceZone);
+      }
 
       if (agentUserIds.length === 0) {
-        console.log(`No agents found for zone "${serviceZone}"`);
+        console.log(`No agents found for store "${locationName}" / zone "${serviceZone}"`);
         return new Response(
           JSON.stringify({ success: true, message: "No matching agents" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -87,7 +84,7 @@ serve(async (req) => {
 
       const results = await sendPushToUsers(supabase, agentUserIds, title, body, undefined, data);
 
-      console.log(`Webhook push: zone="${serviceZone}", agents=${agentUserIds.length}`);
+      console.log(`Webhook push: store="${locationName}", zone="${serviceZone}", agents=${agentUserIds.length}`);
       return new Response(
         JSON.stringify({ success: true, results }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -101,7 +98,6 @@ serve(async (req) => {
     let userIds: string[] = [];
 
     if (role === "agent" && data?.service_zone) {
-      // Zone-filtered agent push from client invoke
       const serviceZone = data.service_zone.trim().toLowerCase();
       userIds = await getZonedAgentIds(supabase, serviceZone);
     } else if (role) {
@@ -149,16 +145,10 @@ serve(async (req) => {
   }
 });
 
-/**
- * Returns agent user_ids filtered by service_zone.
- * - If zone is provided: agents where profiles.service_zone matches (case-insensitive).
- * - If zone is null: agents where profiles.service_zone IS NULL (floater agents).
- */
 async function getZonedAgentIds(
   supabase: ReturnType<typeof createClient>,
   serviceZone: string | null
 ): Promise<string[]> {
-  // Get all agent user_ids
   const { data: agentRoles, error: rolesError } = await supabase
     .from("user_roles")
     .select("user_id")
@@ -171,7 +161,6 @@ async function getZonedAgentIds(
 
   const agentIds = agentRoles.map((r: { user_id: string }) => r.user_id);
 
-  // Fetch agent profiles with service_zone
   const { data: profiles, error: profilesError } = await supabase
     .from("profiles")
     .select("user_id, service_zone")
@@ -182,7 +171,6 @@ async function getZonedAgentIds(
     return [];
   }
 
-  // Filter by zone
   if (serviceZone) {
     return profiles
       .filter((p: { service_zone: string | null }) =>
@@ -190,16 +178,12 @@ async function getZonedAgentIds(
       )
       .map((p: { user_id: string }) => p.user_id);
   } else {
-    // Null zone → only floater agents (no zone set)
     return profiles
       .filter((p: { service_zone: string | null }) => !p.service_zone)
       .map((p: { user_id: string }) => p.user_id);
   }
 }
 
-/**
- * Sends push notifications (Web + Expo) to a list of user IDs.
- */
 async function sendPushToUsers(
   supabase: ReturnType<typeof createClient>,
   userIds: string[],
@@ -286,7 +270,6 @@ async function sendPushToUsers(
 
         const result = await response.json();
 
-        // Clean up invalid tokens
         if (result.data) {
           for (let i = 0; i < result.data.length; i++) {
             if (
