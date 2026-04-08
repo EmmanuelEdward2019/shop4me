@@ -52,11 +52,22 @@ const FundWalletDialog = ({ open, onOpenChange, email, onSuccess }: FundWalletDi
 
     setLoading(true);
     try {
+      // Detect if user is on mobile app (Capacitor or deep link origin)
+      const isNativeApp = typeof (window as any).Capacitor !== 'undefined' || 
+        navigator.userAgent.includes('Shop4Me') ||
+        window.location.href.includes('capacitor://') ||
+        document.referrer.includes('shop4me://');
+      
+      const callbackUrl = isNativeApp
+        ? "https://www.shop4meng.com/app/wallet-callback"
+        : `${window.location.origin}/dashboard/wallet?verify=true`;
+
       const { data, error } = await supabase.functions.invoke("paystack-wallet-topup", {
         body: {
           amount: numericAmount,
           email: email,
-          callbackUrl: `${window.location.origin}/dashboard/wallet?verify=true`,
+          callbackUrl,
+          platform: isNativeApp ? "mobile" : "web",
         },
       });
 

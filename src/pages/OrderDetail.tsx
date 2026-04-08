@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import AgentProfileCard from "@/components/order/AgentProfileCard";
 import AgentReviewForm from "@/components/order/AgentReviewForm";
+import PostDeliveryReviewDialog from "@/components/order/PostDeliveryReviewDialog";
 import DeliveryTimeEstimate from "@/components/order/DeliveryTimeEstimate";
 import LiveTrackingCard from "@/components/order/LiveTrackingCard";
 import OrderCountdownTimer from "@/components/order/OrderCountdownTimer";
@@ -437,12 +438,21 @@ const OrderDetailPage = () => {
 
         {/* Review Form - show after delivery */}
         {order.status === "delivered" && order.agent_id && !hasReviewed && (
-          <AgentReviewForm
-            orderId={order.id}
-            agentId={order.agent_id}
-            buyerId={user?.id || ""}
-            onReviewSubmitted={() => setHasReviewed(true)}
-          />
+          <>
+            <PostDeliveryReviewDialog
+              orderId={order.id}
+              agentId={order.agent_id}
+              buyerId={user?.id || ""}
+              locationName={order.location_name}
+              onReviewSubmitted={() => setHasReviewed(true)}
+            />
+            <AgentReviewForm
+              orderId={order.id}
+              agentId={order.agent_id}
+              buyerId={user?.id || ""}
+              onReviewSubmitted={() => setHasReviewed(true)}
+            />
+          </>
         )}
 
         {/* Review Submitted Confirmation */}
