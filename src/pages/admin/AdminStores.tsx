@@ -461,6 +461,20 @@ const AdminStores = () => {
                 <img src={storeForm.image_url} alt="Preview" className="w-full h-32 object-cover rounded-lg border border-border mt-2" />
               )}
             </div>
+            {/* Dedicated Agent Assignment */}
+            <div className="space-y-2">
+              <Label>Dedicated Agent (optional)</Label>
+              <Select value={storeForm.assigned_agent_id} onValueChange={v => setStoreForm(p => ({ ...p, assigned_agent_id: v === "_none" ? "" : v }))}>
+                <SelectTrigger><SelectValue placeholder="No dedicated agent" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="_none">No dedicated agent</SelectItem>
+                  {agents.map(a => (
+                    <SelectItem key={a.user_id} value={a.user_id}>{a.full_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">If set, order notifications go only to this agent</p>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Latitude</Label>
