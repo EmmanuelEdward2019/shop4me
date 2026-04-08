@@ -102,13 +102,17 @@ const AdminUsers = () => {
 
     setUpdating(true);
     try {
-      // Update or insert user role
+      // Delete existing role then insert new one (unique constraint is on user_id+role pair)
+      const { error: deleteError } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", selectedUser.user_id);
+
+      if (deleteError) throw deleteError;
+
       const { error } = await supabase
         .from("user_roles")
-        .upsert(
-          { user_id: selectedUser.user_id, role: newRole },
-          { onConflict: "user_id" }
-        );
+        .insert({ user_id: selectedUser.user_id, role: newRole });
 
       if (error) throw error;
 
