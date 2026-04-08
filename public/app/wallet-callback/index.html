@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shop4Me — Wallet Top-Up Complete</title>
+  <style>
+    body { font-family: system-ui, sans-serif; text-align: center; padding: 2rem; color: #1a1a1a; }
+    a { color: #1F7A4D; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <p>Opening the Shop4Me app…</p>
+  <p><a id="open" href="#">Tap here to open the app</a></p>
+  <script>
+    (function () {
+      var search = window.location.search || '';
+      var hash = window.location.hash || '';
+      var target = 'shop4me://wallet-callback';
+      if (search) target += search;
+      else if (hash) target += hash;
+      document.getElementById('open').href = target;
+      window.location.replace(target);
+    })();
+  </script>
+</body>
+</html>
