@@ -1102,6 +1102,7 @@ export type Database = {
       stores: {
         Row: {
           area: string
+          assigned_agent_id: string | null
           category_id: string | null
           city: string
           created_at: string
@@ -1117,6 +1118,7 @@ export type Database = {
         }
         Insert: {
           area: string
+          assigned_agent_id?: string | null
           category_id?: string | null
           city?: string
           created_at?: string
@@ -1132,6 +1134,7 @@ export type Database = {
         }
         Update: {
           area?: string
+          assigned_agent_id?: string | null
           category_id?: string | null
           city?: string
           created_at?: string
