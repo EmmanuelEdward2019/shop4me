@@ -22,6 +22,11 @@ export interface Store {
   longitude: number | null;
   is_active: boolean;
   image_url: string | null;
+  branch_name: string | null;
+  parent_brand: string | null;
+  address: string | null;
+  phone: string | null;
+  assigned_agent_id: string | null;
 }
 
 export const useStoreCategories = () => {

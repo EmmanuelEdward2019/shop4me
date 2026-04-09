@@ -1101,8 +1101,10 @@ export type Database = {
       }
       stores: {
         Row: {
+          address: string | null
           area: string
           assigned_agent_id: string | null
+          branch_name: string | null
           category_id: string | null
           city: string
           created_at: string
@@ -1113,12 +1115,16 @@ export type Database = {
           latitude: number | null
           longitude: number | null
           name: string
+          parent_brand: string | null
+          phone: string | null
           slug: string
           updated_at: string
         }
         Insert: {
+          address?: string | null
           area: string
           assigned_agent_id?: string | null
+          branch_name?: string | null
           category_id?: string | null
           city?: string
           created_at?: string
@@ -1129,12 +1135,16 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           name: string
+          parent_brand?: string | null
+          phone?: string | null
           slug: string
           updated_at?: string
         }
         Update: {
+          address?: string | null
           area?: string
           assigned_agent_id?: string | null
+          branch_name?: string | null
           category_id?: string | null
           city?: string
           created_at?: string
@@ -1145,6 +1155,8 @@ export type Database = {
           latitude?: number | null
           longitude?: number | null
           name?: string
+          parent_brand?: string | null
+          phone?: string | null
           slug?: string
           updated_at?: string
         }

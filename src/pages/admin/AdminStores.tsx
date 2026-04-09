@@ -56,6 +56,10 @@ interface StoreRecord {
   is_active: boolean;
   image_url: string | null;
   assigned_agent_id: string | null;
+  branch_name: string | null;
+  parent_brand: string | null;
+  address: string | null;
+  phone: string | null;
 }
 
 interface AgentOption {
@@ -81,7 +85,7 @@ const AdminStores = () => {
   const [storeForm, setStoreForm] = useState({
     name: "", slug: "", category_id: "", area: "", city: "Port Harcourt",
     description: "", latitude: "", longitude: "", image_url: "",
-    assigned_agent_id: "",
+    assigned_agent_id: "", branch_name: "", parent_brand: "", address: "", phone: "",
   });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [storeSaving, setStoreSaving] = useState(false);
@@ -159,13 +163,15 @@ const AdminStores = () => {
         area: store.area, city: store.city, description: store.description || "",
         latitude: store.latitude?.toString() || "", longitude: store.longitude?.toString() || "",
         image_url: store.image_url || "", assigned_agent_id: store.assigned_agent_id || "",
+        branch_name: store.branch_name || "", parent_brand: store.parent_brand || "",
+        address: store.address || "", phone: store.phone || "",
       });
     } else {
       setEditingStore(null);
       setStoreForm({
         name: "", slug: "", category_id: "", area: "", city: "Port Harcourt",
         description: "", latitude: "", longitude: "", image_url: "",
-        assigned_agent_id: "",
+        assigned_agent_id: "", branch_name: "", parent_brand: "", address: "", phone: "",
       });
     }
     setStoreDialogOpen(true);
@@ -183,6 +189,10 @@ const AdminStores = () => {
       longitude: storeForm.longitude ? parseFloat(storeForm.longitude) : null,
       image_url: storeForm.image_url || null,
       assigned_agent_id: storeForm.assigned_agent_id || null,
+      branch_name: storeForm.branch_name || null,
+      parent_brand: storeForm.parent_brand || null,
+      address: storeForm.address || null,
+      phone: storeForm.phone || null,
     };
     try {
       if (editingStore) {
@@ -274,9 +284,9 @@ const AdminStores = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
+                        <TableHead>Brand</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Area</TableHead>
-                        <TableHead>City</TableHead>
                         <TableHead>Active</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -284,12 +294,25 @@ const AdminStores = () => {
                     <TableBody>
                       {stores.map((store) => (
                         <TableRow key={store.id}>
-                          <TableCell className="font-medium">{store.name}</TableCell>
+                          <TableCell>
+                            <div>
+                              <span className="font-medium">{store.name}</span>
+                              {store.branch_name && (
+                                <span className="block text-xs text-muted-foreground">{store.branch_name} branch</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {store.parent_brand ? (
+                              <Badge variant="secondary">{store.parent_brand}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline">{getCategoryName(store.category_id)}</Badge>
                           </TableCell>
                           <TableCell>{store.area}</TableCell>
-                          <TableCell>{store.city}</TableCell>
                           <TableCell>
                             <Switch checked={store.is_active} onCheckedChange={() => toggleStoreActive(store)} />
                           </TableCell>
@@ -413,9 +436,19 @@ const AdminStores = () => {
             <DialogTitle>{editingStore ? "Edit Store" : "Add Store"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Parent Brand</Label>
+                <Input value={storeForm.parent_brand} onChange={e => setStoreForm(p => ({ ...p, parent_brand: e.target.value }))} placeholder="e.g., Genesis Restaurant" />
+              </div>
+              <div className="space-y-2">
+                <Label>Branch Name</Label>
+                <Input value={storeForm.branch_name} onChange={e => setStoreForm(p => ({ ...p, branch_name: e.target.value }))} placeholder="e.g., Choba" />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label>Store Name *</Label>
-              <Input value={storeForm.name} onChange={e => setStoreForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g., Mile 3 Market" />
+              <Input value={storeForm.name} onChange={e => setStoreForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g., Genesis Choba" />
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
@@ -437,6 +470,14 @@ const AdminStores = () => {
                 <Label>City</Label>
                 <Input value={storeForm.city} onChange={e => setStoreForm(p => ({ ...p, city: e.target.value }))} />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input value={storeForm.address} onChange={e => setStoreForm(p => ({ ...p, address: e.target.value }))} placeholder="Full street address" />
+            </div>
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input value={storeForm.phone} onChange={e => setStoreForm(p => ({ ...p, phone: e.target.value }))} placeholder="e.g., 0700..." />
             </div>
             <div className="space-y-2">
               <Label>Description</Label>

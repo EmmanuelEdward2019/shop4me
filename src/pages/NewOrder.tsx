@@ -355,7 +355,7 @@ const NewOrderPage = () => {
                       <div className="flex items-center gap-2">
                         <span>{store.name}</span>
                         <span className="text-xs text-muted-foreground">
-                          ({store.area} • {store.city})
+                          ({store.area})
                         </span>
                       </div>
                     </SelectItem>
