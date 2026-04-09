@@ -436,9 +436,19 @@ const AdminStores = () => {
             <DialogTitle>{editingStore ? "Edit Store" : "Add Store"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Parent Brand</Label>
+                <Input value={storeForm.parent_brand} onChange={e => setStoreForm(p => ({ ...p, parent_brand: e.target.value }))} placeholder="e.g., Genesis Restaurant" />
+              </div>
+              <div className="space-y-2">
+                <Label>Branch Name</Label>
+                <Input value={storeForm.branch_name} onChange={e => setStoreForm(p => ({ ...p, branch_name: e.target.value }))} placeholder="e.g., Choba" />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label>Store Name *</Label>
-              <Input value={storeForm.name} onChange={e => setStoreForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g., Mile 3 Market" />
+              <Input value={storeForm.name} onChange={e => setStoreForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g., Genesis Choba" />
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
