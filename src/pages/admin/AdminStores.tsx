@@ -56,6 +56,10 @@ interface StoreRecord {
   is_active: boolean;
   image_url: string | null;
   assigned_agent_id: string | null;
+  branch_name: string | null;
+  parent_brand: string | null;
+  address: string | null;
+  phone: string | null;
 }
 
 interface AgentOption {
@@ -81,7 +85,7 @@ const AdminStores = () => {
   const [storeForm, setStoreForm] = useState({
     name: "", slug: "", category_id: "", area: "", city: "Port Harcourt",
     description: "", latitude: "", longitude: "", image_url: "",
-    assigned_agent_id: "",
+    assigned_agent_id: "", branch_name: "", parent_brand: "", address: "", phone: "",
   });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [storeSaving, setStoreSaving] = useState(false);
@@ -159,13 +163,15 @@ const AdminStores = () => {
         area: store.area, city: store.city, description: store.description || "",
         latitude: store.latitude?.toString() || "", longitude: store.longitude?.toString() || "",
         image_url: store.image_url || "", assigned_agent_id: store.assigned_agent_id || "",
+        branch_name: store.branch_name || "", parent_brand: store.parent_brand || "",
+        address: store.address || "", phone: store.phone || "",
       });
     } else {
       setEditingStore(null);
       setStoreForm({
         name: "", slug: "", category_id: "", area: "", city: "Port Harcourt",
         description: "", latitude: "", longitude: "", image_url: "",
-        assigned_agent_id: "",
+        assigned_agent_id: "", branch_name: "", parent_brand: "", address: "", phone: "",
       });
     }
     setStoreDialogOpen(true);
@@ -183,6 +189,10 @@ const AdminStores = () => {
       longitude: storeForm.longitude ? parseFloat(storeForm.longitude) : null,
       image_url: storeForm.image_url || null,
       assigned_agent_id: storeForm.assigned_agent_id || null,
+      branch_name: storeForm.branch_name || null,
+      parent_brand: storeForm.parent_brand || null,
+      address: storeForm.address || null,
+      phone: storeForm.phone || null,
     };
     try {
       if (editingStore) {
