@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/app-redirect", "destination": "/app-redirect/index.html" },
     { "source": "/app/reset-password", "destination": "/app/reset-password/index.html" },
     { "source": "/app/wallet-callback", "destination": "/app/wallet-callback/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
