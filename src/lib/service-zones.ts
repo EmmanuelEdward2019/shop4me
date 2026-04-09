@@ -17,6 +17,22 @@ export const SERVICE_ZONES = [
   { slug: "peterodili", label: "Peter Odili Road" },
   { slug: "elemejunction", label: "Eleme Junction" },
   { slug: "azikiwe", label: "Azikiwe Road" },
+  { slug: "choba", label: "Choba" },
+  { slug: "elelenwo", label: "Elelenwo" },
+  { slug: "woji", label: "Woji" },
+  { slug: "rumuomasi", label: "Rumuomasi" },
+  { slug: "rsu", label: "RSU" },
+  { slug: "agip", label: "Agip" },
+  { slug: "oilmill", label: "Oil Mill" },
+  { slug: "rumuibekwe", label: "Rumuibekwe" },
+  { slug: "rumuokwuta", label: "Rumuokwuta" },
+  { slug: "rumuodara", label: "Rumuodara" },
+  { slug: "rukpokwu", label: "Rukpokwu" },
+  { slug: "onne", label: "Onne" },
+  { slug: "rumuobiakani", label: "Rumuobiakani" },
+  { slug: "sanniabacha", label: "Sanni Abacha" },
+  { slug: "abaroad", label: "Aba Road" },
+  { slug: "grphase3", label: "GRA Phase 3" },
 ] as const;
 
 export type ServiceZoneSlug = (typeof SERVICE_ZONES)[number]["slug"];
