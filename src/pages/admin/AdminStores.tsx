@@ -284,9 +284,9 @@ const AdminStores = () => {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
+                        <TableHead>Brand</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Area</TableHead>
-                        <TableHead>City</TableHead>
                         <TableHead>Active</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
@@ -294,12 +294,25 @@ const AdminStores = () => {
                     <TableBody>
                       {stores.map((store) => (
                         <TableRow key={store.id}>
-                          <TableCell className="font-medium">{store.name}</TableCell>
+                          <TableCell>
+                            <div>
+                              <span className="font-medium">{store.name}</span>
+                              {store.branch_name && (
+                                <span className="block text-xs text-muted-foreground">{store.branch_name} branch</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {store.parent_brand ? (
+                              <Badge variant="secondary">{store.parent_brand}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">—</span>
+                            )}
+                          </TableCell>
                           <TableCell>
                             <Badge variant="outline">{getCategoryName(store.category_id)}</Badge>
                           </TableCell>
                           <TableCell>{store.area}</TableCell>
-                          <TableCell>{store.city}</TableCell>
                           <TableCell>
                             <Switch checked={store.is_active} onCheckedChange={() => toggleStoreActive(store)} />
                           </TableCell>
