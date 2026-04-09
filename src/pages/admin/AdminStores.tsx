@@ -472,6 +472,14 @@ const AdminStores = () => {
               </div>
             </div>
             <div className="space-y-2">
+              <Label>Address</Label>
+              <Input value={storeForm.address} onChange={e => setStoreForm(p => ({ ...p, address: e.target.value }))} placeholder="Full street address" />
+            </div>
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input value={storeForm.phone} onChange={e => setStoreForm(p => ({ ...p, phone: e.target.value }))} placeholder="e.g., 0700..." />
+            </div>
+            <div className="space-y-2">
               <Label>Description</Label>
               <Input value={storeForm.description} onChange={e => setStoreForm(p => ({ ...p, description: e.target.value }))} placeholder="Brief description" />
             </div>
