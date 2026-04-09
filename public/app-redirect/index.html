@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Opening Shop4Me App...</title>
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+      background-color: #F8FAF9; 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: center; 
+      height: 100vh; 
+      margin: 0; 
+      padding: 20px; 
+      text-align: center; 
+      color: #1e293b; 
+    }
+    .loader { 
+      border: 4px solid #e2e8f0; 
+      border-top: 4px solid #1F7A4D; 
+      border-radius: 50%; 
+      width: 40px; 
+      height: 40px; 
+      animation: spin 1s linear infinite; 
+      margin-bottom: 20px; 
+    }
+    @keyframes spin { 
+      0% { transform: rotate(0deg); } 
+      100% { transform: rotate(360deg); } 
+    }
+    .btn { 
+      display: none; 
+      background-color: #1F7A4D; 
+      color: white; 
+      padding: 12px 24px; 
+      text-decoration: none; 
+      border-radius: 8px; 
+      font-weight: 600; 
+      margin-top: 20px; 
+    }
+  </style>
+</head>
+<body>
+  <div class="loader"></div>
+  <p>Redirecting to the Shop4Me App...</p>
+  <a id="open-app-btn" class="btn" href="#">Click here if the app didn't open</a>
+
+  <script>
+    (function () {
+      var hash = window.location.hash || '';
+      var search = window.location.search || '';
+      var deepLink = 'shop4me://auth-callback';
+
+      if (hash) {
+        deepLink += hash;
+      } else if (search) {
+        deepLink += search;
+      }
+
+      var btn = document.getElementById('open-app-btn');
+      btn.href = deepLink;
+
+      window.location.replace(deepLink);
+
+      setTimeout(function () {
+        btn.style.display = 'inline-block';
+      }, 2500);
+    })();
+  </script>
+</body>
+</html>
