@@ -27,6 +27,7 @@ export const SERVICE_ZONES = [
   { slug: "rumuibekwe", label: "Rumuibekwe" },
   { slug: "rumuokwuta", label: "Rumuokwuta" },
   { slug: "rumuodara", label: "Rumuodara" },
+  { slug: "rumuolumeni", label: "Rumuolumeni" },
   { slug: "rukpokwu", label: "Rukpokwu" },
   { slug: "onne", label: "Onne" },
   { slug: "rumuobiakani", label: "Rumuobiakani" },
