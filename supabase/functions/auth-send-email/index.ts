@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     const emailActionType = emailData.email_action_type;
 
     // Build the verification/action URL using Supabase's verify endpoint
-    const confirmationUrl = `${SUPABASE_URL}/auth/v1/verify?token=${tokenHash}&type=${emailActionType}&redirect_to=${encodeURIComponent(redirectTo)}`;
+    const confirmationUrl = `${SUPABASE_URL}/auth/v1/verify?token=${tokenHash}&type=${emailActionType}&redirect_to=${encodeURIComponent(finalRedirectTo)}`;
 
     let subject = "";
     let body = "";
