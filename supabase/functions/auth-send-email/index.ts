@@ -41,11 +41,26 @@ Deno.serve(async (req) => {
       throw new Error("Invalid hook payload: missing user or email_data");
     }
 
+    // Skip if the request originates from the mobile app
+    const platform = user.user_metadata?.platform;
+    const redirectTo = emailData.redirect_to || "";
+    if (
+      platform === "mobile" ||
+      redirectTo.includes("shop4me://") ||
+      redirectTo.includes("exp://")
+    ) {
+      console.log(`Skipped mobile email: platform=${platform}, redirect=${redirectTo}`);
+      return new Response("Skipped: Handled by Mobile", {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "text/plain" },
+      });
+    }
+
     const email = user.email;
     const name = user.user_metadata?.full_name || "";
     const tokenHash = emailData.token_hash;
     const token = emailData.token;
-    const redirectTo = emailData.redirect_to || "https://shop4meng.com/auth";
+    const finalRedirectTo = redirectTo || "https://shop4meng.com/auth";
     const emailActionType = emailData.email_action_type;
 
     // Build the verification/action URL using Supabase's verify endpoint
