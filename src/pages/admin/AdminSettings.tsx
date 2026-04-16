@@ -56,7 +56,7 @@ const AdminSettings = () => {
     setSaving(true);
     try {
       const updates = [
-        { key: "default_service_fee", value: serviceFee, updated_by: user?.id },
+        { key: "service_fee_percentage", value: serviceFeePercentage, updated_by: user?.id },
         { key: "default_delivery_fee", value: deliveryFee, updated_by: user?.id },
       ];
 
@@ -70,7 +70,7 @@ const AdminSettings = () => {
 
       toast({
         title: "Fees Updated",
-        description: `Service Fee: ₦${serviceFee.toLocaleString()}, Delivery Fee: ₦${deliveryFee.toLocaleString()}`,
+        description: `Service Fee: ${serviceFeePercentage}%, Delivery Fee: ₦${deliveryFee.toLocaleString()}`,
       });
     } catch (err: any) {
       console.error("Error saving fees:", err);
@@ -134,15 +134,16 @@ const AdminSettings = () => {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="serviceFee">Default Service Fee (₦)</Label>
+                    <Label htmlFor="serviceFeePercentage">Service Fee (%)</Label>
                     <Input
-                      id="serviceFee"
+                      id="serviceFeePercentage"
                       type="number"
                       min="0"
-                      value={serviceFee}
-                      onChange={(e) => setServiceFee(Number(e.target.value) || 0)}
+                      max="100"
+                      value={serviceFeePercentage}
+                      onChange={(e) => setServiceFeePercentage(Number(e.target.value) || 0)}
                     />
-                    <p className="text-xs text-muted-foreground">Charged to buyers per order</p>
+                    <p className="text-xs text-muted-foreground">Percentage of items subtotal charged as service fee</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="deliveryFee">Default Delivery Fee (₦)</Label>
