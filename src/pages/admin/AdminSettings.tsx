@@ -17,7 +17,7 @@ const AdminSettings = () => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const [serviceFee, setServiceFee] = useState(1500);
+  const [serviceFeePercentage, setServiceFeePercentage] = useState(10);
   const [deliveryFee, setDeliveryFee] = useState(1500);
 
   const [toggles, setToggles] = useState({
