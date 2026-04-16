@@ -14,10 +14,18 @@ const defaultIcon = L.icon({
   iconAnchor: [12, 41],
 });
 
+export interface ReverseGeocodedAddress {
+  address_line1: string;
+  city: string;
+  state: string;
+  landmark?: string;
+}
+
 interface MapPinPickerProps {
   latitude?: number | null;
   longitude?: number | null;
   onLocationSelect: (lat: number, lng: number) => void;
+  onAddressResolved?: (address: ReverseGeocodedAddress) => void;
 }
 
 /** Clicks on the map set the pin */
@@ -39,7 +47,37 @@ const FlyTo = ({ center }: { center: [number, number] }) => {
   return null;
 };
 
-const MapPinPicker = ({ latitude, longitude, onLocationSelect }: MapPinPickerProps) => {
+const reverseGeocode = async (lat: number, lng: number): Promise<ReverseGeocodedAddress | null> => {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`,
+      { headers: { "Accept-Language": "en" } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const addr = data.address || {};
+
+    const road = addr.road || addr.pedestrian || addr.footway || "";
+    const houseNumber = addr.house_number || "";
+    const addressLine1 = houseNumber ? `${houseNumber} ${road}`.trim() : road || data.display_name?.split(",")[0] || "";
+
+    const city =
+      addr.city || addr.town || addr.village || addr.county || addr.state_district || "";
+    const state = addr.state || "";
+    const suburb = addr.suburb || addr.neighbourhood || "";
+
+    return {
+      address_line1: addressLine1,
+      city,
+      state,
+      landmark: suburb || undefined,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const MapPinPicker = ({ latitude, longitude, onLocationSelect, onAddressResolved }: MapPinPickerProps) => {
   // Default center: Port Harcourt
   const defaultCenter: [number, number] = [4.8156, 7.0498];
   const [position, setPosition] = useState<[number, number] | null>(
@@ -48,17 +86,28 @@ const MapPinPicker = ({ latitude, longitude, onLocationSelect }: MapPinPickerPro
   const [locating, setLocating] = useState(false);
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
 
+  const resolveAddress = useCallback(
+    async (lat: number, lng: number) => {
+      if (!onAddressResolved) return;
+      const result = await reverseGeocode(lat, lng);
+      if (result) onAddressResolved(result);
+    },
+    [onAddressResolved]
+  );
+
   const handleClick = useCallback(
     (lat: number, lng: number) => {
       setPosition([lat, lng]);
       onLocationSelect(lat, lng);
+      resolveAddress(lat, lng);
     },
-    [onLocationSelect]
+    [onLocationSelect, resolveAddress]
   );
 
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) return;
     setLocating(true);
+    // Must call getCurrentPosition synchronously inside the click handler
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const lat = pos.coords.latitude;
@@ -67,6 +116,7 @@ const MapPinPicker = ({ latitude, longitude, onLocationSelect }: MapPinPickerPro
         setFlyTarget([lat, lng]);
         onLocationSelect(lat, lng);
         setLocating(false);
+        resolveAddress(lat, lng);
       },
       () => setLocating(false),
       { enableHighAccuracy: true, timeout: 10000 }
