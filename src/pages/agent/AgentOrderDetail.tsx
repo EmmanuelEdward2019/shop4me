@@ -556,7 +556,7 @@ const AgentOrderDetail = () => {
                   actual_price: item.actual_price,
                   estimated_price: item.estimated_price,
                 }))}
-                serviceFee={order.service_fee || platformFees.defaultServiceFee}
+                serviceFeePercentage={platformFees.serviceFeePercentage}
                 deliveryFee={order.delivery_fee || platformFees.defaultDeliveryFee}
                 onSubmit={async (data) => {
                   const newInvoice = await createInvoice({
