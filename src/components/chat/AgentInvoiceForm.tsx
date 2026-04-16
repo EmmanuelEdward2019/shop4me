@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import type { InvoiceItem, InvoiceMetadata, ShoppingListItem } from "@/types/chat";
 
 interface AgentInvoiceFormProps {
@@ -22,6 +23,7 @@ export const AgentInvoiceForm = ({
   onUploadPhoto,
   disabled,
 }: AgentInvoiceFormProps) => {
+  const { fees, calculateServiceFee } = usePlatformSettings();
   const [items, setItems] = useState<InvoiceItem[]>(
     shoppingList.map((item) => ({
       id: item.id,
@@ -60,8 +62,8 @@ export const AgentInvoiceForm = ({
   const itemsTotal = items
     .filter((i) => i.status !== "not_found")
     .reduce((sum, item) => sum + item.actualPrice * item.quantity, 0);
-  const serviceFee = itemsTotal * 0.1;
-  const deliveryFee = 1500;
+  const serviceFee = calculateServiceFee(itemsTotal);
+  const deliveryFee = fees.defaultDeliveryFee;
   const finalTotal = itemsTotal + serviceFee + deliveryFee;
 
   const handleSubmit = () => {
@@ -194,7 +196,7 @@ export const AgentInvoiceForm = ({
             <span>{formatCurrency(itemsTotal)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Service Fee (10%)</span>
+            <span className="text-muted-foreground">Service Fee ({fees.serviceFeePercentage}%)</span>
             <span>{formatCurrency(serviceFee)}</span>
           </div>
           <div className="flex justify-between">

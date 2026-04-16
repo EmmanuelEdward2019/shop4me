@@ -1,7 +1,6 @@
 import { useState } from "react";
-import { Receipt, Plus, Trash2, Send } from "lucide-react";
+import { Receipt, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -18,7 +17,7 @@ interface OrderItemData {
 
 interface PostDeliveryInvoiceFormProps {
   orderItems: OrderItemData[];
-  serviceFee: number;
+  serviceFeePercentage: number;
   deliveryFee: number;
   onSubmit: (data: {
     items: InvoiceLineItem[];
@@ -35,8 +34,8 @@ interface PostDeliveryInvoiceFormProps {
 
 export const PostDeliveryInvoiceForm = ({
   orderItems,
-  serviceFee: defaultServiceFee,
-  deliveryFee: defaultDeliveryFee,
+  serviceFeePercentage,
+  deliveryFee,
   onSubmit,
   disabled,
 }: PostDeliveryInvoiceFormProps) => {
@@ -49,45 +48,23 @@ export const PostDeliveryInvoiceForm = ({
     }))
   );
 
-  const [extraItems, setExtraItems] = useState<InvoiceLineItem[]>([]);
-  const [discount, setDiscount] = useState(0);
   const [notes, setNotes] = useState("");
-  const [serviceFee] = useState(defaultServiceFee);
-  const [deliveryFee] = useState(defaultDeliveryFee);
-
-  const addExtraItem = () => {
-    setExtraItems([...extraItems, { name: "", quantity: 1, unit_price: 0, total: 0 }]);
-  };
-
-  const updateExtraItem = (index: number, field: keyof InvoiceLineItem, value: any) => {
-    const updated = [...extraItems];
-    updated[index] = { ...updated[index], [field]: value };
-    if (field === "quantity" || field === "unit_price") {
-      updated[index].total = updated[index].quantity * updated[index].unit_price;
-    }
-    setExtraItems(updated);
-  };
-
-  const removeExtraItem = (index: number) => {
-    setExtraItems(extraItems.filter((_, i) => i !== index));
-  };
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(amount);
 
-  const itemsSubtotal = items.reduce((sum, i) => sum + i.total, 0);
-  const extrasSubtotal = extraItems.reduce((sum, i) => sum + i.total, 0);
-  const subtotal = itemsSubtotal + extrasSubtotal;
-  const total = subtotal + serviceFee + deliveryFee - discount;
+  const subtotal = items.reduce((sum, i) => sum + i.total, 0);
+  const serviceFee = Math.round(subtotal * (serviceFeePercentage / 100));
+  const total = subtotal + serviceFee + deliveryFee;
 
   const handleSubmit = () => {
     onSubmit({
       items,
-      extraItems: extraItems.filter((i) => i.name.trim()),
+      extraItems: [],
       subtotal,
       serviceFee,
       deliveryFee,
-      discount,
+      discount: 0,
       total,
       notes: notes || undefined,
     });
@@ -121,62 +98,6 @@ export const PostDeliveryInvoiceForm = ({
           </div>
         </div>
 
-        {/* Extra Items */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <Label className="text-sm font-semibold">Additional Charges (Optional)</Label>
-            <Button type="button" variant="outline" size="sm" onClick={addExtraItem}>
-              <Plus className="w-3 h-3 mr-1" />
-              Add
-            </Button>
-          </div>
-          {extraItems.map((item, i) => (
-            <div key={i} className="grid grid-cols-12 gap-2 mb-2 items-end">
-              <div className="col-span-5">
-                <Input
-                  placeholder="Description"
-                  value={item.name}
-                  onChange={(e) => updateExtraItem(i, "name", e.target.value)}
-                />
-              </div>
-              <div className="col-span-2">
-                <Input
-                  type="number"
-                  placeholder="Qty"
-                  value={item.quantity}
-                  min={1}
-                  onChange={(e) => updateExtraItem(i, "quantity", parseInt(e.target.value) || 1)}
-                />
-              </div>
-              <div className="col-span-3">
-                <Input
-                  type="number"
-                  placeholder="Price"
-                  value={item.unit_price || ""}
-                  onChange={(e) => updateExtraItem(i, "unit_price", parseFloat(e.target.value) || 0)}
-                />
-              </div>
-              <div className="col-span-2 flex justify-end">
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeExtraItem(i)}>
-                  <Trash2 className="w-4 h-4 text-destructive" />
-                </Button>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Discount */}
-        <div>
-          <Label className="text-sm font-semibold">Discount (₦)</Label>
-          <Input
-            type="number"
-            value={discount || ""}
-            onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-            placeholder="0"
-            className="mt-1"
-          />
-        </div>
-
         {/* Notes */}
         <div>
           <Label className="text-sm font-semibold">Invoice Notes (Optional)</Label>
@@ -195,28 +116,16 @@ export const PostDeliveryInvoiceForm = ({
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-muted-foreground">Items Subtotal</span>
-            <span>{formatCurrency(itemsSubtotal)}</span>
+            <span>{formatCurrency(subtotal)}</span>
           </div>
-          {extrasSubtotal > 0 && (
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Additional Charges</span>
-              <span>{formatCurrency(extrasSubtotal)}</span>
-            </div>
-          )}
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Service Fee</span>
+            <span className="text-muted-foreground">Service Fee ({serviceFeePercentage}%)</span>
             <span>{formatCurrency(serviceFee)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Delivery Fee</span>
             <span>{formatCurrency(deliveryFee)}</span>
           </div>
-          {discount > 0 && (
-            <div className="flex justify-between text-primary">
-              <span>Discount</span>
-              <span>-{formatCurrency(discount)}</span>
-            </div>
-          )}
           <Separator />
           <div className="flex justify-between font-semibold text-lg">
             <span>Total</span>
