@@ -34,13 +34,13 @@ const AdminSettings = () => {
         const { data, error } = await supabase
           .from("platform_settings" as any)
           .select("key, value")
-          .in("key", ["default_service_fee", "default_delivery_fee"]);
+          .in("key", ["service_fee_percentage", "default_delivery_fee"]);
 
         if (error) throw error;
 
         (data || []).forEach((row: any) => {
           const val = typeof row.value === "number" ? row.value : Number(row.value);
-          if (row.key === "default_service_fee") setServiceFee(val);
+          if (row.key === "service_fee_percentage") setServiceFeePercentage(val);
           if (row.key === "default_delivery_fee") setDeliveryFee(val);
         });
       } catch (err) {
