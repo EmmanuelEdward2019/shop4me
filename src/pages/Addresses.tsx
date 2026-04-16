@@ -21,7 +21,7 @@ import {
 import { MapPin, Plus, Trash2, Star, Loader2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import MapPinPicker from "@/components/address/MapPinPicker";
+import MapPinPicker, { ReverseGeocodedAddress } from "@/components/address/MapPinPicker";
 
 interface Address {
   id: string;
@@ -262,6 +262,12 @@ const AddressesPage = () => {
                     onLocationSelect={(lat, lng) => {
                       form.setValue("latitude", lat);
                       form.setValue("longitude", lng);
+                    }}
+                    onAddressResolved={(addr: ReverseGeocodedAddress) => {
+                      if (addr.address_line1) form.setValue("address_line1", addr.address_line1);
+                      if (addr.city) form.setValue("city", addr.city);
+                      if (addr.state) form.setValue("state", addr.state);
+                      if (addr.landmark) form.setValue("landmark", addr.landmark);
                     }}
                   />
                 </div>
