@@ -113,7 +113,7 @@
 
     "@capacitor/app": ["@capacitor/app@8.1.0", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/app/-/app-8.1.0.tgz", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-MlmttTOWHDedr/G4SrhNRxsXMqY+R75S4MM4eIgzsgCzOYhb/MpCkA5Q3nuOCfL1oHm26xjUzqZ5aupbOwdfYg=="],
 
-    "@capacitor/camera": ["@capacitor/camera@8.0.2", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/camera/-/camera-8.0.2.tgz", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-v2BsKFjJSg0dMl/UO7jEvrAvjChCGrzQG5jx4yN2t8LnC7eFDh0YkSg1t+AMNveSDSKCvAsTk/JUzzr5VAvzmg=="],
+    "@capacitor/camera": ["@capacitor/camera@8.1.0", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/camera/-/camera-8.1.0.tgz", { "peerDependencies": { "@capacitor/core": ">=8.0.0" } }, "sha512-ep12soG6c6HbfsEelLIM5Ip/YlWvd6H8pZsXg1gzjLNbTN6P/URUxO0Lv08bHyaDQVJkjLKthF7gaOG++TP4NQ=="],
 
     "@capacitor/core": ["@capacitor/core@8.3.0", "https://europe-west4-npm.pkg.dev/lovable-core-prod/sandbox-npm-cache/@capacitor/core/-/core-8.3.0.tgz", { "dependencies": { "tslib": "^2.1.0" } }, "sha512-S4ajn4G/fS3VJj8salxqH/3LO5PPWv1VxGKQ27OCajnDcLJjEg9VXwgMPnlypgkIOqCJ2fmQLtk8GT+BlI9/rw=="],
 
