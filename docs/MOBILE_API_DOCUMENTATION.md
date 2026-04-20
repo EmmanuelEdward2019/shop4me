@@ -1418,3 +1418,87 @@ expo_push_tokens, agent_reviews, agent_earnings.
 ---
 
 *This document is auto-generated from the Shop4Me web application codebase and Supabase configuration.*
+
+---
+
+## 17. Fee Engine (NEW — 2026-04-20)
+
+**Single source of truth** for all order pricing across web + React Native.
+Both clients MUST call the `calculate-order-fees` edge function before
+displaying or persisting an invoice total. Never compute fees client-side
+except for live preview.
+
+### 17.1 New Tables
+
+| Table | Purpose | Admin-managed |
+|-------|---------|--------------|
+| `service_fee_tiers` | Tiered % service fee on subtotal (10/7/5%) | ✅ |
+| `delivery_fee_tiers` | Distance bands → flat delivery fee | ✅ |
+| `zone_centroids` | GPS centroid per service zone (fallback when no buyer pin) | ✅ |
+
+`platform_settings` keys added: `surge_active` (bool), `surge_multiplier` (num),
+`heavy_order_surcharge` (num NGN), `minimum_delivery_fee` (num NGN).
+
+`orders` table gained: `is_heavy_order` (bool), `surge_applied` (num).
+
+### 17.2 Edge function: `calculate-order-fees`
+
+`POST` to `${SUPABASE_URL}/functions/v1/calculate-order-fees` with the anon
+key in `Authorization: Bearer <anon>`.
+
+**Request:**
+```json
+{
+  "subtotal": 12500,
+  "store_lat": 4.8403, "store_lng": 7.0044,
+  "delivery_lat": 4.8156, "delivery_lng": 7.0498,
+  "buyer_zone": "choba",       // fallback when no pin
+  "store_zone": "rumuola",     // fallback when no store GPS
+  "is_heavy_order": false
+}
+```
+
+**Response:**
+```json
+{
+  "subtotal": 12500,
+  "service_fee": 1250,
+  "service_fee_percentage": 10,
+  "delivery_fee": 2500,
+  "base_delivery_fee": 2500,
+  "distance_km": 5.4,
+  "surge_active": false,
+  "surge_multiplier": 1,
+  "heavy_surcharge": 0,
+  "minimum_delivery_fee": 1000,
+  "total": 16250
+}
+```
+
+### 17.3 Calculation rules (mirror these for offline preview)
+
+1. **Service fee**: pick the tier where `min_subtotal ≤ subtotal ≤ max_subtotal`,
+   then `service_fee = round(subtotal × percentage / 100)`.
+2. **Delivery fee**:
+   - If both store and buyer GPS are present → haversine km → pick tier.
+   - Else fall back to zone centroid lookup, then haversine.
+   - If still nothing → use the smallest tier as a safety net.
+3. **Surge**: if `surge_active`, `delivery_fee = round(delivery_fee × surge_multiplier)`.
+4. **Heavy**: if `is_heavy_order`, add `heavy_order_surcharge`.
+5. **Floor**: `delivery_fee = max(delivery_fee, minimum_delivery_fee)`.
+6. **Total**: `subtotal + service_fee + delivery_fee`.
+
+### 17.4 React Native integration checklist
+
+- [ ] Cache the four tables on app launch (`service_fee_tiers`, `delivery_fee_tiers`, `zone_centroids`, relevant `platform_settings` keys) with 5-minute TTL — used for instant preview.
+- [ ] Always call `calculate-order-fees` immediately before any "Send Invoice" / "Pay" action — never trust the cached preview for the final number.
+- [ ] When the buyer has no GPS pin, prompt aggressively to drop one. The zone-centroid fallback is a safety net, not the happy path.
+- [ ] When agent toggles **Heavy / bulk order**, persist `orders.is_heavy_order = true` and re-quote.
+- [ ] Show a `Surge` badge next to the delivery fee whenever `surge_active` is true.
+
+### 17.5 What agents/riders can NO LONGER do
+
+- Agents cannot edit `service_fee`, `delivery_fee`, or `discount` fields. The only fee-related toggle is the **Heavy / bulk order** switch on the invoice form.
+- Riders never see or set fees; they receive payouts based on the locked-in delivery fee.
+- All fee config is admin-only via `/admin/settings`.
+
