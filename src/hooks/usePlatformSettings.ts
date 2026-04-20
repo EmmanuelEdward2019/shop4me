@@ -85,10 +85,11 @@ export const usePlatformSettings = () => {
           parsed[row.key] = v;
         }
 
+        const firstDeliveryFee = (deliveryRes.data as any[] | null)?.[0]?.fee;
         setFees((prev) => ({
           ...prev,
-          defaultDeliveryFee: deliveryRes.data?.[0]?.fee
-            ? Number((deliveryRes.data as any[])[0].fee)
+          defaultDeliveryFee: firstDeliveryFee != null
+            ? Number(firstDeliveryFee)
             : prev.defaultDeliveryFee,
           surgeActive: !!parsed.surge_active,
           surgeMultiplier: Number(parsed.surge_multiplier ?? 1) || 1,
