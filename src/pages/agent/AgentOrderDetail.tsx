@@ -483,57 +483,30 @@ const AgentOrderDetail = () => {
             {showInvoiceForm ? (
               <AgentInvoiceForm
                 shoppingList={getShoppingListFromOrder()}
+                deliveryLat={order.delivery_latitude ?? null}
+                deliveryLng={order.delivery_longitude ?? null}
+                buyerZone={order.service_zone ?? null}
+                initialIsHeavy={(order as any).is_heavy_order ?? false}
                 onSubmit={handleSendInvoice}
                 onUploadPhoto={uploadPhoto}
-                disabled={updating}
+                disabled={invoiceCreating}
+              />
+            ) : invoice ? (
+              <InvoiceView
+                invoice={invoice}
+                customerName={customerProfile?.full_name || undefined}
+                locationName={order.location_name}
               />
             ) : (
               <Card>
-                <CardContent className="py-8 text-center">
-                  {order.status === "shopping" ? (
-                    <>
-                      <Receipt className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-medium mb-2">Create Invoice</h3>
-                      <p className="text-muted-foreground mb-4">
-                        Enter actual prices for items and send invoice to customer
-                      </p>
-                      <Button onClick={() => setShowInvoiceForm(true)}>
-                        <Receipt className="w-4 h-4 mr-2" />
-                        Create Invoice
-                      </Button>
-                    </>
-                  ) : order.final_total ? (
-                    <div className="space-y-4">
-                      <CheckCircle className="w-12 h-12 text-primary mx-auto" />
-                      <h3 className="text-lg font-medium">Invoice Sent</h3>
-                      <div className="max-w-sm mx-auto space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Items Total</span>
-                          <span>{formatCurrency(order.order_items.reduce((sum, item) => sum + (item.actual_price || 0) * item.quantity, 0))}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Service Fee</span>
-                          <span>{formatCurrency(order.service_fee || 0)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Delivery Fee</span>
-                          <span>{formatCurrency(order.delivery_fee || 0)}</span>
-                        </div>
-                        <Separator />
-                        <div className="flex justify-between font-semibold text-lg">
-                          <span>Total</span>
-                          <span className="text-primary">{formatCurrency(order.final_total)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-muted-foreground">
-                        Start shopping first to create an invoice
-                      </p>
-                    </>
-                  )}
+                <CardHeader>
+                  <CardTitle className="text-lg">Send Invoice to Customer</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Button onClick={() => setShowInvoiceForm(true)} className="w-full">
+                    <Receipt className="w-4 h-4 mr-2" />
+                    Create Invoice
+                  </Button>
                 </CardContent>
               </Card>
             )}
@@ -556,12 +529,28 @@ const AgentOrderDetail = () => {
                   actual_price: item.actual_price,
                   estimated_price: item.estimated_price,
                 }))}
-                serviceFeePercentage={platformFees.serviceFeePercentage}
-                deliveryFee={order.delivery_fee || platformFees.defaultDeliveryFee}
+                deliveryLat={order.delivery_latitude ?? null}
+                deliveryLng={order.delivery_longitude ?? null}
+                buyerZone={order.service_zone ?? null}
+                initialIsHeavy={(order as any).is_heavy_order ?? false}
                 onSubmit={async (data) => {
+                  // Persist heavy flag for audit
+                  if (data.isHeavyOrder !== ((order as any).is_heavy_order ?? false)) {
+                    await supabase
+                      .from("orders")
+                      .update({ is_heavy_order: data.isHeavyOrder } as any)
+                      .eq("id", id);
+                  }
                   const newInvoice = await createInvoice({
                     buyerId: order.user_id,
-                    ...data,
+                    items: data.items,
+                    extraItems: data.extraItems,
+                    subtotal: data.subtotal,
+                    serviceFee: data.serviceFee,
+                    deliveryFee: data.deliveryFee,
+                    discount: data.discount,
+                    total: data.total,
+                    notes: data.notes,
                   });
                   if (newInvoice) {
                     await sendMessage(
