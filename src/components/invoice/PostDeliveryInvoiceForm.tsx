@@ -1,10 +1,13 @@
-import { useState } from "react";
-import { Receipt, Send } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Receipt, Send, PackageOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import type { InvoiceLineItem } from "@/hooks/useInvoice";
 
 interface OrderItemData {
@@ -17,8 +20,14 @@ interface OrderItemData {
 
 interface PostDeliveryInvoiceFormProps {
   orderItems: OrderItemData[];
-  serviceFeePercentage: number;
-  deliveryFee: number;
+  /** GPS context for tiered delivery fee calc */
+  storeLat?: number | null;
+  storeLng?: number | null;
+  deliveryLat?: number | null;
+  deliveryLng?: number | null;
+  buyerZone?: string | null;
+  storeZone?: string | null;
+  initialIsHeavy?: boolean;
   onSubmit: (data: {
     items: InvoiceLineItem[];
     extraItems: InvoiceLineItem[];
@@ -28,46 +37,80 @@ interface PostDeliveryInvoiceFormProps {
     discount: number;
     total: number;
     notes?: string;
+    isHeavyOrder: boolean;
   }) => void;
   disabled?: boolean;
 }
 
 export const PostDeliveryInvoiceForm = ({
   orderItems,
-  serviceFeePercentage,
-  deliveryFee,
+  storeLat,
+  storeLng,
+  deliveryLat,
+  deliveryLng,
+  buyerZone,
+  storeZone,
+  initialIsHeavy = false,
   onSubmit,
   disabled,
 }: PostDeliveryInvoiceFormProps) => {
+  const { fees, getServicePercentage, getQuote } = usePlatformSettings();
   const [items] = useState<InvoiceLineItem[]>(
     orderItems.map((item) => ({
       name: item.name,
       quantity: item.quantity,
       unit_price: item.actual_price || item.estimated_price || 0,
       total: (item.actual_price || item.estimated_price || 0) * item.quantity,
-    }))
+    })),
   );
-
   const [notes, setNotes] = useState("");
+  const [isHeavyOrder, setIsHeavyOrder] = useState(initialIsHeavy);
+  const [submitting, setSubmitting] = useState(false);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(amount);
 
   const subtotal = items.reduce((sum, i) => sum + i.total, 0);
-  const serviceFee = Math.round(subtotal * (serviceFeePercentage / 100));
-  const total = subtotal + serviceFee + deliveryFee;
+  const previewPct = getServicePercentage(subtotal);
+  const previewServiceFee = Math.round((subtotal * previewPct) / 100);
+  const previewDeliveryBase = fees.defaultDeliveryFee;
+  const previewSurge = fees.surgeActive
+    ? Math.round(previewDeliveryBase * fees.surgeMultiplier) - previewDeliveryBase
+    : 0;
+  const previewHeavy = isHeavyOrder ? fees.heavySurcharge : 0;
+  const previewDeliveryFee = Math.max(
+    fees.minDeliveryFee,
+    previewDeliveryBase + previewSurge + previewHeavy,
+  );
+  const previewTotal = subtotal + previewServiceFee + previewDeliveryFee;
 
-  const handleSubmit = () => {
-    onSubmit({
-      items,
-      extraItems: [],
-      subtotal,
-      serviceFee,
-      deliveryFee,
-      discount: 0,
-      total,
-      notes: notes || undefined,
-    });
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    try {
+      const quote = await getQuote({
+        subtotal,
+        store_lat: storeLat ?? null,
+        store_lng: storeLng ?? null,
+        delivery_lat: deliveryLat ?? null,
+        delivery_lng: deliveryLng ?? null,
+        buyer_zone: buyerZone ?? null,
+        store_zone: storeZone ?? null,
+        is_heavy_order: isHeavyOrder,
+      });
+      onSubmit({
+        items,
+        extraItems: [],
+        subtotal: quote.subtotal,
+        serviceFee: quote.service_fee,
+        deliveryFee: quote.delivery_fee,
+        discount: 0,
+        total: quote.total,
+        notes: notes || undefined,
+        isHeavyOrder,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -110,6 +153,19 @@ export const PostDeliveryInvoiceForm = ({
           />
         </div>
 
+        <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/30">
+          <div className="flex items-start gap-2">
+            <PackageOpen className="w-4 h-4 mt-0.5 text-muted-foreground" />
+            <div>
+              <Label className="text-sm font-medium">Heavy / bulk order</Label>
+              <p className="text-xs text-muted-foreground">
+                Adds {formatCurrency(fees.heavySurcharge)} to delivery for large or weighty loads.
+              </p>
+            </div>
+          </div>
+          <Switch checked={isHeavyOrder} onCheckedChange={setIsHeavyOrder} />
+        </div>
+
         <Separator />
 
         {/* Totals */}
@@ -119,23 +175,30 @@ export const PostDeliveryInvoiceForm = ({
             <span>{formatCurrency(subtotal)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Service Fee ({serviceFeePercentage}%)</span>
-            <span>{formatCurrency(serviceFee)}</span>
+            <span className="text-muted-foreground">Service Fee ({previewPct}%)</span>
+            <span>{formatCurrency(previewServiceFee)}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Delivery Fee</span>
-            <span>{formatCurrency(deliveryFee)}</span>
+            <span className="text-muted-foreground">
+              Delivery Fee
+              {fees.surgeActive ? <Badge variant="outline" className="ml-2 h-4 text-[10px]">Surge</Badge> : null}
+              {isHeavyOrder ? <Badge variant="outline" className="ml-2 h-4 text-[10px]">Heavy</Badge> : null}
+            </span>
+            <span>{formatCurrency(previewDeliveryFee)}</span>
           </div>
           <Separator />
           <div className="flex justify-between font-semibold text-lg">
             <span>Total</span>
-            <span className="text-primary">{formatCurrency(total)}</span>
+            <span className="text-primary">{formatCurrency(previewTotal)}</span>
           </div>
+          <p className="text-[11px] text-muted-foreground italic">
+            Final amount is calculated by the platform when you send the invoice.
+          </p>
         </div>
 
-        <Button className="w-full" onClick={handleSubmit} disabled={disabled || total <= 0}>
+        <Button className="w-full" onClick={handleSubmit} disabled={disabled || submitting || subtotal <= 0}>
           <Send className="w-4 h-4 mr-2" />
-          Send Invoice to Buyer
+          {submitting ? "Calculating…" : "Send Invoice to Buyer"}
         </Button>
       </CardContent>
     </Card>

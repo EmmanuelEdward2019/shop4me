@@ -497,6 +497,13 @@ const NewOrderPage = () => {
                         latitude={newAddress.latitude}
                         longitude={newAddress.longitude}
                         onLocationSelect={(lat, lng) => setNewAddress(p => ({ ...p, latitude: lat, longitude: lng }))}
+                        onAddressResolved={(addr) => setNewAddress(p => ({
+                          ...p,
+                          address_line1: addr.address_line1 || p.address_line1,
+                          city: addr.city || p.city,
+                          state: addr.state || p.state,
+                          landmark: addr.landmark || p.landmark,
+                        }))}
                       />
                     </div>
                   </div>

@@ -186,7 +186,7 @@ const AddressesPage = () => {
                 Add Address
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
               <form onSubmit={form.handleSubmit(handleAddAddress)}>
                 <DialogHeader>
                   <DialogTitle>Add New Address</DialogTitle>
@@ -204,6 +204,21 @@ const AddressesPage = () => {
                       </p>
                     )}
                   </div>
+
+                  <MapPinPicker
+                    latitude={form.watch("latitude")}
+                    longitude={form.watch("longitude")}
+                    onLocationSelect={(lat, lng) => {
+                      form.setValue("latitude", lat);
+                      form.setValue("longitude", lng);
+                    }}
+                    onAddressResolved={(addr: ReverseGeocodedAddress) => {
+                      if (addr.address_line1) form.setValue("address_line1", addr.address_line1);
+                      if (addr.city) form.setValue("city", addr.city);
+                      if (addr.state) form.setValue("state", addr.state);
+                      if (addr.landmark) form.setValue("landmark", addr.landmark);
+                    }}
+                  />
 
                   <div className="space-y-2">
                     <Label>Address Line 1</Label>
@@ -229,7 +244,7 @@ const AddressesPage = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>City</Label>
-                      <Input placeholder="Lagos" {...form.register("city")} />
+                      <Input placeholder="Port Harcourt" {...form.register("city")} />
                       {form.formState.errors.city && (
                         <p className="text-sm text-destructive">
                           {form.formState.errors.city.message}
@@ -239,7 +254,7 @@ const AddressesPage = () => {
 
                     <div className="space-y-2">
                       <Label>State</Label>
-                      <Input placeholder="Lagos" {...form.register("state")} />
+                      <Input placeholder="Rivers" {...form.register("state")} />
                       {form.formState.errors.state && (
                         <p className="text-sm text-destructive">
                           {form.formState.errors.state.message}
@@ -255,23 +270,8 @@ const AddressesPage = () => {
                       {...form.register("landmark")}
                     />
                   </div>
-
-                  <MapPinPicker
-                    latitude={form.watch("latitude")}
-                    longitude={form.watch("longitude")}
-                    onLocationSelect={(lat, lng) => {
-                      form.setValue("latitude", lat);
-                      form.setValue("longitude", lng);
-                    }}
-                    onAddressResolved={(addr: ReverseGeocodedAddress) => {
-                      if (addr.address_line1) form.setValue("address_line1", addr.address_line1);
-                      if (addr.city) form.setValue("city", addr.city);
-                      if (addr.state) form.setValue("state", addr.state);
-                      if (addr.landmark) form.setValue("landmark", addr.landmark);
-                    }}
-                  />
                 </div>
-                <DialogFooter>
+                <DialogFooter className="gap-2 sm:gap-0">
                   <Button
                     type="button"
                     variant="outline"
