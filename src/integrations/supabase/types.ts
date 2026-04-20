@@ -508,6 +508,39 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_fee_tiers: {
+        Row: {
+          created_at: string
+          display_order: number
+          fee: number
+          id: string
+          is_active: boolean
+          max_km: number | null
+          min_km: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          fee: number
+          id?: string
+          is_active?: boolean
+          max_km?: number | null
+          min_km: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          fee?: number
+          id?: string
+          is_active?: boolean
+          max_km?: number | null
+          min_km?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       delivery_updates: {
         Row: {
           agent_id: string
@@ -736,6 +769,7 @@ export type Database = {
           estimated_total: number | null
           final_total: number | null
           id: string
+          is_heavy_order: boolean
           location_name: string
           location_type: string
           notes: string | null
@@ -743,6 +777,7 @@ export type Database = {
           service_zone: string | null
           shop_category: string | null
           status: Database["public"]["Enums"]["order_status"]
+          surge_applied: number | null
           timer_started_at: string | null
           updated_at: string
           user_id: string
@@ -758,6 +793,7 @@ export type Database = {
           estimated_total?: number | null
           final_total?: number | null
           id?: string
+          is_heavy_order?: boolean
           location_name: string
           location_type: string
           notes?: string | null
@@ -765,6 +801,7 @@ export type Database = {
           service_zone?: string | null
           shop_category?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          surge_applied?: number | null
           timer_started_at?: string | null
           updated_at?: string
           user_id: string
@@ -780,6 +817,7 @@ export type Database = {
           estimated_total?: number | null
           final_total?: number | null
           id?: string
+          is_heavy_order?: boolean
           location_name?: string
           location_type?: string
           notes?: string | null
@@ -787,6 +825,7 @@ export type Database = {
           service_zone?: string | null
           shop_category?: string | null
           status?: Database["public"]["Enums"]["order_status"]
+          surge_applied?: number | null
           timer_started_at?: string | null
           updated_at?: string
           user_id?: string
@@ -1066,6 +1105,39 @@ export type Database = {
           },
         ]
       }
+      service_fee_tiers: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          max_subtotal: number | null
+          min_subtotal: number
+          percentage: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          max_subtotal?: number | null
+          min_subtotal: number
+          percentage: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          max_subtotal?: number | null
+          min_subtotal?: number
+          percentage?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       store_categories: {
         Row: {
           created_at: string
@@ -1253,6 +1325,36 @@ export type Database = {
         }
         Relationships: []
       }
+      zone_centroids: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          latitude: number
+          longitude: number
+          updated_at: string
+          zone_slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          latitude: number
+          longitude: number
+          updated_at?: string
+          zone_slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          latitude?: number
+          longitude?: number
+          updated_at?: string
+          zone_slug?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1273,6 +1375,7 @@ export type Database = {
           estimated_total: number | null
           final_total: number | null
           id: string
+          is_heavy_order: boolean
           location_name: string
           location_type: string
           notes: string | null
@@ -1280,6 +1383,7 @@ export type Database = {
           service_zone: string | null
           shop_category: string | null
           status: Database["public"]["Enums"]["order_status"]
+          surge_applied: number | null
           timer_started_at: string | null
           updated_at: string
           user_id: string
