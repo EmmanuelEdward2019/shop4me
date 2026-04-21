@@ -16,6 +16,7 @@ interface ChatInputProps {
   onSend: (message: string) => void;
   onPhotoUpload?: (file: File) => void;
   onNativePhotoUrl?: (webPath: string) => void;
+  onTyping?: (typing: boolean) => void;
   disabled?: boolean;
   placeholder?: string;
   showPhotoUpload?: boolean;
@@ -25,6 +26,7 @@ export const ChatInput = ({
   onSend,
   onPhotoUpload,
   onNativePhotoUrl,
+  onTyping,
   disabled,
   placeholder = "Type a message...",
   showPhotoUpload = true,
@@ -40,6 +42,7 @@ export const ChatInput = ({
       impact("light");
       onSend(message.trim());
       setMessage("");
+      onTyping?.(false);
     }
   };
 
@@ -157,7 +160,15 @@ export const ChatInput = ({
       )}
       <Input
         value={message}
-        onChange={(e) => setMessage(e.target.value)}
+        onChange={(e) => {
+          setMessage(e.target.value);
+          if (e.target.value.trim()) {
+            onTyping?.(true);
+          } else {
+            onTyping?.(false);
+          }
+        }}
+        onBlur={() => onTyping?.(false)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         disabled={disabled}
