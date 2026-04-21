@@ -1,12 +1,12 @@
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { Check, CheckCheck, Image as ImageIcon } from "lucide-react";
+import { Check, CheckCheck, Loader2, AlertCircle } from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
 import { ShoppingListMessage } from "./ShoppingListMessage";
 import { InvoiceMessage } from "./InvoiceMessage";
 
 interface ChatBubbleProps {
-  message: ChatMessage;
+  message: ChatMessage & { _optimistic?: boolean; _status?: "sending" | "failed" };
   isOwn: boolean;
   onInvoiceAction?: (action: "approve" | "edit", changes?: any) => void;
 }
@@ -85,7 +85,11 @@ export const ChatBubble = ({ message, isOwn, onInvoiceAction }: ChatBubbleProps)
         >
           <span>{format(new Date(message.created_at), "HH:mm")}</span>
           {isOwn && (
-            message.is_read ? (
+            message._status === "sending" ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : message._status === "failed" ? (
+              <AlertCircle className="w-3 h-3 text-destructive" />
+            ) : message.is_read ? (
               <CheckCheck className="w-3 h-3" />
             ) : (
               <Check className="w-3 h-3" />
