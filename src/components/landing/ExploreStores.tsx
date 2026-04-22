@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ScrollAnimation } from "@/components/ui/scroll-animation";
 import { MapPin, ShoppingCart, ShoppingBag, Utensils, Pill, Store, Building2, ArrowRight } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useStoreCategories, useAllStores, type Store as StoreType } from "@/hooks/useStores";
 import { Button } from "@/components/ui/button";
 
@@ -16,8 +16,6 @@ const ROWS_SHOWN = 2;
 const MAX_DESKTOP = COLS_DESKTOP * ROWS_SHOWN; // 12 stores max
 
 const StoreCard = ({ store, compact = false }: { store: StoreType; compact?: boolean }) => {
-  const [imgError, setImgError] = useState(false);
-
   return (
     <Link
       to="/get-started"
@@ -25,26 +23,13 @@ const StoreCard = ({ store, compact = false }: { store: StoreType; compact?: boo
         compact ? "w-32" : ""
       }`}
     >
-      {store.image_url && !imgError ? (
-        <div className={`w-full overflow-hidden bg-muted ${compact ? "h-20" : "h-28"}`}>
-          <img
-            src={store.image_url}
-            alt={store.name}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-            loading="lazy"
-            crossOrigin="anonymous"
-            onError={() => setImgError(true)}
-          />
-        </div>
-      ) : (
-        <div
-          className={`w-full bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center ${
-            compact ? "h-20" : "h-28"
-          }`}
-        >
-          <Store className={`text-primary/40 ${compact ? "w-8 h-8" : "w-10 h-10"}`} />
-        </div>
-      )}
+      <div
+        className={`w-full flex items-center justify-center bg-green-900/10 group-hover:bg-green-900/15 transition-colors ${
+          compact ? "h-20" : "h-28"
+        }`}
+      >
+        <Store className={`text-green-900 group-hover:scale-110 transition-transform duration-300 ${compact ? "w-8 h-8" : "w-10 h-10"}`} />
+      </div>
       <div className={compact ? "p-2 pt-1" : "p-3 pt-1"}>
         <h4
           className={`font-semibold text-foreground text-center leading-tight mb-1 group-hover:text-primary transition-colors ${

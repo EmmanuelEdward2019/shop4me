@@ -8,28 +8,24 @@ const steps = [
     title: "Pick a Store or Market",
     description:
       "Choose from malls, supermarkets, or local markets near you. Shoprite, Mile 3, Trade Fair — we have agents in them all.",
-    color: "bg-primary",
   },
   {
     icon: ListChecks,
     title: "Send Your Shopping List",
     description:
       "Type anything you need — groceries, electronics, fashion, household items. No catalog limits. No minimum order.",
-    color: "bg-secondary",
   },
   {
     icon: Camera,
     title: "Approve Items & Prices",
     description:
       "Your agent sends photos and real prices from the market. You approve each item before anything is bought. Zero surprises.",
-    color: "bg-accent",
   },
   {
     icon: Truck,
     title: "Get It Delivered",
     description:
       "Track your order live as it moves from market to your door. Digital receipt included. Same-day delivery guaranteed.",
-    color: "bg-primary",
   },
 ];
 
@@ -73,10 +69,8 @@ const HowItWorks = () => {
                   </span>
 
                   {/* Icon */}
-                  <div
-                    className={`w-14 h-14 rounded-xl ${step.color} flex items-center justify-center mb-4`}
-                  >
-                    <step.icon className="w-7 h-7 text-primary-foreground" />
+                  <div className="w-14 h-14 rounded-xl bg-green-900 flex items-center justify-center mb-4">
+                    <step.icon className="w-7 h-7 text-white" />
                   </div>
 
                   {/* Content */}
