@@ -1,46 +1,67 @@
 import { Link } from "react-router-dom";
 import { ScrollAnimation } from "@/components/ui/scroll-animation";
-import { MapPin, ShoppingCart, ShoppingBag, Utensils, Pill, Store, Building2 } from "lucide-react";
+import { MapPin, ShoppingCart, ShoppingBag, Utensils, Pill, Store, Building2, ArrowRight } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useEffect, useRef, useState } from "react";
-import { useStoreCategories, useAllStores, type Store as StoreType, type StoreCategory } from "@/hooks/useStores";
+import { useStoreCategories, useAllStores, type Store as StoreType } from "@/hooks/useStores";
 import { Button } from "@/components/ui/button";
 
 const iconMap: Record<string, any> = {
   Store, ShoppingCart, ShoppingBag, Utensils, Pill, Building2,
 };
 
+// Columns shown per breakpoint (mirrors the grid below)
+const COLS_DESKTOP = 6;
+const ROWS_SHOWN = 2;
+const MAX_DESKTOP = COLS_DESKTOP * ROWS_SHOWN; // 12 stores max
+
 const StoreCard = ({ store, compact = false }: { store: StoreType; compact?: boolean }) => {
+  const [imgError, setImgError] = useState(false);
+
   return (
     <Link
-      to={`/dashboard/orders/new?store=${encodeURIComponent(store.name)}`}
+      to="/get-started"
       className={`group flex flex-col items-center rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-glow transition-all duration-300 cursor-pointer flex-shrink-0 overflow-hidden ${
         compact ? "w-32" : ""
       }`}
     >
-      {store.image_url ? (
+      {store.image_url && !imgError ? (
         <div className={`w-full overflow-hidden ${compact ? "h-20" : "h-28"}`}>
           <img
             src={store.image_url}
             alt={store.name}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
             loading="lazy"
+            onError={() => setImgError(true)}
           />
         </div>
       ) : (
-        <div className={`rounded-xl bg-accent text-accent-foreground flex items-center justify-center group-hover:scale-110 transition-transform duration-300 shadow-soft ${
-          compact ? "w-10 h-10 mt-3 mb-2" : "w-14 h-14 mt-4 mb-3"
-        }`}>
-          <Store className={compact ? "w-5 h-5" : "w-7 h-7"} />
+        <div
+          className={`rounded-xl bg-accent/20 text-accent-foreground flex items-center justify-center group-hover:scale-110 transition-transform duration-300 ${
+            compact ? "w-10 h-10 mt-3 mb-2" : "w-14 h-14 mt-4 mb-3"
+          }`}
+        >
+          <Store className={`text-primary ${compact ? "w-5 h-5" : "w-7 h-7"}`} />
         </div>
       )}
       <div className={compact ? "p-2 pt-1" : "p-3 pt-1"}>
-        <h4 className={`font-semibold text-foreground text-center leading-tight mb-1 group-hover:text-primary transition-colors ${
-          compact ? "text-xs" : "text-sm"
-        }`}>
-          {store.name}
+        <h4
+          className={`font-semibold text-foreground text-center leading-tight mb-1 group-hover:text-primary transition-colors ${
+            compact ? "text-xs" : "text-sm"
+          }`}
+        >
+          {store.parent_brand || store.name}
+          {store.branch_name && (
+            <span className="block font-normal text-muted-foreground text-[10px]">
+              {store.branch_name}
+            </span>
+          )}
         </h4>
-        <span className={`text-muted-foreground flex items-center justify-center gap-1 ${compact ? "text-[10px]" : "text-xs"}`}>
+        <span
+          className={`text-muted-foreground flex items-center justify-center gap-1 ${
+            compact ? "text-[10px]" : "text-xs"
+          }`}
+        >
           <MapPin className={compact ? "w-2.5 h-2.5" : "w-3 h-3"} />
           {store.area}
         </span>
@@ -52,14 +73,12 @@ const StoreCard = ({ store, compact = false }: { store: StoreType; compact?: boo
 const AutoScrollRow = ({ stores, direction }: { stores: StoreType[]; direction: "left" | "right" }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
-  
+
   useEffect(() => {
     const container = scrollRef.current;
     if (!container) return;
-    
     const speed = 0.5;
     let scrollPosition = direction === "left" ? 0 : container.scrollWidth / 2;
-    
     const animate = () => {
       if (!container) return;
       if (direction === "left") {
@@ -72,17 +91,15 @@ const AutoScrollRow = ({ stores, direction }: { stores: StoreType[]; direction: 
       container.scrollLeft = scrollPosition;
       animationRef.current = requestAnimationFrame(animate);
     };
-    
     animationRef.current = requestAnimationFrame(animate);
     return () => { if (animationRef.current) cancelAnimationFrame(animationRef.current); };
   }, [direction]);
-  
-  const duplicatedStores = [...stores, ...stores];
-  
+
+  const duplicated = [...stores, ...stores];
   return (
     <div ref={scrollRef} className="flex gap-3 overflow-hidden" style={{ scrollBehavior: "auto" }}>
-      {duplicatedStores.map((store, index) => (
-        <StoreCard key={`${store.id}-${index}`} store={store} compact />
+      {duplicated.map((store, i) => (
+        <StoreCard key={`${store.id}-${i}`} store={store} compact />
       ))}
     </div>
   );
@@ -90,18 +107,23 @@ const AutoScrollRow = ({ stores, direction }: { stores: StoreType[]; direction: 
 
 const ExploreStores = () => {
   const isMobile = useIsMobile();
-  const { categories, loading: loadingCats } = useStoreCategories();
+  const { categories } = useStoreCategories();
   const { stores, loading: loadingStores } = useAllStores();
   const [selectedCategory, setSelectedCategory] = useState<string>("");
 
   const filteredStores = selectedCategory
-    ? stores.filter(s => s.category_id === selectedCategory)
+    ? stores.filter((s) => s.category_id === selectedCategory)
     : stores;
 
-  const halfLength = Math.ceil(filteredStores.length / 2);
-  const topRowStores = filteredStores.slice(0, halfLength);
-  const bottomRowStores = filteredStores.slice(halfLength);
-  
+  // Desktop: cap at 2 rows
+  const desktopStores = filteredStores.slice(0, MAX_DESKTOP);
+  const hasMore = filteredStores.length > MAX_DESKTOP;
+
+  // Mobile rows
+  const half = Math.ceil(filteredStores.length / 2);
+  const topRow = filteredStores.slice(0, half);
+  const bottomRow = filteredStores.slice(half);
+
   return (
     <section id="explore-stores" className="py-20 md:py-28 bg-muted/30">
       <div className="container mx-auto px-4">
@@ -114,8 +136,8 @@ const ExploreStores = () => {
               Explore <span className="text-gradient">Stores & Markets</span>
             </h2>
             <p className="text-lg text-muted-foreground">
-              Shop from popular malls, markets, and supermarkets in Port Harcourt. 
-              Click any store to start your order!
+              Shop from popular malls, markets, and supermarkets in Port Harcourt.
+              Sign up to start your first order!
             </p>
           </div>
         </ScrollAnimation>
@@ -157,30 +179,44 @@ const ExploreStores = () => {
             </div>
           ) : isMobile ? (
             <div className="space-y-4 -mx-4 px-0">
-              <AutoScrollRow stores={topRowStores} direction="right" />
-              {bottomRowStores.length > 0 && (
-                <AutoScrollRow stores={bottomRowStores} direction="left" />
+              <AutoScrollRow stores={topRow} direction="right" />
+              {bottomRow.length > 0 && (
+                <AutoScrollRow stores={bottomRow} direction="left" />
               )}
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {filteredStores.map((store) => (
+              {desktopStores.map((store) => (
                 <StoreCard key={store.id} store={store} />
               ))}
             </div>
           )}
         </ScrollAnimation>
 
-        <ScrollAnimation delay={0.2}>
-          <div className="mt-12 text-center">
+        {/* View All Button */}
+        <ScrollAnimation delay={0.18}>
+          <div className="mt-8 flex justify-center">
+            <Button asChild size="lg" className="rounded-full px-8 gap-2">
+              <Link to="/get-started">
+                {hasMore
+                  ? `View All ${filteredStores.length} Stores`
+                  : "Sign Up to Start Shopping"}
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </Button>
+          </div>
+        </ScrollAnimation>
+
+        <ScrollAnimation delay={0.25}>
+          <div className="mt-8 text-center">
             <div className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-card border border-border">
               <span className="relative flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent" />
               </span>
               <p className="text-sm text-muted-foreground">
                 <span className="font-semibold text-foreground">Coming soon:</span>{" "}
-                Lagos, Abuja, Calabar & more cities
+                Lagos, Abuja, Calabar &amp; more cities
               </p>
             </div>
           </div>

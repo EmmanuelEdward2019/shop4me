@@ -216,7 +216,7 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
               );
             });
           })()
-          )}
+          }
           {typingUsers.length > 0 && <TypingIndicator />}
         </ScrollArea>
         <ChatInput
