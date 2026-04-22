@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { ScrollAnimation } from "@/components/ui/scroll-animation";
 import { MapPin, ShoppingCart, ShoppingBag, Utensils, Pill, Store, Building2, ArrowRight } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStoreCategories, useAllStores, type Store as StoreType } from "@/hooks/useStores";
 import { Button } from "@/components/ui/button";
 
