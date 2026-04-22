@@ -26,22 +26,23 @@ const StoreCard = ({ store, compact = false }: { store: StoreType; compact?: boo
       }`}
     >
       {store.image_url && !imgError ? (
-        <div className={`w-full overflow-hidden ${compact ? "h-20" : "h-28"}`}>
+        <div className={`w-full overflow-hidden bg-muted ${compact ? "h-20" : "h-28"}`}>
           <img
             src={store.image_url}
             alt={store.name}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
             loading="lazy"
+            crossOrigin="anonymous"
             onError={() => setImgError(true)}
           />
         </div>
       ) : (
         <div
-          className={`rounded-xl bg-accent/20 text-accent-foreground flex items-center justify-center group-hover:scale-110 transition-transform duration-300 ${
-            compact ? "w-10 h-10 mt-3 mb-2" : "w-14 h-14 mt-4 mb-3"
+          className={`w-full bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center ${
+            compact ? "h-20" : "h-28"
           }`}
         >
-          <Store className={`text-primary ${compact ? "w-5 h-5" : "w-7 h-7"}`} />
+          <Store className={`text-primary/40 ${compact ? "w-8 h-8" : "w-10 h-10"}`} />
         </div>
       )}
       <div className={compact ? "p-2 pt-1" : "p-3 pt-1"}>

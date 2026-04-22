@@ -24,26 +24,12 @@ const Hero = () => {
           alt="Shop4Me Agent at Nigerian Market"
           className="w-full h-full object-cover"
         />
-        {/* Solid dark overlay on full left, fading to semi-transparent on right */}
-        <div className="absolute inset-0 bg-gradient-to-r from-primary from-50% via-primary/75 to-primary/20" />
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/80 to-primary/40" />
       </div>
 
       {/* Content */}
       <div className="container mx-auto px-4 relative z-10 py-16">
         <div className="max-w-2xl">
-          {/* Live badge */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.15 }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 border border-white/25 mb-6"
-          >
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
-            <span className="text-sm font-medium text-white">
-              Agents Online Now — Orders Being Fulfilled
-            </span>
-          </motion.div>
-
           {/* Headline */}
           <motion.h1
             initial={{ opacity: 0, y: 24 }}
@@ -74,12 +60,12 @@ const Hero = () => {
             Without Leaving Home
           </motion.h1>
 
-          {/* Subheadline */}
+          {/* Subheadline — hidden on mobile */}
           <motion.p
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: 0.35 }}
-            className="text-base md:text-lg text-white/90 mb-8 max-w-lg leading-relaxed"
+            className="hidden md:block text-base md:text-lg text-white/90 mb-8 max-w-lg leading-relaxed"
           >
             Send your shopping list. Our verified agents shop for you in real-time
             from malls, supermarkets, and local markets across Nigeria — then deliver to your door.
