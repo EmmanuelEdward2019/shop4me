@@ -97,9 +97,19 @@ const ExploreStores = () => {
   const { stores, loading: loadingStores } = useAllStores();
   const [selectedCategory, setSelectedCategory] = useState<string>("");
 
-  const filteredStores = selectedCategory
-    ? stores.filter((s) => s.category_id === selectedCategory)
-    : stores;
+  const filteredStores = (() => {
+    const base = selectedCategory
+      ? stores.filter((s) => s.category_id === selectedCategory)
+      : stores;
+    // Deduplicate: show only one card per brand (parent_brand or name)
+    const seen = new Set<string>();
+    return base.filter((s) => {
+      const key = (s.parent_brand || s.name).trim().toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
 
   // Desktop: cap at 2 rows
   const desktopStores = filteredStores.slice(0, MAX_DESKTOP);
