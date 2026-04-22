@@ -5,30 +5,30 @@ import { Link } from "react-router-dom";
 const steps = [
   {
     icon: MapPin,
-    title: "Choose Your Location",
+    title: "Pick a Store or Market",
     description:
-      "Select from malls, supermarkets, or local markets across Nigeria. We've got agents stationed everywhere.",
+      "Choose from malls, supermarkets, or local markets near you. Shoprite, Mile 3, Trade Fair — we have agents in them all.",
     color: "bg-primary",
   },
   {
     icon: ListChecks,
-    title: "Submit Your List",
+    title: "Send Your Shopping List",
     description:
-      "Tell us what you need - groceries, electronics, fashion, anything! No fixed catalog means unlimited choices.",
+      "Type anything you need — groceries, electronics, fashion, household items. No catalog limits. No minimum order.",
     color: "bg-secondary",
   },
   {
     icon: Camera,
-    title: "Approve Before Purchase",
+    title: "Approve Items & Prices",
     description:
-      "Your agent confirms prices and sends photos. You approve each item before payment. Full transparency.",
+      "Your agent sends photos and real prices from the market. You approve each item before anything is bought. Zero surprises.",
     color: "bg-accent",
   },
   {
     icon: Truck,
-    title: "Receive Your Items",
+    title: "Get It Delivered",
     description:
-      "Track your order in real-time. We deliver to your doorstep with digital receipts and proof of delivery.",
+      "Track your order live as it moves from market to your door. Digital receipt included. Same-day delivery guaranteed.",
     color: "bg-primary",
   },
 ];
@@ -48,7 +48,7 @@ const HowItWorks = () => {
               <span className="text-gradient">Effortless</span>
             </h2>
             <p className="text-lg text-muted-foreground">
-              Four simple steps to get anything from any market delivered to your door.{" "}
+              Four simple steps between your shopping list and your front door.{" "}
               <Link to="/how-it-works" className="text-primary hover:underline">
                 Learn more →
               </Link>

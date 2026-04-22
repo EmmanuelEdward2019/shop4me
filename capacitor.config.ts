@@ -1,9 +1,9 @@
 {
-  "appId": "app.lovable.4126a2ed92934454aef38c365523a25a",
-  "appName": "shop4me",
+  "appId": "com.shop4me.app",
+  "appName": "Shop4Me",
   "webDir": "dist",
   "server": {
-    "url": "https://4126a2ed-9293-4454-aef3-8c365523a25a.lovableproject.com?forceHideBadge=true",
-    "cleartext": true
+    "url": "https://www.shop4meng.com",
+    "cleartext": false
   }
 }

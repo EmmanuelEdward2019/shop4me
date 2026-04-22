@@ -9,7 +9,7 @@ import { isNativePlatform } from "./platform";
 export const useNativeShare = () => {
   const shareOrder = useCallback(
     async (orderId: string, locationName: string) => {
-      const url = `https://shop4me.lovable.app/dashboard/orders/${orderId}`;
+      const url = `https://www.shop4meng.com/dashboard/orders/${orderId}`;
       const text = `Check out my Shop4Me order from ${locationName}`;
 
       if (isNativePlatform()) {
@@ -24,7 +24,7 @@ export const useNativeShare = () => {
   );
 
   const shareApp = useCallback(async () => {
-    const url = "https://shop4me.lovable.app";
+    const url = "https://www.shop4meng.com";
     const text = "Shop4Me — Your personal shopping assistant in Nigeria!";
 
     if (isNativePlatform()) {

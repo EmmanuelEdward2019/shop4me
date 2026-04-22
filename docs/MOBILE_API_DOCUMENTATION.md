@@ -32,7 +32,7 @@
 | Field | Value |
 |-------|-------|
 | **App Name** | Shop4Me |
-| **Web URL** | https://shop4me.lovable.app / https://www.shop4meng.com |
+| **Web URL** | https://www.shop4meng.com / https://www.shop4meng.com |
 | **Platform** | Personal shopping & delivery service in Nigeria |
 | **Roles** | Buyer, Agent (personal shopper), Rider (delivery), Admin |
 | **Backend** | Supabase (PostgreSQL, Auth, Edge Functions, Storage, Realtime) |
@@ -613,7 +613,7 @@ Send branded transactional emails via Resend.
   "userName": "John",
   "body": "Your agent has completed shopping.",
   "ctaText": "Track Order",
-  "ctaUrl": "https://shop4me.lovable.app/dashboard/orders/uuid"
+  "ctaUrl": "https://www.shop4meng.com/dashboard/orders/uuid"
 }
 ```
 
@@ -632,7 +632,7 @@ Send an invoice email with breakdown.
   "deliveryFee": 1000,
   "discount": 0,
   "total": 10500,
-  "paymentUrl": "https://shop4me.lovable.app/dashboard/orders/uuid"
+  "paymentUrl": "https://www.shop4meng.com/dashboard/orders/uuid"
 }
 ```
 
@@ -1241,7 +1241,7 @@ const { share, isAvailable } = useNativeShare();
 await share({
   title: "Check out Shop4Me!",
   text: "Personal shopping made easy",
-  url: "https://shop4me.lovable.app",
+  url: "https://www.shop4meng.com",
 });
 ```
 
