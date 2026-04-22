@@ -9,6 +9,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare } from "lucide-react";
 import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
+import { format, isToday, isYesterday } from "date-fns";
+
+const getDateLabel = (date: Date): string => {
+  if (isToday(date)) return "Today";
+  if (isYesterday(date)) return "Yesterday";
+  return format(date, "MMMM d, yyyy");
+};
 
 interface OrderChatProps {
   orderId: string;
@@ -170,13 +177,24 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
                 Start the conversation!
               </p>
             </div>
-          ) : (
-            messages.map((message) => {
+          ) : (() => {
+            let lastDateLabel = "";
+            return messages.map((message) => {
               const isOwn = message.sender_id === user?.id;
-              const showDivider =
-                firstUnreadId === message.id && unreadCount > 0;
+              const showDivider = firstUnreadId === message.id && unreadCount > 0;
+              const msgDate = new Date(message.created_at);
+              const dateLabel = getDateLabel(msgDate);
+              const showDateSeparator = dateLabel !== lastDateLabel;
+              if (showDateSeparator) lastDateLabel = dateLabel;
               return (
                 <div key={message.id}>
+                  {showDateSeparator && (
+                    <div className="flex justify-center my-3">
+                      <span className="bg-muted/70 text-muted-foreground text-xs px-3 py-1 rounded-full">
+                        {dateLabel}
+                      </span>
+                    </div>
+                  )}
                   {showDivider && <UnreadDivider count={unreadCount} />}
                   <div
                     ref={messageRefCallback}
@@ -196,7 +214,8 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
                   </div>
                 </div>
               );
-            })
+            });
+          })()
           )}
           {typingUsers.length > 0 && <TypingIndicator />}
         </ScrollArea>

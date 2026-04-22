@@ -22,6 +22,21 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, ArrowRight, Upload, CheckCircle, Loader2 } from "lucide-react";
 
+interface StoreOption {
+  id: string;
+  name: string;
+  branch_name: string | null;
+  parent_brand: string | null;
+  area: string;
+  city: string;
+}
+
+// Fallback static options if no stores are loaded from DB yet
+const fallbackMarketOptions = [
+  "Balogun Market", "Computer Village", "Alaba International", "Trade Fair Complex",
+  "Mile 12 Market", "Oyingbo Market", "Arena Market",
+];
+
 const nigerianStates = [
   "Abia", "Adamawa", "Akwa Ibom", "Anambra", "Bauchi", "Bayelsa", "Benue", "Borno",
   "Cross River", "Delta", "Ebonyi", "Edo", "Ekiti", "Enugu", "FCT", "Gombe", "Imo",
@@ -38,13 +53,6 @@ const nigerianBanks = [
   "Kuda Bank", "OPay", "PalmPay", "Moniepoint"
 ];
 
-const marketOptions = [
-  "Balogun Market", "Computer Village", "Alaba International", "Trade Fair Complex",
-  "Ladipo Market", "Idumota Market", "Tejuosho Market", "Yaba Market", "Ojuelegba Market",
-  "Mile 12 Market", "Oyingbo Market", "Arena Market", "Ikeja City Mall", "The Palms",
-  "Lekki Mall", "Adeniran Ogunsanya Mall", "Festival Mall", "Jabi Lake Mall", "Shoprite",
-  "Other Markets"
-];
 
 interface FormData {
   full_name: string;
@@ -86,6 +94,9 @@ const AgentApplication = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [idDocFile, setIdDocFile] = useState<File | null>(null);
 
+  const [availableStores, setAvailableStores] = useState<StoreOption[]>([]);
+  const [storesLoading, setStoresLoading] = useState(true);
+
   const [formData, setFormData] = useState<FormData>({
     full_name: "",
     email: user?.email || "",
@@ -123,6 +134,22 @@ const AgentApplication = () => {
       setCheckingApplication(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    const fetchStores = async () => {
+      setStoresLoading(true);
+      const { data, error } = await supabase
+        .from("stores")
+        .select("id, name, branch_name, parent_brand, area, city")
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+      if (!error && data) {
+        setAvailableStores(data as StoreOption[]);
+      }
+      setStoresLoading(false);
+    };
+    fetchStores();
+  }, []);
 
   const checkExistingApplication = async () => {
     try {
@@ -787,19 +814,55 @@ const AgentApplication = () => {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label>Markets/Malls You Know Well * (Select at least one)</Label>
-                    <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border rounded-lg">
-                      {marketOptions.map((market) => (
-                        <div key={market} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={market}
-                            checked={formData.market_knowledge.includes(market)}
-                            onCheckedChange={() => handleMarketToggle(market)}
-                          />
-                          <Label htmlFor={market} className="text-sm">{market}</Label>
-                        </div>
-                      ))}
-                    </div>
+                    <Label>Stores/Markets/Malls You Represent * (Select at least one)</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Select all shops, markets, or malls you know well or represent. Buyers ordering from these locations will be routed to you.
+                    </p>
+                    {storesLoading ? (
+                      <div className="flex items-center justify-center p-6 border rounded-lg">
+                        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                        <span className="ml-2 text-sm text-muted-foreground">Loading stores...</span>
+                      </div>
+                    ) : availableStores.length > 0 ? (
+                      <div className="grid grid-cols-1 gap-1 max-h-56 overflow-y-auto p-2 border rounded-lg">
+                        {availableStores.map((store) => {
+                          const displayName = store.parent_brand
+                            ? `${store.parent_brand}${store.branch_name ? ` – ${store.branch_name}` : ""} (${store.area})`
+                            : `${store.name}${store.branch_name ? ` – ${store.branch_name}` : ""} (${store.area})`;
+                          return (
+                            <div key={store.id} className="flex items-center space-x-2 py-1">
+                              <Checkbox
+                                id={store.id}
+                                checked={formData.market_knowledge.includes(store.id)}
+                                onCheckedChange={() => handleMarketToggle(store.id)}
+                              />
+                              <Label htmlFor={store.id} className="text-sm leading-tight cursor-pointer">
+                                {displayName}
+                                <span className="block text-xs text-muted-foreground">{store.city}</span>
+                              </Label>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border rounded-lg">
+                        {fallbackMarketOptions.map((market) => (
+                          <div key={market} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={market}
+                              checked={formData.market_knowledge.includes(market)}
+                              onCheckedChange={() => handleMarketToggle(market)}
+                            />
+                            <Label htmlFor={market} className="text-sm">{market}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {formData.market_knowledge.length > 0 && (
+                      <p className="text-xs text-primary font-medium">
+                        {formData.market_knowledge.length} location{formData.market_knowledge.length > 1 ? "s" : ""} selected
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="experience">Previous Experience (Optional)</Label>

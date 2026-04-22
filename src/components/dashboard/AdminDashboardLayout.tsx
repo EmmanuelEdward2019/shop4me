@@ -32,6 +32,7 @@ import {
   Bike,
   DollarSign,
   Store,
+  Gift,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import AdminViewSwitcher from "./AdminViewSwitcher";
@@ -55,6 +56,7 @@ const navItems = [
   { label: "Blog", href: "/admin/blog", icon: FileText },
   { label: "Payments", href: "/admin/payments", icon: DollarSign },
   { label: "Stores", href: "/admin/stores", icon: Store },
+  { label: "Bonuses", href: "/admin/bonuses", icon: Gift },
   { label: "Submissions", href: "/admin/submissions", icon: Inbox },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];

@@ -287,12 +287,15 @@ const AdminStores = () => {
                         <TableHead>Brand</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Area</TableHead>
+                        <TableHead>Assigned Agent</TableHead>
                         <TableHead>Active</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {stores.map((store) => (
+                      {stores.map((store) => {
+                        const assignedAgent = agents.find(a => a.user_id === store.assigned_agent_id);
+                        return (
                         <TableRow key={store.id}>
                           <TableCell>
                             <div>
@@ -314,6 +317,13 @@ const AdminStores = () => {
                           </TableCell>
                           <TableCell>{store.area}</TableCell>
                           <TableCell>
+                            {assignedAgent ? (
+                              <Badge variant="default" className="text-xs">{assignedAgent.full_name}</Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">Unassigned</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
                             <Switch checked={store.is_active} onCheckedChange={() => toggleStoreActive(store)} />
                           </TableCell>
                           <TableCell>
@@ -327,7 +337,8 @@ const AdminStores = () => {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}

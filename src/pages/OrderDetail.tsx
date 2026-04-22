@@ -19,7 +19,20 @@ import {
   ShoppingCart,
   MessageSquare,
   Receipt,
+  Trash2,
+  Loader2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { OrderChat } from "@/components/chat/OrderChat";
 import { useInvoice } from "@/hooks/useInvoice";
 import { InvoiceView } from "@/components/invoice/InvoiceView";
@@ -103,6 +116,7 @@ const OrderDetailPage = () => {
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "chat");
   const [hasReviewed, setHasReviewed] = useState(false);
   const [deliveryAddress, setDeliveryAddress] = useState<DeliveryAddress | null>(null);
+  const [cancelling, setCancelling] = useState(false);
   const { invoice } = useInvoice({ orderId: id || "" });
 
   // Handle payment callback
@@ -214,6 +228,25 @@ const OrderDetailPage = () => {
     }
   };
 
+  const handleCancelOrder = async () => {
+    if (!order || !user) return;
+    setCancelling(true);
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ status: "cancelled" })
+        .eq("id", order.id)
+        .eq("user_id", user.id);
+      if (error) throw error;
+      toast({ title: "Order Cancelled", description: "Your order has been cancelled." });
+      fetchOrderDetails();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Could not cancel order.", variant: "destructive" });
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
@@ -298,6 +331,30 @@ const OrderDetailPage = () => {
           <Badge className="capitalize">
             {order.status.replace("_", " ")}
           </Badge>
+          {order.status === "pending" && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={cancelling}>
+                  {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1" />}
+                  Cancel Order
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancel this order?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will cancel your order from {order.location_name}. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep Order</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleCancelOrder} className="bg-destructive hover:bg-destructive/90">
+                    Yes, Cancel
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
           {(order as any).timer_started_at && order.status !== "delivered" && order.status !== "cancelled" && (
             <OrderCountdownTimer
               timerStartedAt={(order as any).timer_started_at}

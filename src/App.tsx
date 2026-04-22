@@ -65,6 +65,7 @@ import AdminRiders from "./pages/admin/AdminRiders";
 import AdminCompliance from "./pages/admin/AdminCompliance";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminStores from "./pages/admin/AdminStores";
+import AdminBonuses from "./pages/admin/AdminBonuses";
 
 // Blog pages
 import Blog from "./pages/Blog";
@@ -357,6 +358,14 @@ const App = () => (
               element={
                 <AdminProtectedRoute>
                   <AdminStores />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/bonuses"
+              element={
+                <AdminProtectedRoute>
+                  <AdminBonuses />
                 </AdminProtectedRoute>
               }
             />
