@@ -4,6 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { SHOPPING_UNITS } from "@shared/types";
 import type { ShoppingListItem } from "@/types/chat";
 
 interface ShoppingListFormProps {
@@ -13,11 +21,11 @@ interface ShoppingListFormProps {
 
 export const ShoppingListForm = ({ onSubmit, disabled }: ShoppingListFormProps) => {
   const [items, setItems] = useState<ShoppingListItem[]>([
-    { id: crypto.randomUUID(), name: "", quantity: 1 },
+    { id: crypto.randomUUID(), name: "", quantity: 1, unit: "piece", unitLabel: "Piece(s)" },
   ]);
 
   const addItem = () => {
-    setItems([...items, { id: crypto.randomUUID(), name: "", quantity: 1 }]);
+    setItems([...items, { id: crypto.randomUUID(), name: "", quantity: 1, unit: "piece", unitLabel: "Piece(s)" }]);
   };
 
   const removeItem = (id: string) => {
@@ -32,11 +40,35 @@ export const ShoppingListForm = ({ onSubmit, disabled }: ShoppingListFormProps) 
     );
   };
 
+  const handleUnitChange = (id: string, value: string) => {
+    const found = SHOPPING_UNITS.find((u) => u.value === value);
+    setItems(
+      items.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              unit: value,
+              unitLabel: found?.label ?? value,
+              // Clear custom unit when switching away from "other"
+              ...(value !== "other" ? {} : {}),
+            }
+          : item
+      )
+    );
+  };
+
   const handleSubmit = () => {
-    const validItems = items.filter((item) => item.name.trim());
+    const validItems = items.filter((item) => item.name.trim()).map((item) => ({
+      ...item,
+      // If "other", use the typed unitLabel; otherwise use the label from SHOPPING_UNITS
+      unitLabel:
+        item.unit === "other"
+          ? item.unitLabel || "Other"
+          : SHOPPING_UNITS.find((u) => u.value === item.unit)?.label ?? item.unit,
+    }));
     if (validItems.length > 0) {
       onSubmit(validItems);
-      setItems([{ id: crypto.randomUUID(), name: "", quantity: 1 }]);
+      setItems([{ id: crypto.randomUUID(), name: "", quantity: 1, unit: "piece", unitLabel: "Piece(s)" }]);
     }
   };
 
@@ -98,20 +130,48 @@ export const ShoppingListForm = ({ onSubmit, disabled }: ShoppingListFormProps) 
                   />
                 </div>
                 <div>
-                  <Label className="text-xs">Est. Price (₦)</Label>
+                  <Label className="text-xs">Unit</Label>
+                  <Select
+                    value={item.unit ?? "piece"}
+                    onValueChange={(val) => handleUnitChange(item.id, val)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select unit" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SHOPPING_UNITS.map((u) => (
+                        <SelectItem key={u.value} value={u.value}>
+                          {u.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {item.unit === "other" && (
+                <div>
+                  <Label className="text-xs">Specify Unit</Label>
                   <Input
-                    type="number"
-                    placeholder="0"
-                    value={item.estimatedPrice || ""}
-                    onChange={(e) =>
-                      updateItem(
-                        item.id,
-                        "estimatedPrice",
-                        parseFloat(e.target.value) || undefined
-                      )
-                    }
+                    placeholder="e.g., Tubers, Rolls, Slices..."
+                    value={item.unitLabel === "Other (specify)" ? "" : (item.unitLabel || "")}
+                    onChange={(e) => updateItem(item.id, "unitLabel", e.target.value)}
                   />
                 </div>
+              )}
+              <div>
+                <Label className="text-xs">Est. Price (₦)</Label>
+                <Input
+                  type="number"
+                  placeholder="0"
+                  value={item.estimatedPrice || ""}
+                  onChange={(e) =>
+                    updateItem(
+                      item.id,
+                      "estimatedPrice",
+                      parseFloat(e.target.value) || undefined
+                    )
+                  }
+                />
               </div>
               <div>
                 <Label className="text-xs">Description (optional)</Label>

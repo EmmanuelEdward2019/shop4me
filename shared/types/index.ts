@@ -533,6 +533,32 @@ export const REALTIME_CHANNELS = {
   walletBalance: (userId: string) => `wallet-${userId}`,
 } as const;
 
+// ─── Shopping Units ─────────────────────────────────────────────────
+
+export const SHOPPING_UNITS = [
+  { value: "piece", label: "Piece(s)" },
+  { value: "pack", label: "Pack" },
+  { value: "bag", label: "Bag" },
+  { value: "bottle", label: "Bottle" },
+  { value: "carton", label: "Carton" },
+  { value: "sachet", label: "Sachet" },
+  { value: "bunch", label: "Bunch" },
+  { value: "dozen", label: "Dozen" },
+  { value: "kg", label: "Kg (Kilogram)" },
+  { value: "g", label: "g (Gram)" },
+  { value: "litre", label: "Litre" },
+  { value: "ml", label: "ml (Millilitre)" },
+  { value: "cup", label: "Cup" },
+  { value: "portion", label: "Portion" },
+  { value: "wrap", label: "Wrap" },
+  { value: "keg", label: "Keg" },
+  { value: "gallon", label: "Gallon" },
+  { value: "plate", label: "Plate" },
+  { value: "other", label: "Other (specify)" },
+] as const;
+
+export type ShoppingUnit = (typeof SHOPPING_UNITS)[number]["value"];
+
 // ─── Branding Constants ─────────────────────────────────────────────
 
 export const BRAND = {
