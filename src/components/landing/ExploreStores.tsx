@@ -195,7 +195,7 @@ const ExploreStores = () => {
             <Button asChild size="lg" className="rounded-full px-8 gap-2">
               <Link to="/get-started">
                 {hasMore
-                  ? `View All ${filteredStores.length} Stores`
+                  ? "View All Stores"
                   : "Sign Up to Start Shopping"}
                 <ArrowRight className="w-4 h-4" />
               </Link>
