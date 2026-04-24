@@ -37,16 +37,29 @@ type LoginFormData = z.infer<typeof loginSchema>;
 type SignupFormData = z.infer<typeof signupSchema>;
 type ResetFormData = z.infer<typeof resetSchema>;
 
+const RATE_LIMIT_KEYWORDS = ["rate limit", "over_email_send_rate_limit", "too many requests", "security purposes", "after"];
+
+const isRateLimitError = (msg: string) =>
+  RATE_LIMIT_KEYWORDS.some((k) => msg.toLowerCase().includes(k));
+
 const AuthPage = () => {
   const [activeTab, setActiveTab] = useState<string>("login");
   const [showReset, setShowReset] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [rateLimitCooldown, setRateLimitCooldown] = useState(0);
   const { signIn, signUp, resetPassword, user, loading } = useAuth();
   const { role, loading: roleLoading, isAdmin, isAgent, isRider } = useUserRole();
   const navigate = useNavigate();
   const location = useLocation();
 
   const from = (location.state as { from?: string })?.from;
+
+  // Count down the rate-limit cooldown every second
+  useEffect(() => {
+    if (rateLimitCooldown <= 0) return;
+    const timer = setTimeout(() => setRateLimitCooldown((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [rateLimitCooldown]);
 
   const getRoleDashboard = () => {
     if (from) return from;
@@ -97,6 +110,7 @@ const AuthPage = () => {
   };
 
   const handleSignup = async (data: SignupFormData) => {
+    if (rateLimitCooldown > 0) return;
     setIsLoading(true);
     const { error } = await signUp(data.email, data.password, data.fullName);
     setIsLoading(false);
@@ -104,6 +118,9 @@ const AuthPage = () => {
     if (error) {
       if (error.message.includes("User already registered")) {
         toast.error("This email is already registered. Try logging in instead.");
+      } else if (isRateLimitError(error.message)) {
+        setRateLimitCooldown(60);
+        toast.error("Too many sign-up attempts. Please wait 1 minute before trying again.");
       } else {
         toast.error(error.message);
       }
@@ -114,12 +131,18 @@ const AuthPage = () => {
   };
 
   const handleResetPassword = async (data: ResetFormData) => {
+    if (rateLimitCooldown > 0) return;
     setIsLoading(true);
     const { error } = await resetPassword(data.email);
     setIsLoading(false);
 
     if (error) {
-      toast.error(error.message);
+      if (isRateLimitError(error.message)) {
+        setRateLimitCooldown(60);
+        toast.error("Too many attempts. Please wait 1 minute before trying again.");
+      } else {
+        toast.error(error.message);
+      }
     } else {
       toast.success("Password reset email sent! Please check your inbox.");
       setShowReset(false);
@@ -183,9 +206,11 @@ const AuthPage = () => {
                   </div>
                 </CardContent>
                 <CardFooter className="flex flex-col gap-4">
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <Button type="submit" className="w-full" disabled={isLoading || rateLimitCooldown > 0}>
                     {isLoading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : rateLimitCooldown > 0 ? (
+                      `Try again in ${rateLimitCooldown}s`
                     ) : (
                       "Send Reset Link"
                     )}
@@ -352,9 +377,11 @@ const AuthPage = () => {
                       </div>
                     </CardContent>
                     <CardFooter className="flex flex-col gap-4">
-                      <Button type="submit" className="w-full" disabled={isLoading}>
+                      <Button type="submit" className="w-full" disabled={isLoading || rateLimitCooldown > 0}>
                         {isLoading ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : rateLimitCooldown > 0 ? (
+                          `Try again in ${rateLimitCooldown}s`
                         ) : (
                           "Create Account"
                         )}
