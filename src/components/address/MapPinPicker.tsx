@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
 import { Button } from "@/components/ui/button";
 import { MapPin, Navigation, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -105,7 +106,11 @@ const MapPinPicker = ({ latitude, longitude, onLocationSelect, onAddressResolved
       setResolving(true);
       const result = await reverseGeocode(lat, lng);
       setResolving(false);
-      if (result) onAddressResolved(result);
+      if (result) {
+        onAddressResolved(result);
+      } else {
+        toast.error("Couldn't auto-fill address. Please type it in manually.");
+      }
     },
     [onAddressResolved],
   );
@@ -120,7 +125,14 @@ const MapPinPicker = ({ latitude, longitude, onLocationSelect, onAddressResolved
   );
 
   const handleUseMyLocation = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) {
+      toast.error("Your browser does not support location access.");
+      return;
+    }
+    if (!window.isSecureContext) {
+      toast.error("Location access requires a secure (HTTPS) connection.");
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -133,8 +145,17 @@ const MapPinPicker = ({ latitude, longitude, onLocationSelect, onAddressResolved
         void resolveAddress(lat, lng);
       },
       (err) => {
-        console.warn("geolocation failed:", err);
         setLocating(false);
+        console.warn("geolocation failed:", err);
+        if (err.code === err.PERMISSION_DENIED) {
+          toast.error("Location permission denied. Enable it in your browser settings, or tap the map to drop a pin.");
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          toast.error("Couldn't determine your location. Try moving outdoors or tap the map to drop a pin.");
+        } else if (err.code === err.TIMEOUT) {
+          toast.error("Location request timed out. Try again or tap the map to drop a pin.");
+        } else {
+          toast.error("Couldn't get your location. Tap the map to drop a pin instead.");
+        }
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },
     );
