@@ -135,12 +135,11 @@ const AdminApplications = () => {
 
       if (appError) throw appError;
 
-      // Update user role based on application role_type
+      // Upsert user role — handles both cases: row exists (update) or missing (insert)
       const targetRole = app.role_type === "rider" ? "rider" : "agent";
       const { error: roleError } = await supabase
         .from("user_roles")
-        .update({ role: targetRole })
-        .eq("user_id", app.user_id);
+        .upsert({ user_id: app.user_id, role: targetRole }, { onConflict: "user_id" });
 
       if (roleError) throw roleError;
 
@@ -152,7 +151,7 @@ const AdminApplications = () => {
       const roleLabel = app.role_type === "rider" ? "rider" : "agent";
       toast({
         title: "Application Approved",
-        description: `${app.full_name} has been approved as a ${roleLabel}.`,
+        description: `${app.full_name} has been approved as a ${roleLabel}. They must log out and log back in to access the ${roleLabel} dashboard.`,
       });
 
       setIsViewOpen(false);
@@ -226,8 +225,7 @@ const AdminApplications = () => {
       // Downgrade role to buyer
       const { error: roleError } = await supabase
         .from("user_roles")
-        .update({ role: "buyer" })
-        .eq("user_id", app.user_id);
+        .upsert({ user_id: app.user_id, role: "buyer" }, { onConflict: "user_id" });
 
       if (roleError) throw roleError;
 
@@ -266,11 +264,10 @@ const AdminApplications = () => {
 
       if (appError) throw appError;
 
-      // Also remove agent role if exists
+      // Downgrade role to buyer
       await supabase
         .from("user_roles")
-        .update({ role: "buyer" })
-        .eq("user_id", selectedApp.user_id);
+        .upsert({ user_id: selectedApp.user_id, role: "buyer" }, { onConflict: "user_id" });
 
       setApplications((prev) => prev.filter((a) => a.id !== selectedApp.id));
 

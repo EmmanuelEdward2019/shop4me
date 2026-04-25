@@ -84,7 +84,7 @@ interface FormData {
 }
 
 const AgentApplication = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [step, setStep] = useState(1);
@@ -396,10 +396,10 @@ const AgentApplication = () => {
                 {existingApplication.status === "approved" && (
                   <div className="text-center">
                     <p className="text-muted-foreground mb-4">
-                      Congratulations! Your application has been approved. You can now access the agent dashboard.
+                      Congratulations! Your application has been approved. Please log out and log back in to access your agent dashboard.
                     </p>
-                    <Button onClick={() => navigate("/agent")}>
-                      Go to Agent Dashboard
+                    <Button onClick={async () => { await signOut(); navigate("/auth"); }}>
+                      Log Out &amp; Continue as Agent
                     </Button>
                   </div>
                 )}
