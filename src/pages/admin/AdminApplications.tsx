@@ -141,7 +141,7 @@ const AdminApplications = () => {
           .eq("id", app.id);
         if (appError) throw appError;
 
-        const targetRole = app.role_type === "rider" ? "rider" : "agent";
+        const targetRole = (app.role_type === "rider" || app.role_type === "delivery_rider") ? "rider" : "agent";
         const { data: updated, error: updateError } = await supabase
           .from("user_roles")
           .update({ role: targetRole })

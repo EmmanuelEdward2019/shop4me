@@ -65,10 +65,28 @@ const reverseGeocode = async (lat: number, lng: number): Promise<ReverseGeocoded
     const road =
       addr.road || addr.pedestrian || addr.footway || addr.cycleway || addr.path || addr.residential || "";
     const houseNumber = addr.house_number || "";
-    const fallbackFirst = (data.display_name || "").split(",")[0]?.trim() || "";
-    const addressLine1 = houseNumber && road
-      ? `${houseNumber} ${road}`
-      : road || fallbackFirst;
+
+    // Nigerian addresses often lack a road field in Nominatim — fall through to
+    // neighbourhood/suburb names, then use the first two parts of display_name.
+    let addressLine1 = "";
+    if (houseNumber && road) {
+      addressLine1 = `${houseNumber} ${road}`;
+    } else if (road) {
+      addressLine1 = road;
+    } else {
+      const areaName =
+        addr.neighbourhood || addr.suburb || addr.quarter ||
+        addr.city_district || addr.village || addr.hamlet || "";
+      if (areaName) {
+        addressLine1 = areaName;
+      } else {
+        const parts = (data.display_name || "")
+          .split(",")
+          .map((p: string) => p.trim())
+          .filter(Boolean);
+        addressLine1 = parts.slice(0, 2).join(", ");
+      }
+    }
 
     const city =
       addr.city || addr.town || addr.village || addr.hamlet ||
