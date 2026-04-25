@@ -220,7 +220,7 @@ const AgentApplication = () => {
         password: formData.password,
         options: {
           emailRedirectTo: "https://shop4meng.com/auth",
-          data: { full_name: formData.full_name },
+          data: { full_name: formData.full_name, role: formData.role_type },
         },
       });
 
@@ -868,7 +868,7 @@ const AgentApplication = () => {
                   <div className="space-y-2">
                     <Label>Stores/Markets/Malls You Represent * (Select at least one)</Label>
                     <p className="text-xs text-muted-foreground">
-                      Select all shops, markets, or malls you know well or represent. Buyers ordering from these locations will be routed to you.
+                      Select all shops, markets, or malls you know well or represent. Once your application is approved, you will automatically be assigned as the dedicated agent for these locations — buyers ordering from them will be routed directly to you.
                     </p>
                     {storesLoading ? (
                       <div className="flex items-center justify-center p-6 border rounded-lg">
