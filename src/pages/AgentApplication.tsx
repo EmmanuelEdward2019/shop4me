@@ -93,6 +93,7 @@ const AgentApplication = () => {
   const [checkingApplication, setCheckingApplication] = useState(true);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [idDocFile, setIdDocFile] = useState<File | null>(null);
+  const [isNewSignup, setIsNewSignup] = useState(false);
 
   const [availableStores, setAvailableStores] = useState<StoreOption[]>([]);
   const [storesLoading, setStoresLoading] = useState(true);
@@ -244,6 +245,7 @@ const AgentApplication = () => {
       } else {
         currentUser = signUpData.user;
       }
+      setIsNewSignup(true);
 
       // Update profile name
       if (currentUser) {
@@ -418,21 +420,68 @@ const AgentApplication = () => {
         <Header />
         <main className="pt-24 pb-16">
           <div className="container mx-auto px-4 max-w-2xl">
-            <Card className="text-center">
-              <CardContent className="pt-12 pb-8">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                  <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
+            <Card>
+              <CardContent className="pt-10 pb-8 px-8">
+                {/* Icon */}
+                <div className="flex justify-center mb-6">
+                  <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                    <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
+                  </div>
                 </div>
-                <h2 className="text-2xl font-display font-bold text-foreground mb-2">
+
+                <h2 className="text-2xl font-display font-bold text-foreground text-center mb-2">
                   Application Submitted!
                 </h2>
-                <p className="text-muted-foreground mb-8">
-                  Thank you for applying to become a Shop4Me agent. We'll review your application
-                  and get back to you within 48 hours.
+                <p className="text-muted-foreground text-center mb-8">
+                  Thank you for applying to join Shop4Me.
                 </p>
-                <Button onClick={() => navigate("/")}>
-                  Return to Home
-                </Button>
+
+                {/* Next Steps */}
+                <div className="bg-muted/50 rounded-xl p-6 mb-6 space-y-5">
+                  <h3 className="font-semibold text-foreground text-base">What happens next</h3>
+
+                  {isNewSignup && (
+                    <div className="flex gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">1</div>
+                      <div>
+                        <p className="font-medium text-foreground text-sm">Confirm your email</p>
+                        <p className="text-muted-foreground text-sm mt-0.5">
+                          We sent a verification link to <span className="font-medium text-foreground">{formData.email}</span>. Open it to activate your account before you can log in.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{isNewSignup ? "2" : "1"}</div>
+                    <div>
+                      <p className="font-medium text-foreground text-sm">Application review (within 48 hours)</p>
+                      <p className="text-muted-foreground text-sm mt-0.5">
+                        Our team will review your details and documents. You'll receive an email once a decision is made.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{isNewSignup ? "3" : "2"}</div>
+                    <div>
+                      <p className="font-medium text-foreground text-sm">Log in to access your dashboard</p>
+                      <p className="text-muted-foreground text-sm mt-0.5">
+                        Once approved, log in and you'll be taken directly to your {formData.role_type === "rider" ? "rider" : "agent"} dashboard.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CTA Buttons */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button className="flex-1" onClick={() => navigate("/auth")}>
+                    Go to Login
+                  </Button>
+                  <Button variant="outline" className="flex-1" onClick={() => navigate("/")}>
+                    Return to Home
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>

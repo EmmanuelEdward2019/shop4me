@@ -135,13 +135,25 @@ const AdminApplications = () => {
 
       if (appError) throw appError;
 
-      // Upsert user role — handles both cases: row exists (update) or missing (insert)
+      // Assign agent/rider role: update existing buyer row, or insert if none exists
       const targetRole = app.role_type === "rider" ? "rider" : "agent";
-      const { error: roleError } = await supabase
+      const { data: updated, error: updateError } = await supabase
         .from("user_roles")
-        .upsert({ user_id: app.user_id, role: targetRole }, { onConflict: "user_id" });
+        .update({ role: targetRole })
+        .eq("user_id", app.user_id)
+        .eq("role", "buyer")
+        .select("id");
 
-      if (roleError) throw roleError;
+      if (updateError) throw updateError;
+
+      // No buyer row found — insert the role directly
+      if (!updated || updated.length === 0) {
+        const { error: insertError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: app.user_id, role: targetRole });
+        // Ignore duplicate (role already assigned by DB trigger)
+        if (insertError && insertError.code !== "23505") throw insertError;
+      }
 
       // Update local state
       setApplications((prev) =>
@@ -222,12 +234,22 @@ const AdminApplications = () => {
 
       if (appError) throw appError;
 
-      // Downgrade role to buyer
-      const { error: roleError } = await supabase
+      // Revert role: update agent/rider row back to buyer
+      const { data: reverted, error: revertError } = await supabase
         .from("user_roles")
-        .upsert({ user_id: app.user_id, role: "buyer" }, { onConflict: "user_id" });
+        .update({ role: "buyer" })
+        .eq("user_id", app.user_id)
+        .in("role", ["agent", "rider"])
+        .select("id");
 
-      if (roleError) throw roleError;
+      if (revertError) throw revertError;
+
+      if (!reverted || reverted.length === 0) {
+        const { error: insertError } = await supabase
+          .from("user_roles")
+          .insert({ user_id: app.user_id, role: "buyer" });
+        if (insertError && insertError.code !== "23505") throw insertError;
+      }
 
       setApplications((prev) =>
         prev.map((a) => (a.id === app.id ? { ...a, status: "suspended" as ApplicationStatus } : a))
@@ -264,10 +286,11 @@ const AdminApplications = () => {
 
       if (appError) throw appError;
 
-      // Downgrade role to buyer
       await supabase
         .from("user_roles")
-        .upsert({ user_id: selectedApp.user_id, role: "buyer" }, { onConflict: "user_id" });
+        .update({ role: "buyer" })
+        .eq("user_id", selectedApp.user_id)
+        .in("role", ["agent", "rider"]);
 
       setApplications((prev) => prev.filter((a) => a.id !== selectedApp.id));
 

@@ -24,15 +24,25 @@ export const useUserRole = () => {
       const { data, error } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user?.id)
-        .single();
+        .eq("user_id", user?.id);
 
       if (error) {
         console.error("Error fetching user role:", error);
-        setRole("buyer"); // Default to buyer
-      } else {
-        setRole(data?.role || "buyer");
+        setRole("buyer");
+        return;
       }
+
+      if (!data || data.length === 0) {
+        setRole("buyer");
+        return;
+      }
+
+      // Multiple rows can exist (buyer + agent/rider); pick the most privileged
+      const PRIORITY: Record<string, number> = { admin: 4, agent: 3, rider: 3, buyer: 1 };
+      const topRole = [...data].sort(
+        (a, b) => (PRIORITY[b.role] ?? 0) - (PRIORITY[a.role] ?? 0)
+      )[0].role as AppRole;
+      setRole(topRole);
     } catch (error) {
       console.error("Error fetching user role:", error);
       setRole("buyer");
