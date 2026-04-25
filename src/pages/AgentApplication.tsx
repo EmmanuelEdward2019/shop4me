@@ -356,7 +356,10 @@ const AgentApplication = () => {
     );
   }
 
-  if (existingApplication) {
+  // Show step 5 success screen FIRST — takes priority over existingApplication view,
+  // otherwise after submission the app re-fetches the new row and shows "status: pending"
+  // instead of the next-steps page.
+  if (existingApplication && step !== 5) {
     const statusColors: Record<string, string> = {
       pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
       under_review: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",

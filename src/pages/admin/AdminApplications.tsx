@@ -122,37 +122,40 @@ const AdminApplications = () => {
   const handleApprove = async (app: AgentApplication) => {
     setProcessing(true);
     try {
-      // Update application status
-      const { error: appError } = await supabase
-        .from("agent_applications")
-        .update({
-          status: "approved",
-          reviewed_by: user?.id,
-          reviewed_at: new Date().toISOString(),
-          admin_notes: adminNotes || null,
-        })
-        .eq("id", app.id);
+      // Atomic approval via SECURITY DEFINER RPC — updates application + role in one call
+      const { error: rpcError } = await (supabase as any).rpc("approve_application", {
+        p_application_id: app.id,
+        p_admin_notes: adminNotes || null,
+      });
 
-      if (appError) throw appError;
+      if (rpcError) {
+        // Fallback for environments where the RPC migration hasn't been applied yet
+        const { error: appError } = await supabase
+          .from("agent_applications")
+          .update({
+            status: "approved",
+            reviewed_by: user?.id,
+            reviewed_at: new Date().toISOString(),
+            admin_notes: adminNotes || null,
+          })
+          .eq("id", app.id);
+        if (appError) throw appError;
 
-      // Assign agent/rider role: update existing buyer row, or insert if none exists
-      const targetRole = app.role_type === "rider" ? "rider" : "agent";
-      const { data: updated, error: updateError } = await supabase
-        .from("user_roles")
-        .update({ role: targetRole })
-        .eq("user_id", app.user_id)
-        .eq("role", "buyer")
-        .select("id");
-
-      if (updateError) throw updateError;
-
-      // No buyer row found — insert the role directly
-      if (!updated || updated.length === 0) {
-        const { error: insertError } = await supabase
+        const targetRole = app.role_type === "rider" ? "rider" : "agent";
+        const { data: updated, error: updateError } = await supabase
           .from("user_roles")
-          .insert({ user_id: app.user_id, role: targetRole });
-        // Ignore duplicate (role already assigned by DB trigger)
-        if (insertError && insertError.code !== "23505") throw insertError;
+          .update({ role: targetRole })
+          .eq("user_id", app.user_id)
+          .eq("role", "buyer")
+          .select("id");
+        if (updateError) throw updateError;
+
+        if (!updated || updated.length === 0) {
+          const { error: insertError } = await supabase
+            .from("user_roles")
+            .insert({ user_id: app.user_id, role: targetRole });
+          if (insertError && insertError.code !== "23505") throw insertError;
+        }
       }
 
       // Update local state
