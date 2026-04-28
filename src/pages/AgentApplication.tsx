@@ -94,6 +94,7 @@ const AgentApplication = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [idDocFile, setIdDocFile] = useState<File | null>(null);
   const [isNewSignup, setIsNewSignup] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
 
   const [availableStores, setAvailableStores] = useState<StoreOption[]>([]);
   const [storesLoading, setStoresLoading] = useState(true);
@@ -135,6 +136,25 @@ const AgentApplication = () => {
       setCheckingApplication(false);
     }
   }, [user]);
+
+  // Restore a saved draft once we know there is no existing application
+  useEffect(() => {
+    if (!checkingApplication && user && !existingApplication) {
+      const draftKey = `agent_app_draft_${user.email}`;
+      const saved = localStorage.getItem(draftKey);
+      if (saved) {
+        try {
+          const { savedFormData } = JSON.parse(saved);
+          setFormData((prev) => ({ ...prev, ...savedFormData }));
+          setHasDraft(true);
+          setStep(4);
+          localStorage.removeItem(draftKey);
+        } catch {
+          localStorage.removeItem(draftKey);
+        }
+      }
+    }
+  }, [checkingApplication, user, existingApplication]);
 
   useEffect(() => {
     const fetchStores = async () => {
@@ -230,6 +250,8 @@ const AgentApplication = () => {
         return;
       }
 
+      setIsNewSignup(true);
+
       // If no session (email confirmation required), sign in to establish session for RLS
       if (!signUpData.session) {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -237,15 +259,19 @@ const AgentApplication = () => {
           password: formData.password,
         });
         if (signInError) {
-          toast({ title: "Sign Up Successful", description: "Please verify your email, then log in and resubmit your application.", variant: "default" });
+          // Email not yet confirmed — save a draft so the form is pre-filled on return
+          localStorage.setItem(
+            `agent_app_draft_${formData.email}`,
+            JSON.stringify({ savedFormData: { ...formData, password: "", confirmPassword: "" } }),
+          );
           setLoading(false);
+          setStep(5); // Show the "check your email" success screen
           return;
         }
         currentUser = signInData.user;
       } else {
         currentUser = signUpData.user;
       }
-      setIsNewSignup(true);
 
       // Update profile name
       if (currentUser) {
@@ -478,9 +504,15 @@ const AgentApplication = () => {
 
                 {/* CTA Buttons */}
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <Button className="flex-1" onClick={() => navigate("/auth")}>
-                    Go to Login
-                  </Button>
+                  {isNewSignup ? (
+                    <Button className="flex-1" onClick={() => navigate("/auth")}>
+                      Go to Login
+                    </Button>
+                  ) : (
+                    <Button className="flex-1" onClick={() => navigate("/agent/settings")}>
+                      Go to Agent Settings
+                    </Button>
+                  )}
                   <Button variant="outline" className="flex-1" onClick={() => navigate("/")}>
                     Return to Home
                   </Button>
@@ -517,6 +549,11 @@ const AgentApplication = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {hasDraft && step === 4 && (
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-3 text-sm text-blue-800 dark:text-blue-200">
+                  Your application details have been restored. Please re-upload your profile photo and ID document, then click <strong>Submit Application</strong>.
+                </div>
+              )}
               {/* Step 1: Personal Info */}
               {step === 1 && (
                 <>

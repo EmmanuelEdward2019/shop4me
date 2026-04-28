@@ -80,9 +80,10 @@ const AgentSettings = () => {
         .from("agent_applications")
         .select("*")
         .eq("user_id", user?.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
+      if (!data) return; // No application row yet — settings will show prompts to apply
 
       setApplication(data);
       setProfileData({

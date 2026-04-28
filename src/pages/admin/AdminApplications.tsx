@@ -84,6 +84,7 @@ const AdminApplications = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
   const [selectedApp, setSelectedApp] = useState<AgentApplication | null>(null);
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [isRejectOpen, setIsRejectOpen] = useState(false);
@@ -351,7 +352,12 @@ const AdminApplications = () => {
 
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    const matchesRole =
+      roleFilter === "all" ||
+      (roleFilter === "agent" && ["shopping_agent", "both"].includes(app.role_type)) ||
+      (roleFilter === "rider" && ["rider", "delivery_rider"].includes(app.role_type));
+
+    return matchesSearch && matchesStatus && matchesRole;
   });
 
   const getStatusBadge = (status: ApplicationStatus) => {
@@ -427,6 +433,16 @@ const AdminApplications = () => {
                   className="pl-10"
                 />
               </div>
+              <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <SelectTrigger className="w-full sm:w-36">
+                  <SelectValue placeholder="Role type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Roles</SelectItem>
+                  <SelectItem value="agent">Agents</SelectItem>
+                  <SelectItem value="rider">Riders</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-full sm:w-40">
                   <SelectValue placeholder="Filter by status" />
@@ -512,6 +528,24 @@ const AdminApplications = () => {
                 </DialogHeader>
 
                 <div className="space-y-6">
+                  {/* Profile photo */}
+                  {selectedApp.photo_url && (
+                    <div>
+                      <h4 className="font-medium mb-3">Profile Photo</h4>
+                      {signedPhotoUrl ? (
+                        <img
+                          src={signedPhotoUrl}
+                          alt="Applicant photo"
+                          className="w-24 h-24 rounded-full object-cover border"
+                        />
+                      ) : (
+                        <div className="w-24 h-24 rounded-full bg-muted flex items-center justify-center">
+                          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Personal Info */}
                   <div>
                     <h4 className="font-medium mb-3">Personal Information</h4>

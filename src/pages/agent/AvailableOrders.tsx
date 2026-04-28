@@ -52,7 +52,18 @@ const AvailableOrders = () => {
 
       if (rpcError) throw rpcError;
 
-      const orderIds = (nearbyOrders || []).map((o: any) => o.id);
+      const nearbyIds = new Set((nearbyOrders || []).map((o: any) => o.id as string));
+
+      // Also fetch orders pre-assigned to this agent (dedicated store orders)
+      const { data: assignedOrders } = await supabase
+        .from("orders")
+        .select("id")
+        .eq("agent_id", user?.id)
+        .eq("status", "pending");
+
+      (assignedOrders || []).forEach((o) => nearbyIds.add(o.id));
+
+      const orderIds = Array.from(nearbyIds);
 
       if (orderIds.length === 0) {
         setOrders([]);
@@ -102,15 +113,16 @@ const AvailableOrders = () => {
     setAccepting(orderId);
     impact("heavy");
     try {
+      // Accept both unassigned orders (claim them) and pre-assigned orders (confirm them)
       const { error } = await supabase
         .from("orders")
-        .update({ 
+        .update({
           agent_id: user?.id,
-          status: "accepted"
+          status: "accepted",
         })
         .eq("id", orderId)
         .eq("status", "pending")
-        .is("agent_id", null);
+        .or(`agent_id.is.null,agent_id.eq.${user?.id}`);
 
       if (error) throw error;
 

@@ -218,6 +218,9 @@ const NewOrderPage = () => {
       // Get delivery GPS from the selected address
       const selectedAddr = savedAddresses.find(a => a.id === data.delivery_address_id);
 
+      // If the chosen store has a dedicated agent, pre-assign the order to them
+      const dedicatedAgentId = locationData?.assigned_agent_id ?? null;
+
       const { data: order, error: orderError } = await supabase
         .from("orders")
         .insert({
@@ -232,6 +235,7 @@ const NewOrderPage = () => {
           shop_category: shopCategory,
           delivery_latitude: selectedAddr?.latitude ?? null,
           delivery_longitude: selectedAddr?.longitude ?? null,
+          agent_id: dedicatedAgentId,
         })
         .select()
         .single();

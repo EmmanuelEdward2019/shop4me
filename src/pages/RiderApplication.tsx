@@ -68,6 +68,7 @@ const RiderApplication = () => {
   const [checkingApplication, setCheckingApplication] = useState(true);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [idDocFile, setIdDocFile] = useState<File | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     full_name: "",
@@ -98,6 +99,24 @@ const RiderApplication = () => {
       setCheckingApplication(false);
     }
   }, [user]);
+
+  useEffect(() => {
+    if (!checkingApplication && user && !existingApplication) {
+      const draftKey = `rider_app_draft_${user.email}`;
+      const saved = localStorage.getItem(draftKey);
+      if (saved) {
+        try {
+          const { savedFormData } = JSON.parse(saved);
+          setFormData((prev) => ({ ...prev, ...savedFormData }));
+          setHasDraft(true);
+          setStep(3);
+          localStorage.removeItem(draftKey);
+        } catch {
+          localStorage.removeItem(draftKey);
+        }
+      }
+    }
+  }, [checkingApplication, user, existingApplication]);
 
   const checkExistingApplication = async () => {
     try {
@@ -147,7 +166,7 @@ const RiderApplication = () => {
         password: formData.password,
         options: {
           emailRedirectTo: "https://shop4meng.com/auth",
-          data: { full_name: formData.full_name },
+          data: { full_name: formData.full_name, role: "delivery_rider" },
         },
       });
 
@@ -164,8 +183,12 @@ const RiderApplication = () => {
           password: formData.password,
         });
         if (signInError) {
-          toast({ title: "Sign Up Successful", description: "Please verify your email, then log in and resubmit your application.", variant: "default" });
+          localStorage.setItem(
+            `rider_app_draft_${formData.email}`,
+            JSON.stringify({ savedFormData: { ...formData, password: "", confirmPassword: "" } }),
+          );
           setLoading(false);
+          setStep(4);
           return;
         }
         currentUser = signInData.user;
@@ -324,6 +347,11 @@ const RiderApplication = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {hasDraft && step === 3 && (
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-3 text-sm text-blue-800 dark:text-blue-200">
+                  Your application details have been restored. Please re-upload your profile photo and ID document, then click <strong>Submit Application</strong>.
+                </div>
+              )}
               {step === 1 && (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
