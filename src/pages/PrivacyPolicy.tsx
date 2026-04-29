@@ -19,7 +19,7 @@ const PrivacyPolicy = () => {
                   Privacy <span className="text-gradient">Policy</span>
                 </h1>
                 <p className="text-lg md:text-xl text-muted-foreground">
-                  Last updated: April 8, 2026
+                  Last Updated: April 29, 2026
                 </p>
               </div>
             </ScrollAnimation>
@@ -50,7 +50,7 @@ const PrivacyPolicy = () => {
                 <h2>2. Information We Collect</h2>
                 <h3>2.1 Information You Provide Directly</h3>
                 <ul>
-                  <li><strong>Account Registration:</strong> Full name, email address, phone number, password (stored securely using industry-standard hashing)</li>
+                  <li><strong>Account Registration:</strong> Full name, email address, phone number, password (stored securely using industry-standard hashing), and Role (Buyer, Agent, or Rider)</li>
                   <li><strong>Profile Information:</strong> Profile photo (optional), service zone preference</li>
                   <li><strong>Delivery Addresses:</strong> Street address, city, state, landmark descriptions, and GPS coordinates (latitude/longitude) when you drop a pin on the map</li>
                   <li><strong>Payment Information:</strong> Card details (processed and stored securely by our PCI-DSS compliant payment processor, Paystack — we do not store your full card number)</li>
@@ -68,7 +68,13 @@ const PrivacyPolicy = () => {
                   <li><strong>Network Information:</strong> IP address, connection type, and referring URLs</li>
                 </ul>
 
-                <h3>2.3 Information from Third Parties</h3>
+                <h3>2.3 Device Hardware Permissions</h3>
+                <ul>
+                  <li><strong>Camera &amp; Photo Gallery:</strong> We request access to your device camera and photo gallery solely for the purpose of uploading a profile picture and providing image proof of completed transactions (e.g., proof of delivery or purchase). We do not scan, index, or access any other photos or files on your device beyond what you explicitly select and share with us.</li>
+                  <li><strong>Biometric Data ("Save Login"):</strong> If you enable the "Save Login" feature, your device's built-in biometric authentication (Face ID, Touch ID, or fingerprint recognition) is used to unlock your account securely. Biometric data is processed entirely on your device by your operating system and is never transmitted to or stored on our servers. We receive only a pass/fail result from your device's secure enclave.</li>
+                </ul>
+
+                <h3>2.4 Information from Third Parties</h3>
                 <ul>
                   <li><strong>Payment Processor:</strong> Transaction status, payment confirmation, and card metadata (last 4 digits, card type, expiry) from Paystack</li>
                 </ul>
@@ -121,8 +127,8 @@ const PrivacyPolicy = () => {
                 </p>
                 <ul>
                   <li><strong>Buyer Location:</strong> When you save a delivery address, you can optionally drop a pin on a map to provide exact GPS coordinates. This data is stored with your address and shared with agents/riders for delivery navigation only.</li>
-                  <li><strong>Agent Location:</strong> During active order fulfillment, agents' real-time location is tracked and shared with the buyer for live order tracking. Agents can enable/disable location sharing in their settings. We do not track agents when they are not actively fulfilling orders.</li>
-                  <li><strong>Rider Location:</strong> Similar to agents, rider location is tracked only during active deliveries.</li>
+                  <li><strong>Agent Location:</strong> During active order fulfillment, agents' real-time location is tracked and shared with the buyer for live order tracking. We use foreground tracking only — location is collected while the app is open and in use or while the agent is actively participating in an ongoing delivery. Agents can enable/disable location sharing in their settings. We do not track agents when they are not actively fulfilling orders.</li>
+                  <li><strong>Rider Location:</strong> Similar to agents, rider location is tracked only during active deliveries using foreground tracking while the app is in use.</li>
                   <li><strong>Order Routing:</strong> We use store and agent location data to match orders with nearby agents for efficient fulfillment.</li>
                 </ul>
                 <p>
@@ -190,7 +196,7 @@ const PrivacyPolicy = () => {
                   <li><strong>Right to Withdraw Consent:</strong> Withdraw consent at any time (e.g., for location tracking, push notifications) without affecting the lawfulness of prior processing.</li>
                 </ul>
                 <p>
-                  To exercise any of these rights, contact us at privacy@shop4me.ng. We will respond within 30 days.
+                  To exercise any of these rights, contact us at <a href="mailto:support@shop4meng.com">support@shop4meng.com</a>. We will respond within 30 days.
                 </p>
               </ScrollAnimation>
 
@@ -199,8 +205,8 @@ const PrivacyPolicy = () => {
                 <p>
                   Our Platform is not intended for users under 18 years of age. We do not knowingly collect 
                   personal information from children under 18. If we discover that we have inadvertently 
-                  collected data from a child under 18, we will promptly delete it. If you believe a child 
-                  under 18 has provided us with personal information, please contact us at privacy@shop4me.ng.
+                  collected data from a child under 18, we will promptly delete it. If you believe a child
+                  under 18 has provided us with personal information, please contact us at support@shop4meng.com.
                 </p>
               </ScrollAnimation>
 
@@ -257,7 +263,7 @@ const PrivacyPolicy = () => {
                   For privacy-related inquiries, complaints, or to exercise your data rights, please contact:
                 </p>
                 <ul>
-                  <li><strong>Email:</strong> privacy@shop4me.ng</li>
+                  <li><strong>Email:</strong> support@shop4meng.com</li>
                   <li><strong>Phone:</strong> +234 XXX XXX XXXX</li>
                   <li><strong>Address:</strong> 23 Golden Valley Estate, Port Harcourt, Rivers State, Nigeria</li>
                 </ul>
