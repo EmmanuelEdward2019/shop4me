@@ -94,7 +94,6 @@ const AgentApplication = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [idDocFile, setIdDocFile] = useState<File | null>(null);
   const [isNewSignup, setIsNewSignup] = useState(false);
-  const [hasDraft, setHasDraft] = useState(false);
 
   const [availableStores, setAvailableStores] = useState<StoreOption[]>([]);
   const [storesLoading, setStoresLoading] = useState(true);
@@ -137,24 +136,6 @@ const AgentApplication = () => {
     }
   }, [user]);
 
-  // Restore a saved draft once we know there is no existing application
-  useEffect(() => {
-    if (!checkingApplication && user && !existingApplication) {
-      const draftKey = `agent_app_draft_${user.email}`;
-      const saved = localStorage.getItem(draftKey);
-      if (saved) {
-        try {
-          const { savedFormData } = JSON.parse(saved);
-          setFormData((prev) => ({ ...prev, ...savedFormData }));
-          setHasDraft(true);
-          setStep(4);
-          localStorage.removeItem(draftKey);
-        } catch {
-          localStorage.removeItem(draftKey);
-        }
-      }
-    }
-  }, [checkingApplication, user, existingApplication]);
 
   useEffect(() => {
     const fetchStores = async () => {
@@ -223,7 +204,7 @@ const AgentApplication = () => {
   const handleSubmit = async () => {
     let currentUser = user;
 
-    // If not logged in, create account first
+    // ── NEW USER: create account first ──────────────────────────────────────
     if (!currentUser) {
       if (!formData.password || formData.password.length < 6) {
         toast({ title: "Password Required", description: "Password must be at least 6 characters.", variant: "destructive" });
@@ -239,7 +220,7 @@ const AgentApplication = () => {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: "https://shop4meng.com/agent-application",
+          emailRedirectTo: "https://shop4meng.com/auth",
           data: { full_name: formData.full_name, role: formData.role_type },
         },
       });
@@ -250,33 +231,61 @@ const AgentApplication = () => {
         return;
       }
 
-      setIsNewSignup(true);
+      const newUser = signUpData.user;
+      if (!newUser) {
+        toast({ title: "Sign Up Failed", description: "Could not create account. Please try again.", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
 
-      // If no session (email confirmation required), sign in to establish session for RLS
+      // Email confirmation required — insert application NOW via SECURITY DEFINER
+      // RPC so the admin sees it immediately without waiting for confirmation.
       if (!signUpData.session) {
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-        if (signInError) {
-          // Email not yet confirmed — save a draft so the form is pre-filled on return
-          localStorage.setItem(
-            `agent_app_draft_${formData.email}`,
-            JSON.stringify({ savedFormData: { ...formData, password: "", confirmPassword: "" } }),
-          );
+        setIsNewSignup(true);
+        try {
+          const { error: rpcError } = await supabase.rpc("submit_agent_application", {
+            p_user_id: newUser.id,
+            p_email: formData.email,
+            p_full_name: formData.full_name,
+            p_phone: formData.phone,
+            p_date_of_birth: formData.date_of_birth,
+            p_gender: formData.gender,
+            p_address: formData.address,
+            p_city: formData.city,
+            p_state: formData.state,
+            p_lga: formData.lga || "",
+            p_role_type: formData.role_type,
+            p_id_type: formData.id_type,
+            p_id_number: formData.id_number,
+            p_bank_name: formData.bank_name,
+            p_account_number: formData.account_number,
+            p_account_name: formData.account_name,
+            p_has_smartphone: formData.has_smartphone,
+            p_has_vehicle: formData.has_vehicle,
+            p_vehicle_type: formData.vehicle_type || null,
+            p_market_knowledge: formData.market_knowledge,
+            p_experience_description: formData.experience_description || null,
+            p_how_heard_about_us: formData.how_heard_about_us || null,
+            p_business_type: formData.business_type,
+            p_business_name: formData.business_name || null,
+            p_business_address: formData.business_address || null,
+          });
+          if (rpcError) throw rpcError;
+        } catch (err: any) {
+          toast({ title: "Submission Failed", description: err.message || "Please try again.", variant: "destructive" });
           setLoading(false);
-          setStep(5); // Show the "check your email" success screen
           return;
         }
-        currentUser = signInData.user;
-      } else {
-        currentUser = signUpData.user;
+        // Photos/ID docs cannot be uploaded without an active session.
+        // The agent can upload them from Settings after confirming their email and logging in.
+        setLoading(false);
+        setStep(5);
+        return;
       }
 
-      // Update profile name
-      if (currentUser) {
-        await supabase.from("profiles").update({ full_name: formData.full_name, phone: formData.phone }).eq("user_id", currentUser.id);
-      }
+      // No email confirmation required — session is live, continue normally
+      currentUser = signUpData.user;
+      await supabase.from("profiles").update({ full_name: formData.full_name, phone: formData.phone }).eq("user_id", currentUser!.id);
     }
 
     if (!currentUser) {
@@ -285,18 +294,14 @@ const AgentApplication = () => {
       return;
     }
 
+    // ── AUTHENTICATED PATH: upload files and insert ──────────────────────────
     setLoading(true);
     try {
-      let photoUrl = null;
-      let idDocUrl = null;
+      let photoUrl: string | null = null;
+      let idDocUrl: string | null = null;
 
-      if (photoFile) {
-        photoUrl = await uploadFile(photoFile, "photos");
-      }
-
-      if (idDocFile) {
-        idDocUrl = await uploadFile(idDocFile, "id-documents");
-      }
+      if (photoFile) photoUrl = await uploadFile(photoFile, "photos");
+      if (idDocFile) idDocUrl = await uploadFile(idDocFile, "id-documents");
 
       const { error } = await supabase.from("agent_applications").insert({
         user_id: currentUser.id,
@@ -330,19 +335,13 @@ const AgentApplication = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Application Submitted!",
-        description: !user ? "Please check your email to verify your account. After verification you'll receive a welcome email." : "We'll review your application and get back to you within 48 hours.",
-      });
+      await supabase.from("profiles").update({ full_name: formData.full_name, phone: formData.phone }).eq("user_id", currentUser.id);
 
-      setStep(5); // Success step
+      toast({ title: "Application Submitted!", description: "We'll review your application and get back to you within 48 hours." });
+      setStep(5);
     } catch (error: any) {
       console.error("Submit error:", error);
-      toast({
-        title: "Submission Failed",
-        description: error.message || "Please try again later.",
-        variant: "destructive",
-      });
+      toast({ title: "Submission Failed", description: error.message || "Please try again later.", variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -484,6 +483,15 @@ const AgentApplication = () => {
                   <div className="flex gap-3">
                     <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{isNewSignup ? "2" : "1"}</div>
                     <div>
+                      <p className="font-medium text-foreground text-sm">Upload your photo &amp; ID (optional but recommended)</p>
+                      <p className="text-muted-foreground text-sm mt-0.5">
+                        After logging in, go to <strong>Settings</strong> to upload your profile photo and ID document so the admin can verify you faster.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{isNewSignup ? "3" : "2"}</div>
+                    <div>
                       <p className="font-medium text-foreground text-sm">Application review (within 48 hours)</p>
                       <p className="text-muted-foreground text-sm mt-0.5">
                         Our team will review your details and documents. You'll receive an email once a decision is made.
@@ -549,11 +557,6 @@ const AgentApplication = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {hasDraft && step === 4 && (
-                <div className="rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-3 text-sm text-blue-800 dark:text-blue-200">
-                  Your application details have been restored. Please re-upload your profile photo and ID document, then click <strong>Submit Application</strong>.
-                </div>
-              )}
               {/* Step 1: Personal Info */}
               {step === 1 && (
                 <>

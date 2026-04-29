@@ -68,7 +68,6 @@ const RiderApplication = () => {
   const [checkingApplication, setCheckingApplication] = useState(true);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [idDocFile, setIdDocFile] = useState<File | null>(null);
-  const [hasDraft, setHasDraft] = useState(false);
   const [isNewSignup, setIsNewSignup] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
@@ -101,23 +100,6 @@ const RiderApplication = () => {
     }
   }, [user]);
 
-  useEffect(() => {
-    if (!checkingApplication && user && !existingApplication) {
-      const draftKey = `rider_app_draft_${user.email}`;
-      const saved = localStorage.getItem(draftKey);
-      if (saved) {
-        try {
-          const { savedFormData } = JSON.parse(saved);
-          setFormData((prev) => ({ ...prev, ...savedFormData }));
-          setHasDraft(true);
-          setStep(3);
-          localStorage.removeItem(draftKey);
-        } catch {
-          localStorage.removeItem(draftKey);
-        }
-      }
-    }
-  }, [checkingApplication, user, existingApplication]);
 
   const checkExistingApplication = async () => {
     try {
@@ -151,6 +133,7 @@ const RiderApplication = () => {
   const handleSubmit = async () => {
     let currentUser = user;
 
+    // ── NEW USER: create account first ──────────────────────────────────────
     if (!currentUser) {
       if (!formData.password || formData.password.length < 6) {
         toast({ title: "Password Required", description: "Password must be at least 6 characters.", variant: "destructive" });
@@ -166,7 +149,7 @@ const RiderApplication = () => {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: "https://shop4meng.com/rider-application",
+          emailRedirectTo: "https://shop4meng.com/auth",
           data: { full_name: formData.full_name, role: "delivery_rider" },
         },
       });
@@ -177,32 +160,58 @@ const RiderApplication = () => {
         return;
       }
 
-      setIsNewSignup(true);
+      const newUser = signUpData.user;
+      if (!newUser) {
+        toast({ title: "Sign Up Failed", description: "Could not create account. Please try again.", variant: "destructive" });
+        setLoading(false);
+        return;
+      }
 
-      // If no session (email confirmation required), sign in to establish session
+      // Email confirmation required — insert application NOW via SECURITY DEFINER RPC
       if (!signUpData.session) {
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-        if (signInError) {
-          // Email not yet confirmed — save draft so form is pre-filled when they return
-          localStorage.setItem(
-            `rider_app_draft_${formData.email}`,
-            JSON.stringify({ savedFormData: { ...formData, password: "", confirmPassword: "" } }),
-          );
+        setIsNewSignup(true);
+        try {
+          const { error: rpcError } = await supabase.rpc("submit_agent_application", {
+            p_user_id: newUser.id,
+            p_email: formData.email,
+            p_full_name: formData.full_name,
+            p_phone: formData.phone,
+            p_date_of_birth: formData.date_of_birth,
+            p_gender: formData.gender,
+            p_address: formData.address,
+            p_city: formData.city,
+            p_state: formData.state,
+            p_lga: "",
+            p_role_type: "delivery_rider",
+            p_id_type: formData.id_type,
+            p_id_number: formData.id_number,
+            p_bank_name: formData.bank_name,
+            p_account_number: formData.account_number,
+            p_account_name: formData.account_name,
+            p_has_smartphone: true,
+            p_has_vehicle: formData.has_vehicle,
+            p_vehicle_type: formData.vehicle_type || null,
+            p_market_knowledge: [],
+            p_experience_description: formData.experience_description || null,
+            p_how_heard_about_us: null,
+            p_business_type: "individual",
+            p_business_name: null,
+            p_business_address: null,
+          });
+          if (rpcError) throw rpcError;
+        } catch (err: any) {
+          toast({ title: "Submission Failed", description: err.message || "Please try again.", variant: "destructive" });
           setLoading(false);
-          setStep(4);
           return;
         }
-        currentUser = signInData.user;
-      } else {
-        currentUser = signUpData.user;
+        setLoading(false);
+        setStep(4);
+        return;
       }
 
-      if (currentUser) {
-        await supabase.from("profiles").update({ full_name: formData.full_name, phone: formData.phone }).eq("user_id", currentUser.id);
-      }
+      // No email confirmation required — session is live
+      currentUser = signUpData.user;
+      await supabase.from("profiles").update({ full_name: formData.full_name, phone: formData.phone }).eq("user_id", currentUser!.id);
     }
 
     if (!currentUser) {
@@ -211,10 +220,11 @@ const RiderApplication = () => {
       return;
     }
 
+    // ── AUTHENTICATED PATH: upload files and insert ──────────────────────────
     setLoading(true);
     try {
-      let photoUrl = null;
-      let idDocUrl = null;
+      let photoUrl: string | null = null;
+      let idDocUrl: string | null = null;
       if (photoFile) photoUrl = await uploadFile(photoFile, "photos");
       if (idDocFile) idDocUrl = await uploadFile(idDocFile, "id-documents");
 
@@ -229,7 +239,7 @@ const RiderApplication = () => {
         city: formData.city,
         state: formData.state,
         lga: "",
-        role_type: "rider",
+        role_type: "delivery_rider",
         id_type: formData.id_type,
         id_number: formData.id_number,
         bank_name: formData.bank_name,
@@ -245,10 +255,9 @@ const RiderApplication = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Application Submitted!",
-        description: !user ? "Please check your email to verify your account." : "We'll review your rider application within 48 hours.",
-      });
+      await supabase.from("profiles").update({ full_name: formData.full_name, phone: formData.phone }).eq("user_id", currentUser.id);
+
+      toast({ title: "Application Submitted!", description: "We'll review your rider application within 48 hours." });
       setStep(4);
     } catch (error: any) {
       toast({ title: "Submission Failed", description: error.message || "Please try again.", variant: "destructive" });
@@ -388,11 +397,6 @@ const RiderApplication = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {hasDraft && step === 3 && (
-                <div className="rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 p-3 text-sm text-blue-800 dark:text-blue-200">
-                  Your application details have been restored. Please re-upload your profile photo and ID document, then click <strong>Submit Application</strong>.
-                </div>
-              )}
               {step === 1 && (
                 <>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
