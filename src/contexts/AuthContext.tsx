@@ -39,16 +39,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // Send welcome email after email confirmation (not on signup)
+        // On every sign-in: sync full_name from auth metadata into profiles
+        // This handles buyers, agents, and riders who signed up with email confirmation
+        // (the name is in metadata from signUp but the profile update couldn't run before confirmation)
         if (event === "SIGNED_IN" && session?.user) {
+          const name = session.user.user_metadata?.full_name;
+          if (name) {
+            supabase
+              .from("profiles")
+              .update({ full_name: name })
+              .eq("user_id", session.user.id)
+              .then(() => {});
+          }
+
+          // Send welcome email on first login (after email confirmation)
           const isFirstLogin = session.user.last_sign_in_at === session.user.created_at ||
             (new Date(session.user.last_sign_in_at || "").getTime() - new Date(session.user.created_at || "").getTime()) < 60000;
           if (isFirstLogin) {
-            const name = session.user.user_metadata?.full_name || "";
+            const emailName = name || "";
             const email = session.user.email || "";
             supabase.functions
               .invoke("send-notification-email", {
-                body: { type: "welcome", data: { email, name } },
+                body: { type: "welcome", data: { email, name: emailName } },
               })
               .catch((err) => console.error("Welcome email failed:", err));
           }
@@ -80,20 +92,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       },
     });
 
-    if (!error && fullName) {
-      // Update profile with full name after signup - deferred to avoid deadlock
-      setTimeout(async () => {
-        const { data: { user: newUser } } = await supabase.auth.getUser();
-        if (newUser) {
-          await supabase
-            .from("profiles")
-            .update({ full_name: fullName })
-            .eq("user_id", newUser.id);
-        }
-      }, 0);
-
-      // Welcome email is now sent after email confirmation via onAuthStateChange
-    }
+    // Profile full_name is synced on SIGNED_IN via onAuthStateChange (covers email confirmation flow)
 
     return { error: error as Error | null };
   };

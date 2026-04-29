@@ -69,6 +69,7 @@ const RiderApplication = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [idDocFile, setIdDocFile] = useState<File | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
+  const [isNewSignup, setIsNewSignup] = useState(false);
 
   const [formData, setFormData] = useState<FormData>({
     full_name: "",
@@ -165,7 +166,7 @@ const RiderApplication = () => {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: "https://shop4meng.com/auth",
+          emailRedirectTo: "https://shop4meng.com/rider-application",
           data: { full_name: formData.full_name, role: "delivery_rider" },
         },
       });
@@ -176,6 +177,8 @@ const RiderApplication = () => {
         return;
       }
 
+      setIsNewSignup(true);
+
       // If no session (email confirmation required), sign in to establish session
       if (!signUpData.session) {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
@@ -183,6 +186,7 @@ const RiderApplication = () => {
           password: formData.password,
         });
         if (signInError) {
+          // Email not yet confirmed — save draft so form is pre-filled when they return
           localStorage.setItem(
             `rider_app_draft_${formData.email}`,
             JSON.stringify({ savedFormData: { ...formData, password: "", confirmPassword: "" } }),
@@ -307,14 +311,51 @@ const RiderApplication = () => {
         <Header />
         <main className="pt-24 pb-16">
           <div className="container mx-auto px-4 max-w-2xl">
-            <Card className="text-center">
-              <CardContent className="pt-12 pb-8">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircle className="w-10 h-10 text-green-600" />
+            <Card>
+              <CardContent className="pt-10 pb-8 px-8">
+                <div className="flex justify-center mb-6">
+                  <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                    <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
+                  </div>
                 </div>
-                <h2 className="text-2xl font-display font-bold text-foreground mb-2">Application Submitted!</h2>
-                <p className="text-muted-foreground mb-8">We'll review your rider application within 48 hours.</p>
-                <Button onClick={() => navigate("/")}>Return to Home</Button>
+                <h2 className="text-2xl font-display font-bold text-foreground text-center mb-2">Application Submitted!</h2>
+                <p className="text-muted-foreground text-center mb-8">Thank you for applying to join Shop4Me as a rider.</p>
+                <div className="bg-muted/50 rounded-xl p-6 mb-6 space-y-5">
+                  <h3 className="font-semibold text-foreground text-base">What happens next</h3>
+                  {isNewSignup && (
+                    <div className="flex gap-3">
+                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">1</div>
+                      <div>
+                        <p className="font-medium text-foreground text-sm">Confirm your email</p>
+                        <p className="text-muted-foreground text-sm mt-0.5">
+                          We sent a verification link to <span className="font-medium text-foreground">{formData.email}</span>. Open it to activate your account.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{isNewSignup ? "2" : "1"}</div>
+                    <div>
+                      <p className="font-medium text-foreground text-sm">Application review (within 48 hours)</p>
+                      <p className="text-muted-foreground text-sm mt-0.5">Our team will review your details and documents.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{isNewSignup ? "3" : "2"}</div>
+                    <div>
+                      <p className="font-medium text-foreground text-sm">Access your rider dashboard</p>
+                      <p className="text-muted-foreground text-sm mt-0.5">Once approved, log in to start accepting deliveries.</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {isNewSignup ? (
+                    <Button className="flex-1" onClick={() => navigate("/auth")}>Go to Login</Button>
+                  ) : (
+                    <Button className="flex-1" onClick={() => navigate("/rider")}>Go to Rider Dashboard</Button>
+                  )}
+                  <Button variant="outline" className="flex-1" onClick={() => navigate("/")}>Return to Home</Button>
+                </div>
               </CardContent>
             </Card>
           </div>

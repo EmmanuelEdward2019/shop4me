@@ -239,7 +239,7 @@ const AgentApplication = () => {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: "https://shop4meng.com/auth",
+          emailRedirectTo: "https://shop4meng.com/agent-application",
           data: { full_name: formData.full_name, role: formData.role_type },
         },
       });
