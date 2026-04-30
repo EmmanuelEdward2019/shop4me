@@ -1,10 +1,36 @@
 -- =============================================================================
--- SECURITY DEFINER RPC: submit_agent_application
--- Allows inserting an agent/rider application immediately after auth.signUp,
--- even before email confirmation (no active session required).
--- Security: validates that p_user_id exists in auth.users with matching email.
+-- 1. Allow anonymous users to upload files to agent-documents bucket
+--    under the "temp/" prefix (used before email confirmation).
+-- 2. Allow authenticated users to read ALL files in agent-documents
+--    so admins can generate signed URLs for temp/ files.
+-- 3. Replace submit_agent_application RPC to accept photo_url + id_document_url.
 -- RUN IN SUPABASE DASHBOARD → SQL Editor
 -- =============================================================================
+
+-- ── Storage policies ──────────────────────────────────────────────────────────
+
+-- Drop and recreate to avoid "already exists" errors
+DROP POLICY IF EXISTS "anon_temp_upload_policy"   ON storage.objects;
+DROP POLICY IF EXISTS "auth_read_all_agent_docs"  ON storage.objects;
+
+-- Anonymous users may upload files only to the temp/ folder
+CREATE POLICY "anon_temp_upload_policy"
+ON storage.objects
+FOR INSERT
+TO anon
+WITH CHECK (
+  bucket_id = 'agent-documents'
+  AND name LIKE 'temp/%'
+);
+
+-- Authenticated users (admin, agents) may read any file in the bucket
+CREATE POLICY "auth_read_all_agent_docs"
+ON storage.objects
+FOR SELECT
+TO authenticated
+USING (bucket_id = 'agent-documents');
+
+-- ── Updated RPC ───────────────────────────────────────────────────────────────
 
 CREATE OR REPLACE FUNCTION public.submit_agent_application(
   p_user_id        uuid,
@@ -31,7 +57,9 @@ CREATE OR REPLACE FUNCTION public.submit_agent_application(
   p_how_heard_about_us     text DEFAULT NULL,
   p_business_type          text DEFAULT 'individual',
   p_business_name          text DEFAULT NULL,
-  p_business_address       text DEFAULT NULL
+  p_business_address       text DEFAULT NULL,
+  p_photo_url              text DEFAULT NULL,
+  p_id_document_url        text DEFAULT NULL
 )
 RETURNS void
 LANGUAGE plpgsql
@@ -63,6 +91,7 @@ BEGIN
     market_knowledge, experience_description,
     how_heard_about_us,
     business_type, business_name, business_address,
+    photo_url, id_document_url,
     status
   ) VALUES (
     p_user_id, p_full_name, p_email, p_phone, p_date_of_birth::date, p_gender,
@@ -73,10 +102,10 @@ BEGIN
     p_market_knowledge, p_experience_description,
     p_how_heard_about_us,
     p_business_type, p_business_name, p_business_address,
+    p_photo_url, p_id_document_url,
     'pending'
   );
 END;
 $$;
 
--- Allow anon and authenticated users to call this function
 GRANT EXECUTE ON FUNCTION public.submit_agent_application TO anon, authenticated;

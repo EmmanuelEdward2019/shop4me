@@ -94,6 +94,7 @@ const AgentApplication = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [idDocFile, setIdDocFile] = useState<File | null>(null);
   const [isNewSignup, setIsNewSignup] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [availableStores, setAvailableStores] = useState<StoreOption[]>([]);
   const [storesLoading, setStoresLoading] = useState(true);
@@ -173,6 +174,7 @@ const AgentApplication = () => {
 
   const handleInputChange = (field: keyof FormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => { const next = { ...prev }; delete next[field as string]; return next; });
   };
 
   const handleMarketToggle = (market: string) => {
@@ -182,22 +184,62 @@ const AgentApplication = () => {
         ? prev.market_knowledge.filter((m) => m !== market)
         : [...prev.market_knowledge, market],
     }));
+    setErrors((prev) => { const next = { ...prev }; delete next.market_knowledge; return next; });
+  };
+
+  const validateStep = (currentStep: number): boolean => {
+    const e: Record<string, string> = {};
+    if (currentStep === 1) {
+      const nameParts = formData.full_name.trim().split(/\s+/).filter(Boolean);
+      if (nameParts.length < 2) e.full_name = "Enter your first and last name";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) e.email = "Enter a valid email address";
+      if (!/^(\+234|0)[789]\d{9}$/.test(formData.phone.replace(/\s/g, ""))) e.phone = "Enter a valid Nigerian phone number (e.g. 08012345678)";
+      if (!formData.date_of_birth) {
+        e.date_of_birth = "Date of birth is required";
+      } else {
+        const dob = new Date(formData.date_of_birth);
+        const ageMins = Date.now() - dob.getTime();
+        if (ageMins / (1000 * 60 * 60 * 24 * 365.25) < 18) e.date_of_birth = "You must be at least 18 years old";
+      }
+      if (!formData.gender) e.gender = "Please select your gender";
+      if (!user) {
+        if (formData.password.length < 6) e.password = "Password must be at least 6 characters";
+        else if (formData.password !== formData.confirmPassword) e.confirmPassword = "Passwords do not match";
+      }
+    }
+    if (currentStep === 2) {
+      if (formData.address.trim().length < 5) e.address = "Enter your full street address";
+      if (!formData.city.trim()) e.city = "City is required";
+      if (!formData.state) e.state = "Please select your state";
+    }
+    if (currentStep === 3) {
+      if (!formData.id_type) e.id_type = "Please select an ID type";
+      if (formData.id_number.trim().length < 5) e.id_number = "Enter a valid ID number";
+      if (!formData.bank_name) e.bank_name = "Please select your bank";
+      if (!/^\d{10}$/.test(formData.account_number)) e.account_number = "Account number must be exactly 10 digits";
+      if (!formData.account_name.trim()) e.account_name = "Account name is required";
+    }
+    if (currentStep === 4) {
+      if (formData.market_knowledge.length === 0) e.market_knowledge = "Select at least one store or market";
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const uploadFile = async (file: File, folder: string): Promise<string | null> => {
     const fileExt = file.name.split(".").pop();
     const fileName = `${user?.id}/${folder}/${Date.now()}.${fileExt}`;
+    const { error } = await supabase.storage.from("agent-documents").upload(fileName, file);
+    if (error) { console.error("Upload error:", error); return null; }
+    return fileName;
+  };
 
-    const { error } = await supabase.storage
-      .from("agent-documents")
-      .upload(fileName, file);
-
-    if (error) {
-      console.error("Upload error:", error);
-      return null;
-    }
-
-    // Return just the file path - the bucket is private so we'll generate signed URLs when viewing
+  // Upload to temp/ path — works without an active session (anon storage policy)
+  const uploadFilePending = async (file: File, userId: string, folder: string): Promise<string | null> => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `temp/${userId}/${folder}/${Date.now()}.${fileExt}`;
+    const { error } = await supabase.storage.from("agent-documents").upload(fileName, file);
+    if (error) { console.error("Pending upload error:", error); return null; }
     return fileName;
   };
 
@@ -238,11 +280,14 @@ const AgentApplication = () => {
         return;
       }
 
-      // Email confirmation required — insert application NOW via SECURITY DEFINER
-      // RPC so the admin sees it immediately without waiting for confirmation.
+      // Email confirmation required — upload files to temp/ (anon policy allows this)
+      // then insert application via SECURITY DEFINER RPC so admin sees everything immediately.
       if (!signUpData.session) {
         setIsNewSignup(true);
         try {
+          const photoUrl = photoFile ? await uploadFilePending(photoFile, newUser.id, "photos") : null;
+          const idDocUrl = idDocFile ? await uploadFilePending(idDocFile, newUser.id, "id-documents") : null;
+
           const { error: rpcError } = await supabase.rpc("submit_agent_application", {
             p_user_id: newUser.id,
             p_email: formData.email,
@@ -269,6 +314,8 @@ const AgentApplication = () => {
             p_business_type: formData.business_type,
             p_business_name: formData.business_name || null,
             p_business_address: formData.business_address || null,
+            p_photo_url: photoUrl,
+            p_id_document_url: idDocUrl,
           });
           if (rpcError) throw rpcError;
         } catch (err: any) {
@@ -276,8 +323,6 @@ const AgentApplication = () => {
           setLoading(false);
           return;
         }
-        // Photos/ID docs cannot be uploaded without an active session.
-        // The agent can upload them from Settings after confirming their email and logging in.
         setLoading(false);
         setStep(5);
         return;
@@ -567,8 +612,10 @@ const AgentApplication = () => {
                         id="full_name"
                         value={formData.full_name}
                         onChange={(e) => handleInputChange("full_name", e.target.value)}
-                        placeholder="Enter your full name"
+                        placeholder="Enter your first and last name"
+                        className={errors.full_name ? "border-destructive" : ""}
                       />
+                      {errors.full_name && <p className="text-xs text-destructive">{errors.full_name}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email *</Label>
@@ -578,7 +625,9 @@ const AgentApplication = () => {
                         value={formData.email}
                         onChange={(e) => handleInputChange("email", e.target.value)}
                         placeholder="your@email.com"
+                        className={errors.email ? "border-destructive" : ""}
                       />
+                      {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -589,7 +638,9 @@ const AgentApplication = () => {
                         value={formData.phone}
                         onChange={(e) => handleInputChange("phone", e.target.value)}
                         placeholder="08012345678"
+                        className={errors.phone ? "border-destructive" : ""}
                       />
+                      {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="dob">Date of Birth *</Label>
@@ -598,7 +649,10 @@ const AgentApplication = () => {
                         type="date"
                         value={formData.date_of_birth}
                         onChange={(e) => handleInputChange("date_of_birth", e.target.value)}
+                        className={errors.date_of_birth ? "border-destructive" : ""}
+                        max={new Date(Date.now() - 18 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
                       />
+                      {errors.date_of_birth && <p className="text-xs text-destructive">{errors.date_of_birth}</p>}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -617,6 +671,7 @@ const AgentApplication = () => {
                         <Label htmlFor="female">Female</Label>
                       </div>
                     </RadioGroup>
+                    {errors.gender && <p className="text-xs text-destructive">{errors.gender}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label>Profile Photo</Label>
@@ -645,7 +700,9 @@ const AgentApplication = () => {
                               value={formData.password}
                               onChange={(e) => handleInputChange("password", e.target.value)}
                               placeholder="Min. 6 characters"
+                              className={errors.password ? "border-destructive" : ""}
                             />
+                            {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="confirmPassword">Confirm Password *</Label>
@@ -655,7 +712,9 @@ const AgentApplication = () => {
                               value={formData.confirmPassword}
                               onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                               placeholder="Re-enter password"
+                              className={errors.confirmPassword ? "border-destructive" : ""}
                             />
+                            {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword}</p>}
                           </div>
                         </div>
                       </div>
@@ -674,7 +733,9 @@ const AgentApplication = () => {
                       value={formData.address}
                       onChange={(e) => handleInputChange("address", e.target.value)}
                       placeholder="Enter your street address"
+                      className={errors.address ? "border-destructive" : ""}
                     />
+                    {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -684,12 +745,14 @@ const AgentApplication = () => {
                         value={formData.city}
                         onChange={(e) => handleInputChange("city", e.target.value)}
                         placeholder="e.g., Lagos"
+                        className={errors.city ? "border-destructive" : ""}
                       />
+                      {errors.city && <p className="text-xs text-destructive">{errors.city}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label>State *</Label>
                       <Select value={formData.state} onValueChange={(v) => handleInputChange("state", v)}>
-                        <SelectTrigger>
+                        <SelectTrigger className={errors.state ? "border-destructive" : ""}>
                           <SelectValue placeholder="Select state" />
                         </SelectTrigger>
                         <SelectContent>
@@ -698,6 +761,7 @@ const AgentApplication = () => {
                           ))}
                         </SelectContent>
                       </Select>
+                      {errors.state && <p className="text-xs text-destructive">{errors.state}</p>}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -785,7 +849,7 @@ const AgentApplication = () => {
                   <div className="space-y-2">
                     <Label>ID Type *</Label>
                     <Select value={formData.id_type} onValueChange={(v) => handleInputChange("id_type", v)}>
-                      <SelectTrigger>
+                      <SelectTrigger className={errors.id_type ? "border-destructive" : ""}>
                         <SelectValue placeholder="Select ID type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -795,6 +859,7 @@ const AgentApplication = () => {
                         <SelectItem value="passport">International Passport</SelectItem>
                       </SelectContent>
                     </Select>
+                    {errors.id_type && <p className="text-xs text-destructive">{errors.id_type}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="id_number">ID Number *</Label>
@@ -803,7 +868,9 @@ const AgentApplication = () => {
                       value={formData.id_number}
                       onChange={(e) => handleInputChange("id_number", e.target.value)}
                       placeholder="Enter your ID number"
+                      className={errors.id_number ? "border-destructive" : ""}
                     />
+                    {errors.id_number && <p className="text-xs text-destructive">{errors.id_number}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label>Upload ID Document</Label>
@@ -825,7 +892,7 @@ const AgentApplication = () => {
                       <div className="space-y-2">
                         <Label>Bank Name *</Label>
                         <Select value={formData.bank_name} onValueChange={(v) => handleInputChange("bank_name", v)}>
-                          <SelectTrigger>
+                          <SelectTrigger className={errors.bank_name ? "border-destructive" : ""}>
                             <SelectValue placeholder="Select bank" />
                           </SelectTrigger>
                           <SelectContent>
@@ -834,6 +901,7 @@ const AgentApplication = () => {
                             ))}
                           </SelectContent>
                         </Select>
+                        {errors.bank_name && <p className="text-xs text-destructive">{errors.bank_name}</p>}
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -841,10 +909,13 @@ const AgentApplication = () => {
                           <Input
                             id="account_number"
                             value={formData.account_number}
-                            onChange={(e) => handleInputChange("account_number", e.target.value)}
+                            onChange={(e) => handleInputChange("account_number", e.target.value.replace(/\D/g, ""))}
                             placeholder="10-digit account number"
                             maxLength={10}
+                            inputMode="numeric"
+                            className={errors.account_number ? "border-destructive" : ""}
                           />
+                          {errors.account_number && <p className="text-xs text-destructive">{errors.account_number}</p>}
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="account_name">Account Name *</Label>
@@ -853,7 +924,9 @@ const AgentApplication = () => {
                             value={formData.account_name}
                             onChange={(e) => handleInputChange("account_name", e.target.value)}
                             placeholder="Name on account"
+                            className={errors.account_name ? "border-destructive" : ""}
                           />
+                          {errors.account_name && <p className="text-xs text-destructive">{errors.account_name}</p>}
                         </div>
                       </div>
                     </div>
@@ -950,6 +1023,7 @@ const AgentApplication = () => {
                         ))}
                       </div>
                     )}
+                    {errors.market_knowledge && <p className="text-xs text-destructive">{errors.market_knowledge}</p>}
                     {formData.market_knowledge.length > 0 && (
                       <p className="text-xs text-primary font-medium">
                         {formData.market_knowledge.length} location{formData.market_knowledge.length > 1 ? "s" : ""} selected
@@ -996,14 +1070,13 @@ const AgentApplication = () => {
                 </Button>
                 {step < 4 ? (
                   <Button
-                    onClick={() => setStep((s) => s + 1)}
-                    disabled={!canProceed()}
+                    onClick={() => { if (validateStep(step)) setStep((s) => s + 1); }}
                   >
                     Next
                     <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 ) : (
-                  <Button onClick={handleSubmit} disabled={loading || !canProceed()}>
+                  <Button onClick={() => { if (validateStep(step)) handleSubmit(); }} disabled={loading}>
                     {loading ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
