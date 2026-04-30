@@ -28,7 +28,10 @@ type EmailType =
   | "invoice_created"
   | "compliance_warning"
   | "compliance_suspension"
-  | "compliance_reinstatement";
+  | "compliance_reinstatement"
+  | "withdrawal_requested"
+  | "withdrawal_transferred"
+  | "withdrawal_confirmed";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -357,6 +360,120 @@ Deno.serve(async (req) => {
             ctaButton("Go to Dashboard", `https://shop4meng.com/${role === "rider" ? "rider" : "agent"}/dashboard`)
         );
         break;
+      }
+
+      // ─── Rider: Withdrawal Requested → Admin ──────────────
+      case "withdrawal_requested": {
+        const { riderId, withdrawalId } = data;
+
+        // Look up rider profile and bank details
+        const [profileRes, appRes, adminRolesRes] = await Promise.all([
+          supabase.from("profiles").select("full_name, email, phone").eq("user_id", riderId).single(),
+          supabase.from("agent_applications").select("bank_name, account_number, account_name").eq("user_id", riderId).single(),
+          supabase.from("user_roles").select("user_id").eq("role", "admin"),
+        ]);
+
+        const riderName = profileRes.data?.full_name || "A Rider";
+        const riderEmail = profileRes.data?.email || "";
+        const riderPhone = profileRes.data?.phone || "";
+        const bankName = appRes.data?.bank_name || "—";
+        const accountNumber = appRes.data?.account_number || "—";
+        const accountName = appRes.data?.account_name || "—";
+
+        // Fetch the withdrawal amount
+        const { data: wRow } = await supabase.from("rider_withdrawals").select("amount").eq("id", withdrawalId).single();
+        const amount = Number(wRow?.amount ?? 0);
+
+        const adminEmails: string[] = [];
+        for (const admin of (adminRolesRes.data ?? [])) {
+          const { data: ap } = await supabase.from("profiles").select("email").eq("user_id", admin.user_id).single();
+          if (ap?.email) adminEmails.push(ap.email);
+        }
+        if (adminEmails.length === 0) break;
+
+        subject = `[Admin] Rider Withdrawal Request — ${formatNGN(amount)}`;
+        body = emailLayout(
+          subject,
+          `<p style="color:#4a4a4a;font-size:16px;">A rider has requested a withdrawal. Please transfer the amount to their bank account and mark it as transferred in the admin panel.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>Rider:</strong> ${riderName}</p>
+               <p style="margin:4px 0 0;"><strong>Email:</strong> ${riderEmail}</p>
+               <p style="margin:4px 0 0;"><strong>Phone:</strong> ${riderPhone}</p>
+               <hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0;" />
+               <p style="margin:0;"><strong>Bank:</strong> ${bankName}</p>
+               <p style="margin:4px 0 0;"><strong>Account Number:</strong> ${accountNumber}</p>
+               <p style="margin:4px 0 0;"><strong>Account Name:</strong> ${accountName}</p>
+               <hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0;" />
+               <p style="margin:0;font-size:18px;"><strong>Amount to Transfer: ${formatNGN(amount)}</strong></p>`
+            ) +
+            ctaButton("Manage Withdrawals", "https://shop4meng.com/admin/riders")
+        );
+
+        const results = await Promise.all(adminEmails.map((e) => sendEmail(RESEND_API_KEY!, e, subject, body)));
+        const failed = results.filter((r) => !r.success);
+        if (failed.length > 0) throw new Error(failed[0].error);
+        return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // ─── Rider: Withdrawal Transferred → Rider ────────────
+      case "withdrawal_transferred": {
+        const { riderId, amount, bankName, accountNumber } = data;
+
+        const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("user_id", riderId).single();
+        if (!profile?.email) break;
+
+        to = profile.email;
+        subject = `Your Withdrawal of ${formatNGN(amount)} Has Been Sent`;
+        body = emailLayout(
+          subject,
+          greetingLine(profile.full_name || "Rider") +
+            `<p style="color:#4a4a4a;font-size:16px;">Great news! We have transferred your earnings to your bank account. Please check and confirm receipt in the app.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>Amount Transferred:</strong> ${formatNGN(amount)}</p>
+               <p style="margin:4px 0 0;"><strong>Bank:</strong> ${bankName || "—"}</p>
+               <p style="margin:4px 0 0;"><strong>Account:</strong> ${accountNumber || "—"}</p>`
+            ) +
+            `<p style="color:#4a4a4a;font-size:16px;">Once you see the money in your account, please open the app and tap <strong>"I Have Received Payment"</strong> to complete the transaction.</p>` +
+            ctaButton("Confirm Receipt", "https://shop4meng.com/rider/earnings")
+        );
+        break;
+      }
+
+      // ─── Rider: Withdrawal Confirmed → Admin ──────────────
+      case "withdrawal_confirmed": {
+        const { riderId, amount } = data;
+
+        const [profileRes, adminRolesRes] = await Promise.all([
+          supabase.from("profiles").select("full_name, email").eq("user_id", riderId).single(),
+          supabase.from("user_roles").select("user_id").eq("role", "admin"),
+        ]);
+
+        const riderName = profileRes.data?.full_name || "A Rider";
+        const riderEmail = profileRes.data?.email || "";
+
+        const adminEmails: string[] = [];
+        for (const admin of (adminRolesRes.data ?? [])) {
+          const { data: ap } = await supabase.from("profiles").select("email").eq("user_id", admin.user_id).single();
+          if (ap?.email) adminEmails.push(ap.email);
+        }
+        if (adminEmails.length === 0) break;
+
+        subject = `[Admin] Rider Confirmed Receipt — ${formatNGN(amount)} — Transaction Complete`;
+        body = emailLayout(
+          subject,
+          `<p style="color:#4a4a4a;font-size:16px;">A rider has confirmed receipt of their withdrawal. The transaction is now marked as complete.</p>` +
+            infoBox(
+              `<p style="margin:0;color:#16a34a;"><strong>✅ Transaction Complete</strong></p>
+               <p style="margin:4px 0 0;"><strong>Rider:</strong> ${riderName} (${riderEmail})</p>
+               <p style="margin:4px 0 0;font-size:18px;"><strong>Amount:</strong> ${formatNGN(amount)}</p>`
+            ) +
+            ctaButton("View Rider Withdrawals", "https://shop4meng.com/admin/riders")
+        );
+
+        const results = await Promise.all(adminEmails.map((e) => sendEmail(RESEND_API_KEY!, e, subject, body)));
+        const failed = results.filter((r) => !r.success);
+        if (failed.length > 0) throw new Error(failed[0].error);
+        return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
       default:

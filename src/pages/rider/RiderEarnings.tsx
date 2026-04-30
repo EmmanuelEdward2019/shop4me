@@ -122,9 +122,13 @@ const RiderEarnings = () => {
   const handleRequestWithdrawal = async () => {
     setRequesting(true);
     try {
-      const { error } = await supabase.rpc("request_rider_withdrawal" as any);
+      const { data: withdrawalId, error } = await supabase.rpc("request_rider_withdrawal" as any);
       if (error) throw error;
       toast({ title: "Withdrawal Requested", description: "Admin has been notified. Transfer usually happens within 24 hours." });
+      // Notify admin by email (fire-and-forget)
+      supabase.functions.invoke("send-notification-email", {
+        body: { type: "withdrawal_requested", data: { riderId: user?.id, withdrawalId } },
+      }).catch(() => {});
       fetchData();
     } catch (err: any) {
       toast({ title: "Error", description: err.message ?? "Failed to request withdrawal", variant: "destructive" });
@@ -142,6 +146,10 @@ const RiderEarnings = () => {
       });
       if (error) throw error;
       toast({ title: "Payment Confirmed!", description: "Your earnings have been marked as paid." });
+      // Notify admin by email (fire-and-forget)
+      supabase.functions.invoke("send-notification-email", {
+        body: { type: "withdrawal_confirmed", data: { riderId: user?.id, amount: activeWithdrawal.amount } },
+      }).catch(() => {});
       setActiveWithdrawal(null);
       fetchData();
     } catch (err: any) {

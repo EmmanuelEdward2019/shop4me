@@ -177,6 +177,21 @@ const AdminRiders = () => {
         .eq("id", withdrawalId);
       if (error) throw error;
       toast({ title: "Marked as Transferred", description: "Rider will now see a confirmation prompt." });
+      // Find the withdrawal to get rider details for the email
+      const w = withdrawals.find((x) => x.id === withdrawalId);
+      if (w) {
+        supabase.functions.invoke("send-notification-email", {
+          body: {
+            type: "withdrawal_transferred",
+            data: {
+              riderId: w.rider_id,
+              amount: w.amount,
+              bankName: w.bank_name,
+              accountNumber: w.account_number,
+            },
+          },
+        }).catch(() => {});
+      }
       fetchWithdrawals();
     } catch (err: any) {
       toast({ title: "Error", description: err.message ?? "Failed to update", variant: "destructive" });
