@@ -22,6 +22,7 @@ import {
   Menu,
   ChevronDown,
   User,
+  Wallet,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import DashboardHeaderNav from "./DashboardHeaderNav";
@@ -42,6 +43,7 @@ const RiderDashboardLayout = ({ children }: RiderDashboardLayoutProps) => {
     { href: "/rider", label: "Dashboard", icon: Home },
     { href: "/rider/available-pickups", label: "Available Pickups", icon: Package },
     { href: "/rider/my-deliveries", label: "My Deliveries", icon: Bike },
+    { href: "/rider/earnings", label: "Earnings", icon: Wallet },
     { href: "/rider/settings", label: "Settings", icon: Settings },
   ];
 

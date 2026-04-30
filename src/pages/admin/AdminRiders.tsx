@@ -4,6 +4,8 @@ import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -12,7 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Bike, Package, CheckCircle, Clock, MapPin } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Search, Bike, Package, CheckCircle, Clock, MapPin, Wallet, Loader2 } from "lucide-react";
 
 interface RiderWithStats {
   user_id: string;
@@ -26,13 +29,35 @@ interface RiderWithStats {
   active_pickups: number;
 }
 
+interface WithdrawalRequest {
+  id: string;
+  rider_id: string;
+  amount: number;
+  bank_name: string | null;
+  account_name: string | null;
+  account_number: string | null;
+  status: string;
+  requested_at: string;
+  transferred_at: string | null;
+  rider_name?: string;
+  rider_email?: string;
+  rider_phone?: string;
+}
+
+const fmt = (n: number) => "₦" + new Intl.NumberFormat("en-NG").format(Math.round(n));
+
 const AdminRiders = () => {
+  const { toast } = useToast();
   const [riders, setRiders] = useState<RiderWithStats[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [withdrawalsLoading, setWithdrawalsLoading] = useState(true);
+  const [markingId, setMarkingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchRiders();
+    fetchWithdrawals();
   }, []);
 
   const fetchRiders = async () => {
@@ -101,6 +126,65 @@ const AdminRiders = () => {
     }
   };
 
+  const fetchWithdrawals = async () => {
+    setWithdrawalsLoading(true);
+    try {
+      const { data: wData, error } = await supabase
+        .from("rider_withdrawals" as any)
+        .select("*")
+        .in("status", ["pending", "transferred"])
+        .order("requested_at", { ascending: false });
+      if (error) throw error;
+
+      const rows = (wData ?? []) as any[];
+      if (rows.length === 0) { setWithdrawals([]); return; }
+
+      const riderIds = [...new Set(rows.map((r: any) => r.rider_id))];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("user_id, full_name, email, phone")
+        .in("user_id", riderIds);
+
+      const profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.user_id, p]));
+
+      setWithdrawals(rows.map((r: any) => ({
+        id: r.id,
+        rider_id: r.rider_id,
+        amount: Number(r.amount),
+        bank_name: r.bank_name,
+        account_name: r.account_name,
+        account_number: r.account_number,
+        status: r.status,
+        requested_at: r.requested_at,
+        transferred_at: r.transferred_at,
+        rider_name: profileMap[r.rider_id]?.full_name ?? "—",
+        rider_email: profileMap[r.rider_id]?.email ?? "—",
+        rider_phone: profileMap[r.rider_id]?.phone ?? "—",
+      })));
+    } catch (err) {
+      console.error("Error fetching withdrawals:", err);
+    } finally {
+      setWithdrawalsLoading(false);
+    }
+  };
+
+  const markAsTransferred = async (withdrawalId: string) => {
+    setMarkingId(withdrawalId);
+    try {
+      const { error } = await supabase
+        .from("rider_withdrawals" as any)
+        .update({ status: "transferred", transferred_at: new Date().toISOString() } as any)
+        .eq("id", withdrawalId);
+      if (error) throw error;
+      toast({ title: "Marked as Transferred", description: "Rider will now see a confirmation prompt." });
+      fetchWithdrawals();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message ?? "Failed to update", variant: "destructive" });
+    } finally {
+      setMarkingId(null);
+    }
+  };
+
   const filteredRiders = riders.filter((rider) =>
     rider.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
     rider.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -115,14 +199,30 @@ const AdminRiders = () => {
     ? Math.round(overallAvg.reduce((s, r) => s + (r.avg_arrival_minutes || 0), 0) / overallAvg.length)
     : null;
 
+  const pendingWithdrawalCount = withdrawals.filter((w) => w.status === "pending").length;
+
   return (
     <AdminDashboardLayout>
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-display font-bold text-foreground">Rider Management</h1>
-          <p className="text-muted-foreground">Monitor rider performance and delivery metrics.</p>
+          <p className="text-muted-foreground">Monitor rider performance and manage withdrawal requests.</p>
         </div>
 
+        <Tabs defaultValue="riders">
+          <TabsList>
+            <TabsTrigger value="riders">All Riders</TabsTrigger>
+            <TabsTrigger value="withdrawals" className="relative">
+              Withdrawal Requests
+              {pendingWithdrawalCount > 0 && (
+                <span className="ml-2 bg-destructive text-destructive-foreground text-xs rounded-full px-1.5 py-0.5 leading-none">
+                  {pendingWithdrawalCount}
+                </span>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="riders" className="space-y-6 mt-4">
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
@@ -248,6 +348,97 @@ const AdminRiders = () => {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          {/* ── Withdrawals Tab ── */}
+          <TabsContent value="withdrawals" className="space-y-4 mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wallet className="w-5 h-5" /> Rider Withdrawal Requests
+                </CardTitle>
+                <CardDescription>
+                  Transfer funds manually to the rider's bank account, then mark as transferred. Rider confirms receipt to complete.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {withdrawalsLoading ? (
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-16 bg-muted animate-pulse rounded" />
+                    ))}
+                  </div>
+                ) : withdrawals.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-muted-foreground">No pending withdrawal requests.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Rider</TableHead>
+                          <TableHead>Bank Details</TableHead>
+                          <TableHead className="text-right">Amount</TableHead>
+                          <TableHead>Requested</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {withdrawals.map((w) => (
+                          <TableRow key={w.id}>
+                            <TableCell>
+                              <p className="font-medium">{w.rider_name}</p>
+                              <p className="text-xs text-muted-foreground">{w.rider_email}</p>
+                              <p className="text-xs text-muted-foreground">{w.rider_phone}</p>
+                            </TableCell>
+                            <TableCell>
+                              <p className="font-medium text-sm">{w.bank_name || "—"}</p>
+                              <p className="text-xs text-muted-foreground">{w.account_number}</p>
+                              <p className="text-xs text-muted-foreground">{w.account_name}</p>
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
+                              {fmt(w.amount)}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(w.requested_at).toLocaleString("en-NG", {
+                                day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                              })}
+                            </TableCell>
+                            <TableCell>
+                              {w.status === "pending" ? (
+                                <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">Awaiting Transfer</Badge>
+                              ) : (
+                                <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Transferred — Awaiting Confirmation</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {w.status === "pending" && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => markAsTransferred(w.id)}
+                                  disabled={markingId === w.id}
+                                >
+                                  {markingId === w.id && <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />}
+                                  Mark Transferred
+                                </Button>
+                              )}
+                              {w.status === "transferred" && (
+                                <span className="text-sm text-muted-foreground italic">Waiting for rider</span>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </AdminDashboardLayout>
   );

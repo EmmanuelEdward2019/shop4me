@@ -80,6 +80,7 @@ import RiderDashboard from "./pages/rider/RiderDashboard";
 import RiderAvailablePickups from "./pages/rider/AvailablePickups";
 import RiderMyDeliveries from "./pages/rider/RiderMyDeliveries";
 import RiderSettings from "./pages/rider/RiderSettings";
+import RiderEarnings from "./pages/rider/RiderEarnings";
 
 const queryClient = new QueryClient();
 
@@ -374,6 +375,7 @@ const App = () => (
             <Route path="/rider" element={<RiderProtectedRoute><RiderDashboard /></RiderProtectedRoute>} />
             <Route path="/rider/available-pickups" element={<RiderProtectedRoute><RiderAvailablePickups /></RiderProtectedRoute>} />
             <Route path="/rider/my-deliveries" element={<RiderProtectedRoute><RiderMyDeliveries /></RiderProtectedRoute>} />
+            <Route path="/rider/earnings" element={<RiderProtectedRoute><RiderEarnings /></RiderProtectedRoute>} />
             <Route path="/rider/settings" element={<RiderProtectedRoute><RiderSettings /></RiderProtectedRoute>} />
 
             {/* Catch-all */}
