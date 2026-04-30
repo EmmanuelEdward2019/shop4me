@@ -444,6 +444,27 @@ Deno.serve(async (req) => {
         const results = await Promise.all(adminEmails.map((e) => sendEmail(RESEND_API_KEY!, e, subject, body)));
         const failed = results.filter((r) => !r.success);
         if (failed.length > 0) throw new Error(failed[0].error);
+
+        // Also send a confirmation receipt email to the rider
+        if (riderEmail) {
+          const riderSubject = `Withdrawal Request Received — ${formatNGN(amount)}`;
+          const riderBody = emailLayout(
+            riderSubject,
+            greetingLine(riderName) +
+              `<p style="color:#4a4a4a;font-size:16px;">Your withdrawal request has been submitted successfully. We will review it and transfer the amount to your bank account shortly.</p>` +
+              infoBox(
+                `<p style="margin:0;font-size:18px;"><strong>Amount Requested: ${formatNGN(amount)}</strong></p>
+                 <hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0;" />
+                 <p style="margin:0;"><strong>Bank:</strong> ${bankName}</p>
+                 <p style="margin:4px 0 0;"><strong>Account Number:</strong> ${accountNumber}</p>
+                 <p style="margin:4px 0 0;"><strong>Account Name:</strong> ${accountName}</p>`
+              ) +
+              `<p style="color:#4a4a4a;font-size:16px;">You will receive another email as soon as the payment is sent to your account. You can also check your withdrawal status anytime in the app.</p>` +
+              ctaButton("View Earnings", "https://shop4meng.com/rider/earnings")
+          );
+          await sendEmail(RESEND_API_KEY!, riderEmail, riderSubject, riderBody);
+        }
+
         return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
