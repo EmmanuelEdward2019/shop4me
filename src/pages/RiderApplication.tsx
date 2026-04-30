@@ -69,6 +69,7 @@ const RiderApplication = () => {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [idDocFile, setIdDocFile] = useState<File | null>(null);
   const [isNewSignup, setIsNewSignup] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState<FormData>({
     full_name: "",
@@ -120,6 +121,40 @@ const RiderApplication = () => {
 
   const handleInputChange = (field: keyof FormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => { const next = { ...prev }; delete next[field as string]; return next; });
+  };
+
+  const validateStep = (currentStep: number): boolean => {
+    const e: Record<string, string> = {};
+    if (currentStep === 1) {
+      const nameParts = formData.full_name.trim().split(/\s+/).filter(Boolean);
+      if (nameParts.length < 2) e.full_name = "Enter your first and last name";
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) e.email = "Enter a valid email address";
+      if (!/^(\+234|0)[789]\d{9}$/.test(formData.phone.replace(/\s/g, ""))) e.phone = "Enter a valid Nigerian phone number (e.g. 08012345678)";
+      if (!formData.date_of_birth) {
+        e.date_of_birth = "Date of birth is required";
+      } else {
+        const ageMins = Date.now() - new Date(formData.date_of_birth).getTime();
+        if (ageMins / (1000 * 60 * 60 * 24 * 365.25) < 18) e.date_of_birth = "You must be at least 18 years old";
+      }
+      if (!formData.gender) e.gender = "Please select your gender";
+      if (!formData.address.trim() || formData.address.trim().length < 5) e.address = "Enter your full street address";
+      if (!formData.city.trim()) e.city = "City is required";
+      if (!formData.state) e.state = "Please select your state";
+      if (!user) {
+        if (formData.password.length < 6) e.password = "Password must be at least 6 characters";
+        else if (formData.password !== formData.confirmPassword) e.confirmPassword = "Passwords do not match";
+      }
+    }
+    if (currentStep === 2) {
+      if (!formData.id_type) e.id_type = "Please select an ID type";
+      if (formData.id_number.trim().length < 5) e.id_number = "Enter a valid ID number";
+      if (!formData.bank_name) e.bank_name = "Please select your bank";
+      if (!/^\d{10}$/.test(formData.account_number)) e.account_number = "Account number must be exactly 10 digits";
+      if (!formData.account_name.trim()) e.account_name = "Account name is required";
+    }
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
   const uploadFile = async (file: File, folder: string): Promise<string | null> => {
@@ -127,6 +162,14 @@ const RiderApplication = () => {
     const fileName = `${user?.id}/${folder}/${Date.now()}.${fileExt}`;
     const { error } = await supabase.storage.from("agent-documents").upload(fileName, file);
     if (error) return null;
+    return fileName;
+  };
+
+  const uploadFilePending = async (file: File, userId: string, folder: string): Promise<string | null> => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `temp/${userId}/${folder}/${Date.now()}.${fileExt}`;
+    const { error } = await supabase.storage.from("agent-documents").upload(fileName, file);
+    if (error) { console.error("Pending upload error:", error); return null; }
     return fileName;
   };
 
@@ -167,10 +210,13 @@ const RiderApplication = () => {
         return;
       }
 
-      // Email confirmation required — insert application NOW via SECURITY DEFINER RPC
+      // Email confirmation required — upload files to temp/ then insert via SECURITY DEFINER RPC
       if (!signUpData.session) {
         setIsNewSignup(true);
         try {
+          const photoUrl = photoFile ? await uploadFilePending(photoFile, newUser.id, "photos") : null;
+          const idDocUrl = idDocFile ? await uploadFilePending(idDocFile, newUser.id, "id-documents") : null;
+
           const { error: rpcError } = await supabase.rpc("submit_agent_application", {
             p_user_id: newUser.id,
             p_email: formData.email,
@@ -197,6 +243,8 @@ const RiderApplication = () => {
             p_business_type: "individual",
             p_business_name: null,
             p_business_address: null,
+            p_photo_url: photoUrl,
+            p_id_document_url: idDocUrl,
           });
           if (rpcError) throw rpcError;
         } catch (err: any) {
@@ -402,21 +450,25 @@ const RiderApplication = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Full Name *</Label>
-                      <Input value={formData.full_name} onChange={(e) => handleInputChange("full_name", e.target.value)} placeholder="Enter your full name" />
+                      <Input value={formData.full_name} onChange={(e) => handleInputChange("full_name", e.target.value)} placeholder="First and last name" className={errors.full_name ? "border-destructive" : ""} />
+                      {errors.full_name && <p className="text-xs text-destructive">{errors.full_name}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label>Email *</Label>
-                      <Input type="email" value={formData.email} onChange={(e) => handleInputChange("email", e.target.value)} />
+                      <Input type="email" value={formData.email} onChange={(e) => handleInputChange("email", e.target.value)} className={errors.email ? "border-destructive" : ""} />
+                      {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Phone *</Label>
-                      <Input value={formData.phone} onChange={(e) => handleInputChange("phone", e.target.value)} placeholder="08012345678" />
+                      <Input value={formData.phone} onChange={(e) => handleInputChange("phone", e.target.value)} placeholder="08012345678" className={errors.phone ? "border-destructive" : ""} />
+                      {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label>Date of Birth *</Label>
-                      <Input type="date" value={formData.date_of_birth} onChange={(e) => handleInputChange("date_of_birth", e.target.value)} />
+                      <Input type="date" value={formData.date_of_birth} onChange={(e) => handleInputChange("date_of_birth", e.target.value)} className={errors.date_of_birth ? "border-destructive" : ""} max={new Date(Date.now() - 18 * 365.25 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]} />
+                      {errors.date_of_birth && <p className="text-xs text-destructive">{errors.date_of_birth}</p>}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -425,22 +477,26 @@ const RiderApplication = () => {
                       <div className="flex items-center space-x-2"><RadioGroupItem value="male" id="rmale" /><Label htmlFor="rmale">Male</Label></div>
                       <div className="flex items-center space-x-2"><RadioGroupItem value="female" id="rfemale" /><Label htmlFor="rfemale">Female</Label></div>
                     </RadioGroup>
+                    {errors.gender && <p className="text-xs text-destructive">{errors.gender}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label>Address *</Label>
-                    <Input value={formData.address} onChange={(e) => handleInputChange("address", e.target.value)} placeholder="Street address" />
+                    <Input value={formData.address} onChange={(e) => handleInputChange("address", e.target.value)} placeholder="Street address" className={errors.address ? "border-destructive" : ""} />
+                    {errors.address && <p className="text-xs text-destructive">{errors.address}</p>}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>City *</Label>
-                      <Input value={formData.city} onChange={(e) => handleInputChange("city", e.target.value)} />
+                      <Input value={formData.city} onChange={(e) => handleInputChange("city", e.target.value)} className={errors.city ? "border-destructive" : ""} />
+                      {errors.city && <p className="text-xs text-destructive">{errors.city}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label>State *</Label>
                       <Select value={formData.state} onValueChange={(v) => handleInputChange("state", v)}>
-                        <SelectTrigger><SelectValue placeholder="Select state" /></SelectTrigger>
+                        <SelectTrigger className={errors.state ? "border-destructive" : ""}><SelectValue placeholder="Select state" /></SelectTrigger>
                         <SelectContent>{nigerianStates.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                       </Select>
+                      {errors.state && <p className="text-xs text-destructive">{errors.state}</p>}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -453,11 +509,13 @@ const RiderApplication = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label>Password *</Label>
-                          <Input type="password" value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} placeholder="Min. 6 characters" />
+                          <Input type="password" value={formData.password} onChange={(e) => handleInputChange("password", e.target.value)} placeholder="Min. 6 characters" className={errors.password ? "border-destructive" : ""} />
+                          {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                         </div>
                         <div className="space-y-2">
                           <Label>Confirm Password *</Label>
-                          <Input type="password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} placeholder="Re-enter password" />
+                          <Input type="password" value={formData.confirmPassword} onChange={(e) => handleInputChange("confirmPassword", e.target.value)} placeholder="Re-enter password" className={errors.confirmPassword ? "border-destructive" : ""} />
+                          {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword}</p>}
                         </div>
                       </div>
                     </div>
@@ -471,7 +529,7 @@ const RiderApplication = () => {
                     <div className="space-y-2">
                       <Label>ID Type *</Label>
                       <Select value={formData.id_type} onValueChange={(v) => handleInputChange("id_type", v)}>
-                        <SelectTrigger><SelectValue placeholder="Select ID type" /></SelectTrigger>
+                        <SelectTrigger className={errors.id_type ? "border-destructive" : ""}><SelectValue placeholder="Select ID type" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="nin">NIN</SelectItem>
                           <SelectItem value="voters_card">Voter's Card</SelectItem>
@@ -479,10 +537,12 @@ const RiderApplication = () => {
                           <SelectItem value="passport">International Passport</SelectItem>
                         </SelectContent>
                       </Select>
+                      {errors.id_type && <p className="text-xs text-destructive">{errors.id_type}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label>ID Number *</Label>
-                      <Input value={formData.id_number} onChange={(e) => handleInputChange("id_number", e.target.value)} />
+                      <Input value={formData.id_number} onChange={(e) => handleInputChange("id_number", e.target.value)} className={errors.id_number ? "border-destructive" : ""} />
+                      {errors.id_number && <p className="text-xs text-destructive">{errors.id_number}</p>}
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -492,18 +552,21 @@ const RiderApplication = () => {
                   <div className="space-y-2">
                     <Label>Bank *</Label>
                     <Select value={formData.bank_name} onValueChange={(v) => handleInputChange("bank_name", v)}>
-                      <SelectTrigger><SelectValue placeholder="Select bank" /></SelectTrigger>
+                      <SelectTrigger className={errors.bank_name ? "border-destructive" : ""}><SelectValue placeholder="Select bank" /></SelectTrigger>
                       <SelectContent>{nigerianBanks.map((b) => <SelectItem key={b} value={b}>{b}</SelectItem>)}</SelectContent>
                     </Select>
+                    {errors.bank_name && <p className="text-xs text-destructive">{errors.bank_name}</p>}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Account Number *</Label>
-                      <Input value={formData.account_number} onChange={(e) => handleInputChange("account_number", e.target.value)} maxLength={10} />
+                      <Input value={formData.account_number} onChange={(e) => handleInputChange("account_number", e.target.value.replace(/\D/g, ""))} maxLength={10} inputMode="numeric" className={errors.account_number ? "border-destructive" : ""} />
+                      {errors.account_number && <p className="text-xs text-destructive">{errors.account_number}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label>Account Name *</Label>
-                      <Input value={formData.account_name} onChange={(e) => handleInputChange("account_name", e.target.value)} />
+                      <Input value={formData.account_name} onChange={(e) => handleInputChange("account_name", e.target.value)} className={errors.account_name ? "border-destructive" : ""} />
+                      {errors.account_name && <p className="text-xs text-destructive">{errors.account_name}</p>}
                     </div>
                   </div>
                 </>
@@ -540,11 +603,11 @@ const RiderApplication = () => {
                   <ArrowLeft className="w-4 h-4 mr-2" /> Back
                 </Button>
                 {step < totalSteps ? (
-                  <Button onClick={() => setStep(step + 1)}>
+                  <Button onClick={() => { if (validateStep(step)) setStep(step + 1); }}>
                     Next <ArrowRight className="w-4 h-4 ml-2" />
                   </Button>
                 ) : (
-                  <Button onClick={handleSubmit} disabled={loading}>
+                  <Button onClick={() => { if (validateStep(step)) handleSubmit(); }} disabled={loading}>
                     {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</> : "Submit Application"}
                   </Button>
                 )}
