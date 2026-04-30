@@ -6,7 +6,23 @@
 -- RUN IN SUPABASE DASHBOARD → SQL Editor
 -- =============================================================================
 
-CREATE OR REPLACE FUNCTION public.submit_agent_application(
+-- Drop ALL existing overloads of this function to avoid "not unique" errors
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT oid::regprocedure AS sig
+    FROM pg_proc
+    WHERE proname = 'submit_agent_application'
+      AND pronamespace = 'public'::regnamespace
+  LOOP
+    EXECUTE 'DROP FUNCTION IF EXISTS ' || r.sig || ' CASCADE';
+  END LOOP;
+END;
+$$;
+
+CREATE FUNCTION public.submit_agent_application(
   p_user_id        uuid,
   p_email          text,
   p_full_name      text,
@@ -78,5 +94,9 @@ BEGIN
 END;
 $$;
 
--- Allow anon and authenticated users to call this function
-GRANT EXECUTE ON FUNCTION public.submit_agent_application TO anon, authenticated;
+-- Grant with full argument list to avoid ambiguity
+GRANT EXECUTE ON FUNCTION public.submit_agent_application(
+  uuid, text, text, text, text, text, text, text, text,
+  text, text, text, text, text, text, text,
+  boolean, boolean, text, text[], text, text, text, text, text
+) TO anon, authenticated;
