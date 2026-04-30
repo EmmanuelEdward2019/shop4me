@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AgentDashboardLayout from "@/components/dashboard/AgentDashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Package, Clock, CheckCircle, Wallet, ArrowRight, TrendingUp } from "lucide-react";
+import { Package, Clock, CheckCircle, Wallet, ArrowRight, TrendingUp, Store } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface AgentStats {
@@ -24,10 +24,20 @@ interface RecentOrder {
   estimated_total: number | null;
 }
 
+interface AssignedStore {
+  id: string;
+  name: string;
+  branch_name: string | null;
+  parent_brand: string | null;
+  area: string;
+  city: string;
+}
+
 const AgentDashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState<AgentStats | null>(null);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [assignedStores, setAssignedStores] = useState<AssignedStore[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState<string>("");
 
@@ -94,6 +104,13 @@ const AgentDashboard = () => {
       });
 
       setRecentOrders(allOrders);
+
+      const { data: stores } = await supabase
+        .from("stores")
+        .select("id, name, branch_name, parent_brand, area, city")
+        .eq("assigned_agent_id", user?.id)
+        .eq("is_active", true);
+      setAssignedStores(stores || []);
     } catch (error) {
       console.error("Error fetching agent dashboard data:", error);
     } finally {
@@ -239,6 +256,40 @@ const AgentDashboard = () => {
             </>
           )}
         </div>
+
+        {/* Assigned Stores */}
+        {!loading && assignedStores.length > 0 && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Store className="w-5 h-5 text-primary" />
+                <CardTitle className="font-display">Your Assigned Stores</CardTitle>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Orders from these stores are routed directly to you.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {assignedStores.map((store) => {
+                  const displayName = store.parent_brand || store.name;
+                  const subName = store.branch_name || store.area;
+                  return (
+                    <div key={store.id} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Store className="w-4 h-4 text-primary" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-sm text-foreground truncate">{displayName}</p>
+                        <p className="text-xs text-muted-foreground truncate">{subName} · {store.city}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recent Orders */}
         <Card>

@@ -217,7 +217,7 @@ const RiderApplication = () => {
           const photoUrl = photoFile ? await uploadFilePending(photoFile, newUser.id, "photos") : null;
           const idDocUrl = idDocFile ? await uploadFilePending(idDocFile, newUser.id, "id-documents") : null;
 
-          const { error: rpcError } = await supabase.rpc("submit_agent_application", {
+          const baseRpcParams = {
             p_user_id: newUser.id,
             p_email: formData.email,
             p_full_name: formData.full_name,
@@ -243,9 +243,17 @@ const RiderApplication = () => {
             p_business_type: "individual",
             p_business_name: null,
             p_business_address: null,
+          };
+          let { error: rpcError } = await supabase.rpc("submit_agent_application", {
+            ...baseRpcParams,
             p_photo_url: photoUrl,
             p_id_document_url: idDocUrl,
           });
+          // Fall back to the v1 signature if the DB hasn't been migrated yet
+          if (rpcError && rpcError.message?.includes("Could not find the function")) {
+            const fallback = await supabase.rpc("submit_agent_application", baseRpcParams);
+            rpcError = fallback.error;
+          }
           if (rpcError) throw rpcError;
         } catch (err: any) {
           toast({ title: "Submission Failed", description: err.message || "Please try again.", variant: "destructive" });

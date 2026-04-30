@@ -23,6 +23,7 @@ interface AgentWithStats {
   total_earnings: number;
   pending_earnings: number;
   service_zone: string | null;
+  assigned_stores: { name: string; branch_name: string | null; parent_brand: string | null; area: string }[];
 }
 
 const AdminAgents = () => {
@@ -50,15 +51,17 @@ const AdminAgents = () => {
 
       const agentIds = agentRoles.map((r) => r.user_id);
 
-      const [profilesResult, ordersResult, earningsResult] = await Promise.all([
+      const [profilesResult, ordersResult, earningsResult, storesResult] = await Promise.all([
         supabase.from("profiles").select("*").in("user_id", agentIds),
         supabase.from("orders").select("agent_id, status").in("agent_id", agentIds),
         supabase.from("agent_earnings").select("agent_id, amount, status").in("agent_id", agentIds),
+        supabase.from("stores").select("assigned_agent_id, name, branch_name, parent_brand, area").in("assigned_agent_id", agentIds),
       ]);
 
       const profiles = profilesResult.data || [];
       const orders = ordersResult.data || [];
       const earnings = earningsResult.data || [];
+      const stores = storesResult.data || [];
 
       const agentsWithStats: AgentWithStats[] = profiles.map((profile) => {
         const agentOrders = orders.filter((o) => o.agent_id === profile.user_id);
@@ -66,6 +69,7 @@ const AdminAgents = () => {
         const agentEarnings = earnings.filter((e) => e.agent_id === profile.user_id);
         const totalEarnings = agentEarnings.filter((e) => e.status === "paid").reduce((sum, e) => sum + Number(e.amount), 0);
         const pendingEarnings = agentEarnings.filter((e) => e.status === "pending").reduce((sum, e) => sum + Number(e.amount), 0);
+        const agentStores = stores.filter((s) => s.assigned_agent_id === profile.user_id);
 
         return {
           user_id: profile.user_id,
@@ -77,6 +81,7 @@ const AdminAgents = () => {
           total_earnings: totalEarnings,
           pending_earnings: pendingEarnings,
           service_zone: profile.service_zone,
+          assigned_stores: agentStores,
         };
       });
 
@@ -179,6 +184,7 @@ const AdminAgents = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Agent</TableHead>
+                      <TableHead>Assigned Stores</TableHead>
                       <TableHead>Service Zone</TableHead>
                       <TableHead>Phone</TableHead>
                       <TableHead>Completed</TableHead>
@@ -195,6 +201,23 @@ const AdminAgents = () => {
                             <p className="font-medium">{agent.full_name || "No name"}</p>
                             <p className="text-sm text-muted-foreground">{agent.email}</p>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          {agent.assigned_stores.length === 0 ? (
+                            <span className="text-xs text-muted-foreground">None assigned</span>
+                          ) : (
+                            <div className="flex flex-wrap gap-1 max-w-[200px]">
+                              {agent.assigned_stores.map((s, i) => (
+                                <span
+                                  key={i}
+                                  className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-primary/10 text-primary font-medium truncate max-w-[180px]"
+                                  title={`${s.parent_brand || s.name}${s.branch_name ? ` – ${s.branch_name}` : ""} (${s.area})`}
+                                >
+                                  {s.parent_brand || s.name}{s.branch_name ? ` – ${s.branch_name}` : ""}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell>
                           <Select
