@@ -63,7 +63,9 @@ type EmailType =
   | "compliance_reinstatement"
   | "withdrawal_requested"
   | "withdrawal_transferred"
-  | "withdrawal_confirmed";
+  | "withdrawal_confirmed"
+  | "agent_approved"
+  | "rider_approved";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -527,6 +529,64 @@ Deno.serve(async (req) => {
         const failed = results.filter((r) => !r.success);
         if (failed.length > 0) throw new Error(failed[0].error);
         return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+
+      // ─── Agent Approved ───────────────────────────────────
+      case "agent_approved": {
+        const { email, name, stores } = data;
+        to = email;
+        subject = "Congratulations! Your Shop4Me Agent Application is Approved";
+        const storeList = Array.isArray(stores) && stores.length > 0
+          ? stores.map((s: any) => {
+              const fullName = [s.parent_brand, s.name, s.branch_name].filter(Boolean).join(" – ");
+              return `<li style="margin:4px 0;">${fullName}</li>`;
+            }).join("")
+          : `<li style="margin:4px 0;">To be assigned by your area coordinator</li>`;
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">We're thrilled to welcome you to the Shop4Me agent team! Your application has been reviewed and approved.</p>` +
+            infoBox(
+              `<p style="margin:0 0 8px;"><strong>Your Assigned Store(s):</strong></p>
+               <ul style="margin:0;padding-left:20px;">${storeList}</ul>`
+            ) +
+            `<p style="color:#4a4a4a;font-size:16px;"><strong>Next Steps:</strong></p>
+             <ol style="color:#4a4a4a;font-size:15px;line-height:1.9;padding-left:20px;margin:0 0 20px;">
+               <li>Log out of your current session and log back in to activate your Agent Dashboard.</li>
+               <li>Go to <strong>Available Orders</strong> to start seeing orders from your assigned store(s).</li>
+               <li>Accept orders and shop on behalf of buyers — your earnings are recorded automatically.</li>
+               <li>Withdraw your earnings anytime from the <strong>Wallet</strong> section.</li>
+             </ol>` +
+            ctaButton("Open Agent Dashboard", "https://shop4meng.com/agent") +
+            `<p style="color:#6b7280;font-size:14px;">Need help getting started? Visit our <a href="https://shop4meng.com/help" style="color:#16a34a;">Help Center</a>.</p>`
+        );
+        break;
+      }
+
+      // ─── Rider Approved ───────────────────────────────────
+      case "rider_approved": {
+        const { email, name } = data;
+        to = email;
+        subject = "Congratulations! Your Shop4Me Rider Application is Approved";
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">Great news! Your rider application has been reviewed and approved. You're now part of the Shop4Me delivery network.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>Role:</strong> Delivery Rider</p>
+               <p style="margin:6px 0 0;color:#16a34a;font-weight:600;">✅ Application Approved</p>`
+            ) +
+            `<p style="color:#4a4a4a;font-size:16px;"><strong>Next Steps:</strong></p>
+             <ol style="color:#4a4a4a;font-size:15px;line-height:1.9;padding-left:20px;margin:0 0 20px;">
+               <li>Log out of your current session and log back in to activate your Rider Dashboard.</li>
+               <li>Browse available delivery requests and accept ones in your area.</li>
+               <li>Pick up orders from agents and deliver to buyers — confirm receipt to complete each job.</li>
+               <li>Withdraw your delivery earnings to your registered bank account via the <strong>Wallet</strong> section.</li>
+             </ol>` +
+            ctaButton("Open Rider Dashboard", "https://shop4meng.com/rider") +
+            `<p style="color:#6b7280;font-size:14px;">Need help? Visit our <a href="https://shop4meng.com/help" style="color:#16a34a;">Help Center</a>.</p>`
+        );
+        break;
       }
 
       default:

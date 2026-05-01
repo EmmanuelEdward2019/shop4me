@@ -164,7 +164,27 @@ const AdminApplications = () => {
         prev.map((a) => (a.id === app.id ? { ...a, status: "approved" as ApplicationStatus } : a))
       );
 
-      const roleLabel = app.role_type === "rider" ? "rider" : "agent";
+      const isRider = app.role_type === "rider" || app.role_type === "delivery_rider";
+      const roleLabel = isRider ? "rider" : "agent";
+
+      // Send approval email (fire-and-forget)
+      if (isRider) {
+        supabase.functions.invoke("send-notification-email", {
+          body: { type: "rider_approved", data: { email: app.email, name: app.full_name } },
+        }).catch((err) => console.error("Rider approval email failed:", err));
+      } else {
+        supabase
+          .from("store_agents")
+          .select("store:stores(name, branch_name, parent_brand)")
+          .eq("agent_id", app.user_id)
+          .then(({ data: storeData }) => {
+            const stores = (storeData || []).map((sa: any) => sa.store).filter(Boolean);
+            supabase.functions.invoke("send-notification-email", {
+              body: { type: "agent_approved", data: { email: app.email, name: app.full_name, stores } },
+            }).catch((err) => console.error("Agent approval email failed:", err));
+          });
+      }
+
       toast({
         title: "Application Approved",
         description: `${app.full_name} has been approved as a ${roleLabel}. They must log out and log back in to access the ${roleLabel} dashboard.`,
