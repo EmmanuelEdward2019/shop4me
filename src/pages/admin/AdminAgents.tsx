@@ -51,17 +51,17 @@ const AdminAgents = () => {
 
       const agentIds = agentRoles.map((r) => r.user_id);
 
-      const [profilesResult, ordersResult, earningsResult, storesResult] = await Promise.all([
+      const [profilesResult, ordersResult, earningsResult, storeAgentsResult] = await Promise.all([
         supabase.from("profiles").select("*").in("user_id", agentIds),
         supabase.from("orders").select("agent_id, status").in("agent_id", agentIds),
         supabase.from("agent_earnings").select("agent_id, amount, status").in("agent_id", agentIds),
-        supabase.from("stores").select("assigned_agent_id, name, branch_name, parent_brand, area").in("assigned_agent_id", agentIds),
+        supabase.from("store_agents").select("agent_id, store:stores(name, branch_name, parent_brand, area)").in("agent_id", agentIds),
       ]);
 
       const profiles = profilesResult.data || [];
       const orders = ordersResult.data || [];
       const earnings = earningsResult.data || [];
-      const stores = storesResult.data || [];
+      const storeAgentRows = storeAgentsResult.data || [];
 
       const agentsWithStats: AgentWithStats[] = profiles.map((profile) => {
         const agentOrders = orders.filter((o) => o.agent_id === profile.user_id);
@@ -69,7 +69,10 @@ const AdminAgents = () => {
         const agentEarnings = earnings.filter((e) => e.agent_id === profile.user_id);
         const totalEarnings = agentEarnings.filter((e) => e.status === "paid").reduce((sum, e) => sum + Number(e.amount), 0);
         const pendingEarnings = agentEarnings.filter((e) => e.status === "pending").reduce((sum, e) => sum + Number(e.amount), 0);
-        const agentStores = stores.filter((s) => s.assigned_agent_id === profile.user_id);
+        const agentStores = (storeAgentRows as any[])
+          .filter((sa) => sa.agent_id === profile.user_id)
+          .map((sa) => sa.store)
+          .filter(Boolean);
 
         return {
           user_id: profile.user_id,

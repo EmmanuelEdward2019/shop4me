@@ -33,7 +33,7 @@ const AvailableOrders = () => {
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState<string | null>(null);
 
-  // Real-time notification sound for new orders
+  // Real-time notification sound + list refresh for new orders
   useOrderNotificationSound("orders", {
     onNewRecord: () => fetchAvailableOrders(),
   });
@@ -41,6 +41,26 @@ const AvailableOrders = () => {
   useEffect(() => {
     fetchAvailableOrders();
   }, []);
+
+  // Real-time: remove orders the moment another agent accepts them
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("available-orders-updates")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "orders" },
+        (payload) => {
+          const updated = payload.new as { id: string; status: string; agent_id: string | null };
+          // Drop from list if no longer pending or claimed by someone else
+          if (updated.status !== "pending" || (updated.agent_id && updated.agent_id !== user.id)) {
+            setOrders((prev) => prev.filter((o) => o.id !== updated.id));
+          }
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const fetchAvailableOrders = useCallback(async () => {
     setLoading(true);

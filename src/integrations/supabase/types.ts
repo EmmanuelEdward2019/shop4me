@@ -1138,6 +1138,39 @@ export type Database = {
         }
         Relationships: []
       }
+      store_agents: {
+        Row: {
+          store_id: string
+          agent_id: string
+          assigned_at: string
+        }
+        Insert: {
+          store_id: string
+          agent_id: string
+          assigned_at?: string
+        }
+        Update: {
+          store_id?: string
+          agent_id?: string
+          assigned_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_agents_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_agents_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       store_categories: {
         Row: {
           created_at: string

@@ -199,6 +199,16 @@ const NewOrderPage = () => {
   const selectedLocation = watch("location");
   const locationData = allStores.find((s) => s.name === selectedLocation);
 
+  const [storeAgentIds, setStoreAgentIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (!locationData?.id) { setStoreAgentIds([]); return; }
+    supabase
+      .from("store_agents")
+      .select("agent_id")
+      .eq("store_id", locationData.id)
+      .then(({ data }) => setStoreAgentIds((data || []).map((r: any) => r.agent_id)));
+  }, [locationData?.id]);
+
   const onSubmit = async (data: OrderFormData) => {
     if (!user) return;
 
@@ -218,8 +228,9 @@ const NewOrderPage = () => {
       // Get delivery GPS from the selected address
       const selectedAddr = savedAddresses.find(a => a.id === data.delivery_address_id);
 
-      // If the chosen store has a dedicated agent, pre-assign the order to them
-      const dedicatedAgentId = locationData?.assigned_agent_id ?? null;
+      // Pre-assign only when exactly one agent covers this store.
+      // Multiple agents → agent_id = null (open order, all store agents notified via push).
+      const dedicatedAgentId = storeAgentIds.length === 1 ? storeAgentIds[0] : null;
 
       const { data: order, error: orderError } = await supabase
         .from("orders")

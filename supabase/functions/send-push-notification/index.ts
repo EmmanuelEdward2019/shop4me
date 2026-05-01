@@ -50,22 +50,28 @@ serve(async (req) => {
       const serviceZone = order.service_zone ? String(order.service_zone).trim().toLowerCase() : null;
       const locationName = String(order.location_name || "a store");
 
-      // ── Check for dedicated store agent first ──
-      const { data: storeData } = await supabase
+      // ── Check for dedicated store agents (multi-agent) ──
+      let agentUserIds: string[] = [];
+
+      const { data: storeRow } = await supabase
         .from("stores")
-        .select("assigned_agent_id")
+        .select("id")
         .ilike("name", locationName)
-        .not("assigned_agent_id", "is", null)
         .limit(1)
         .maybeSingle();
 
-      let agentUserIds: string[] = [];
+      if (storeRow?.id) {
+        const { data: storeAgents } = await supabase
+          .from("store_agents")
+          .select("agent_id")
+          .eq("store_id", storeRow.id);
+        if (storeAgents && storeAgents.length > 0) {
+          agentUserIds = storeAgents.map((sa: { agent_id: string }) => sa.agent_id);
+          console.log(`${agentUserIds.length} dedicated agent(s) for store "${locationName}"`);
+        }
+      }
 
-      if (storeData?.assigned_agent_id) {
-        // Dedicated agent for this store — notify only them
-        agentUserIds = [storeData.assigned_agent_id];
-        console.log(`Dedicated agent ${storeData.assigned_agent_id} for store "${locationName}"`);
-      } else {
+      if (agentUserIds.length === 0) {
         // Fall back to zone-based routing
         agentUserIds = await getZonedAgentIds(supabase, serviceZone);
       }

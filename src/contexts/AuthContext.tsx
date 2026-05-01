@@ -39,28 +39,33 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setUser(session?.user ?? null);
         setLoading(false);
 
-        // On every sign-in: sync full_name from auth metadata into profiles
-        // This handles buyers, agents, and riders who signed up with email confirmation
-        // (the name is in metadata from signUp but the profile update couldn't run before confirmation)
         if (event === "SIGNED_IN" && session?.user) {
-          const name = session.user.user_metadata?.full_name;
-          if (name) {
-            supabase
-              .from("profiles")
-              .update({ full_name: name })
-              .eq("user_id", session.user.id)
-              .then(() => {});
-          }
+          // Check if account is suspended — sign out immediately if so
+          supabase
+            .from("profiles")
+            .select("is_suspended, full_name")
+            .eq("user_id", session.user.id)
+            .single()
+            .then(({ data }) => {
+              if (data?.is_suspended) {
+                supabase.auth.signOut();
+                return;
+              }
+              // Sync full_name from auth metadata
+              const name = session.user.user_metadata?.full_name;
+              if (name) {
+                supabase.from("profiles").update({ full_name: name }).eq("user_id", session.user.id).then(() => {});
+              }
+            });
 
           // Send welcome email on first login (after email confirmation)
+          const name = session.user.user_metadata?.full_name;
           const isFirstLogin = session.user.last_sign_in_at === session.user.created_at ||
             (new Date(session.user.last_sign_in_at || "").getTime() - new Date(session.user.created_at || "").getTime()) < 60000;
           if (isFirstLogin) {
-            const emailName = name || "";
-            const email = session.user.email || "";
             supabase.functions
               .invoke("send-notification-email", {
-                body: { type: "welcome", data: { email, name: emailName } },
+                body: { type: "welcome", data: { email: session.user.email || "", name: name || "" } },
               })
               .catch((err) => console.error("Welcome email failed:", err));
           }
@@ -77,6 +82,26 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // Real-time watch: if admin suspends this user while logged in, sign out immediately
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel(`profile-suspension-${user.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` },
+        (payload) => {
+          if (payload.new.is_suspended) {
+            supabase.auth.signOut();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const signUp = async (email: string, password: string, fullName?: string) => {
     const redirectUrl = "https://shop4meng.com/auth";

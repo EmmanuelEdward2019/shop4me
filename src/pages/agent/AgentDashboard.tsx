@@ -105,12 +105,14 @@ const AgentDashboard = () => {
 
       setRecentOrders(allOrders);
 
-      const { data: stores } = await supabase
-        .from("stores")
-        .select("id, name, branch_name, parent_brand, area, city")
-        .eq("assigned_agent_id", user?.id)
-        .eq("is_active", true);
-      setAssignedStores(stores || []);
+      const { data: storeAgentRows } = await supabase
+        .from("store_agents")
+        .select("store:stores(id, name, branch_name, parent_brand, area, city, is_active)")
+        .eq("agent_id", user?.id);
+      const stores = (storeAgentRows || [])
+        .map((sa: any) => sa.store)
+        .filter((s: any) => s?.is_active);
+      setAssignedStores(stores);
     } catch (error) {
       console.error("Error fetching agent dashboard data:", error);
     } finally {

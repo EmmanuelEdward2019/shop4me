@@ -71,8 +71,10 @@ const AdminStores = () => {
   const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [stores, setStores] = useState<StoreRecord[]>([]);
   const [agents, setAgents] = useState<AgentOption[]>([]);
+  // store_id → agent_ids (for table display)
+  const [storeAgentsMap, setStoreAgentsMap] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
-  
+
   // Category dialog
   const [catDialogOpen, setCatDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<StoreCategory | null>(null);
@@ -85,8 +87,11 @@ const AdminStores = () => {
   const [storeForm, setStoreForm] = useState({
     name: "", slug: "", category_id: "", area: "", city: "Port Harcourt",
     description: "", latitude: "", longitude: "", image_url: "",
-    assigned_agent_id: "", branch_name: "", parent_brand: "", address: "", phone: "",
+    branch_name: "", parent_brand: "", address: "", phone: "",
   });
+  // Agent IDs assigned to the store being edited
+  const [dialogAgentIds, setDialogAgentIds] = useState<string[]>([]);
+  const [agentToAdd, setAgentToAdd] = useState<string>("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [storeSaving, setStoreSaving] = useState(false);
 
@@ -94,14 +99,22 @@ const AdminStores = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const [catRes, storeRes, agentRes] = await Promise.all([
+    const [catRes, storeRes, agentRes, storeAgentsRes] = await Promise.all([
       supabase.from("store_categories").select("*").order("display_order"),
       supabase.from("stores").select("*").order("name"),
       supabase.from("agent_applications").select("user_id, full_name").eq("status", "approved"),
+      supabase.from("store_agents").select("store_id, agent_id"),
     ]);
     setCategories((catRes.data as StoreCategory[]) || []);
     setStores((storeRes.data as StoreRecord[]) || []);
     setAgents((agentRes.data as AgentOption[]) || []);
+    // Build store → [agent_id] map
+    const saMap: Record<string, string[]> = {};
+    for (const row of (storeAgentsRes.data || []) as { store_id: string; agent_id: string }[]) {
+      if (!saMap[row.store_id]) saMap[row.store_id] = [];
+      saMap[row.store_id].push(row.agent_id);
+    }
+    setStoreAgentsMap(saMap);
     setLoading(false);
   };
 
@@ -156,23 +169,26 @@ const AdminStores = () => {
 
   // Store CRUD
   const openStoreDialog = (store?: StoreRecord) => {
+    setAgentToAdd("");
     if (store) {
       setEditingStore(store);
       setStoreForm({
         name: store.name, slug: store.slug, category_id: store.category_id || "",
         area: store.area, city: store.city, description: store.description || "",
         latitude: store.latitude?.toString() || "", longitude: store.longitude?.toString() || "",
-        image_url: store.image_url || "", assigned_agent_id: store.assigned_agent_id || "",
+        image_url: store.image_url || "",
         branch_name: store.branch_name || "", parent_brand: store.parent_brand || "",
         address: store.address || "", phone: store.phone || "",
       });
+      setDialogAgentIds(storeAgentsMap[store.id] || []);
     } else {
       setEditingStore(null);
       setStoreForm({
         name: "", slug: "", category_id: "", area: "", city: "Port Harcourt",
         description: "", latitude: "", longitude: "", image_url: "",
-        assigned_agent_id: "", branch_name: "", parent_brand: "", address: "", phone: "",
+        branch_name: "", parent_brand: "", address: "", phone: "",
       });
+      setDialogAgentIds([]);
     }
     setStoreDialogOpen(true);
   };
@@ -188,20 +204,34 @@ const AdminStores = () => {
       latitude: storeForm.latitude ? parseFloat(storeForm.latitude) : null,
       longitude: storeForm.longitude ? parseFloat(storeForm.longitude) : null,
       image_url: storeForm.image_url || null,
-      assigned_agent_id: storeForm.assigned_agent_id || null,
       branch_name: storeForm.branch_name || null,
       parent_brand: storeForm.parent_brand || null,
       address: storeForm.address || null,
       phone: storeForm.phone || null,
     };
     try {
+      let storeId: string;
       if (editingStore) {
         const { error } = await supabase.from("stores").update(payload).eq("id", editingStore.id);
         if (error) throw error;
+        storeId = editingStore.id;
       } else {
-        const { error } = await supabase.from("stores").insert(payload);
+        const { data: newStore, error } = await supabase.from("stores").insert(payload).select("id").single();
         if (error) throw error;
+        storeId = newStore.id;
       }
+
+      // Sync store_agents: delete removed agents, insert new ones
+      const existing = storeAgentsMap[storeId] || [];
+      const toRemove = existing.filter(id => !dialogAgentIds.includes(id));
+      const toAdd = dialogAgentIds.filter(id => !existing.includes(id));
+      if (toRemove.length > 0) {
+        await supabase.from("store_agents").delete().eq("store_id", storeId).in("agent_id", toRemove);
+      }
+      if (toAdd.length > 0) {
+        await supabase.from("store_agents").insert(toAdd.map(agent_id => ({ store_id: storeId, agent_id })));
+      }
+
       toast.success(editingStore ? "Store updated" : "Store added");
       setStoreDialogOpen(false);
       fetchData();
@@ -294,7 +324,8 @@ const AdminStores = () => {
                     </TableHeader>
                     <TableBody>
                       {stores.map((store) => {
-                        const assignedAgent = agents.find(a => a.user_id === store.assigned_agent_id);
+                        const assignedAgentIds = storeAgentsMap[store.id] || [];
+                        const assignedAgents = agents.filter(a => assignedAgentIds.includes(a.user_id));
                         return (
                         <TableRow key={store.id}>
                           <TableCell>
@@ -317,8 +348,12 @@ const AdminStores = () => {
                           </TableCell>
                           <TableCell>{store.area}</TableCell>
                           <TableCell>
-                            {assignedAgent ? (
-                              <Badge variant="default" className="text-xs">{assignedAgent.full_name}</Badge>
+                            {assignedAgents.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {assignedAgents.map(a => (
+                                  <Badge key={a.user_id} variant="default" className="text-xs">{a.full_name}</Badge>
+                                ))}
+                              </div>
                             ) : (
                               <span className="text-muted-foreground text-xs">Unassigned</span>
                             )}
@@ -513,19 +548,63 @@ const AdminStores = () => {
                 <img src={storeForm.image_url} alt="Preview" className="w-full h-32 object-cover rounded-lg border border-border mt-2" />
               )}
             </div>
-            {/* Dedicated Agent Assignment */}
+            {/* Multi-agent Assignment */}
             <div className="space-y-2">
-              <Label>Dedicated Agent (optional)</Label>
-              <Select value={storeForm.assigned_agent_id} onValueChange={v => setStoreForm(p => ({ ...p, assigned_agent_id: v === "_none" ? "" : v }))}>
-                <SelectTrigger><SelectValue placeholder="No dedicated agent" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_none">No dedicated agent</SelectItem>
-                  {agents.map(a => (
-                    <SelectItem key={a.user_id} value={a.user_id}>{a.full_name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">If set, order notifications go only to this agent</p>
+              <Label>Assigned Agents</Label>
+              {dialogAgentIds.length > 0 ? (
+                <div className="flex flex-wrap gap-2 p-2 border rounded-md bg-muted/30">
+                  {dialogAgentIds.map(id => {
+                    const agent = agents.find(a => a.user_id === id);
+                    return (
+                      <span key={id} className="flex items-center gap-1 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full">
+                        {agent?.full_name || id}
+                        <button
+                          type="button"
+                          className="ml-1 hover:opacity-70"
+                          onClick={() => setDialogAgentIds(prev => prev.filter(i => i !== id))}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No agents assigned — orders will be routed by zone.</p>
+              )}
+              <div className="flex gap-2">
+                <Select
+                  value={agentToAdd}
+                  onValueChange={setAgentToAdd}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Add an agent…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {agents
+                      .filter(a => !dialogAgentIds.includes(a.user_id))
+                      .map(a => (
+                        <SelectItem key={a.user_id} value={a.user_id}>{a.full_name}</SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!agentToAdd}
+                  onClick={() => {
+                    if (agentToAdd && !dialogAgentIds.includes(agentToAdd)) {
+                      setDialogAgentIds(prev => [...prev, agentToAdd]);
+                    }
+                    setAgentToAdd("");
+                  }}
+                >
+                  Add
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Multiple agents can operate in large stores. All get notified on new orders.</p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
