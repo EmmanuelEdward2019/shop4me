@@ -97,29 +97,91 @@ const AdminSettings = () => {
   const saveAll = async () => {
     setSaving(true);
     try {
-      // Upsert tiers — replace approach: delete then insert (simpler + atomic enough for admin tool)
-      await supabase.from("service_fee_tiers" as any).delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      // ── Service fee tiers ──────────────────────────────────────────────────
+      const { error: sDelErr } = await supabase
+        .from("service_fee_tiers" as any)
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+      if (sDelErr) throw sDelErr;
+
       if (serviceTiers.length) {
-        await supabase.from("service_fee_tiers" as any).insert(
-          serviceTiers.map((t, i) => ({ ...t, display_order: i + 1, id: undefined })),
-        );
+        const { error: sInsErr } = await supabase
+          .from("service_fee_tiers" as any)
+          .insert(
+            serviceTiers.map((t, i) => ({
+              min_subtotal: t.min_subtotal,
+              max_subtotal: t.max_subtotal,
+              percentage: t.percentage,
+              display_order: i + 1,
+              is_active: t.is_active,
+            })),
+          );
+        if (sInsErr) throw sInsErr;
       }
-      await supabase.from("delivery_fee_tiers" as any).delete().neq("id", "00000000-0000-0000-0000-000000000000");
+
+      // ── Delivery fee tiers ─────────────────────────────────────────────────
+      const { error: dDelErr } = await supabase
+        .from("delivery_fee_tiers" as any)
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+      if (dDelErr) throw dDelErr;
+
       if (deliveryTiers.length) {
-        await supabase.from("delivery_fee_tiers" as any).insert(
-          deliveryTiers.map((t, i) => ({ ...t, display_order: i + 1, id: undefined })),
-        );
+        const { error: dInsErr } = await supabase
+          .from("delivery_fee_tiers" as any)
+          .insert(
+            deliveryTiers.map((t, i) => ({
+              min_km: t.min_km,
+              max_km: t.max_km,
+              fee: t.fee,
+              display_order: i + 1,
+              is_active: t.is_active,
+            })),
+          );
+        if (dInsErr) throw dInsErr;
       }
-      await Promise.all([
+
+      // ── Platform settings ──────────────────────────────────────────────────
+      const settingResults = await Promise.all([
         updateSetting("surge_active", surgeActive),
         updateSetting("surge_multiplier", surgeMultiplier),
         updateSetting("heavy_order_surcharge", heavySurcharge),
         updateSetting("minimum_delivery_fee", minDeliveryFee),
       ]);
+      for (const r of settingResults) {
+        if ((r as any).error) throw (r as any).error;
+      }
+
       toast({ title: "Settings saved", description: "All fee rules are live." });
+
+      // Re-fetch to confirm what was actually persisted
+      const [s, d] = await Promise.all([
+        supabase.from("service_fee_tiers" as any).select("*").order("display_order"),
+        supabase.from("delivery_fee_tiers" as any).select("*").order("display_order"),
+      ]);
+      if (s.data) setServiceTiers((s.data as any[]).map((r) => ({
+        id: r.id,
+        min_subtotal: Number(r.min_subtotal),
+        max_subtotal: r.max_subtotal == null ? null : Number(r.max_subtotal),
+        percentage: Number(r.percentage),
+        display_order: r.display_order,
+        is_active: r.is_active,
+      })));
+      if (d.data) setDeliveryTiers((d.data as any[]).map((r) => ({
+        id: r.id,
+        min_km: Number(r.min_km),
+        max_km: r.max_km == null ? null : Number(r.max_km),
+        fee: Number(r.fee),
+        display_order: r.display_order,
+        is_active: r.is_active,
+      })));
     } catch (err: any) {
-      console.error(err);
-      toast({ title: "Error", description: err.message ?? "Failed to save", variant: "destructive" });
+      console.error("Settings save error:", err);
+      toast({
+        title: "Save failed",
+        description: err.message ?? "An error occurred. Your previous settings may have been cleared — please re-enter and save again.",
+        variant: "destructive",
+      });
     } finally {
       setSaving(false);
     }
