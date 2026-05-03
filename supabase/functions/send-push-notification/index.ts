@@ -40,7 +40,7 @@ serve(async (req) => {
       const webhook = rawBody as WebhookPayload;
       const order = webhook.record;
 
-      if (order.status !== "pending" || order.agent_id) {
+      if (order.status !== "pending") {
         return new Response(
           JSON.stringify({ success: true, message: "Not a new pending order, skipping" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -49,8 +49,28 @@ serve(async (req) => {
 
       const serviceZone = order.service_zone ? String(order.service_zone).trim().toLowerCase() : null;
       const locationName = String(order.location_name || "a store");
+      const orderId = String(order.id);
+      const pushData = { orderId, service_zone: serviceZone || "" };
 
-      // ── Check for dedicated store agents (multi-agent) ──
+      // ── Pre-assigned to a specific agent (single dedicated store agent) ──────
+      // Notify that agent directly — do NOT skip just because agent_id is set.
+      if (order.agent_id) {
+        const results = await sendPushToUsers(
+          supabase,
+          [String(order.agent_id)],
+          "🛒 New Order Assigned to You!",
+          `A new order from ${locationName} is waiting for you.`,
+          undefined,
+          pushData
+        );
+        console.log(`Webhook push (pre-assigned): agent=${order.agent_id}, store="${locationName}"`);
+        return new Response(
+          JSON.stringify({ success: true, results }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // ── No pre-assignment — look up store agents then fall back to zone ──────
       let agentUserIds: string[] = [];
 
       const { data: storeRow } = await supabase
@@ -72,7 +92,6 @@ serve(async (req) => {
       }
 
       if (agentUserIds.length === 0) {
-        // Fall back to zone-based routing
         agentUserIds = await getZonedAgentIds(supabase, serviceZone);
       }
 
@@ -84,11 +103,12 @@ serve(async (req) => {
         );
       }
 
-      const title = "🛒 New Order Available!";
-      const body = `New order from ${locationName}. Accept it now!`;
-      const data = { orderId: String(order.id), service_zone: serviceZone || "" };
-
-      const results = await sendPushToUsers(supabase, agentUserIds, title, body, undefined, data);
+      const results = await sendPushToUsers(
+        supabase, agentUserIds,
+        "🛒 New Order Available!",
+        `New order from ${locationName}. Accept it now!`,
+        undefined, pushData
+      );
 
       console.log(`Webhook push: store="${locationName}", zone="${serviceZone}", agents=${agentUserIds.length}`);
       return new Response(
