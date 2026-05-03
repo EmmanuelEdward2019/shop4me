@@ -5,7 +5,6 @@ import { ChatBubble } from "./ChatBubble";
 import { ChatInput } from "./ChatInput";
 import { TypingIndicator } from "./TypingIndicator";
 import { UnreadDivider } from "./UnreadDivider";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare } from "lucide-react";
 import { PaymentMethodDialog } from "@/components/payment/PaymentMethodDialog";
@@ -37,6 +36,7 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
     markOrderMessagesRead,
   } = useChat({ orderId });
   const scrollRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -68,10 +68,7 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
   }, [messages, firstUnreadId, user]);
 
   useEffect(() => {
-    // Scroll to bottom when new messages arrive
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    bottomRef.current?.scrollIntoView({ behavior: "instant" });
   }, [messages, typingUsers]);
 
   // Flush queued read-marks in batches to avoid chatty requests
@@ -139,11 +136,12 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
       setShowPaymentDialog(true);
     } else if (action === "edit") {
       await sendMessage(
-        "I've made some changes to the invoice",
+        "I've reviewed the invoice and requested some changes. Please send me a revised invoice.",
         "invoice_response",
         {
           invoiceId: orderId,
           action: "edited",
+          editedItems: changes?.editedItems,
           changes: changes?.changes,
           approvedTotal: changes?.approvedTotal,
         }
@@ -168,7 +166,7 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
   return (
     <>
       <div className={`flex flex-col h-full ${className}`}>
-        <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-12">
               <MessageSquare className="w-12 h-12 text-muted-foreground mb-3" />
@@ -218,7 +216,8 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
           })()
           }
           {typingUsers.length > 0 && <TypingIndicator />}
-        </ScrollArea>
+          <div ref={bottomRef} />
+        </div>
         <ChatInput
           onSend={handleSendMessage}
           onPhotoUpload={handlePhotoUpload}

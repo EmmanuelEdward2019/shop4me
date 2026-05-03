@@ -85,6 +85,7 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
         }));
 
       onAction?.("edit", {
+        editedItems,
         changes: [...changes, ...removed, ...substitutes],
         approvedTotal: calculateTotal(),
       });

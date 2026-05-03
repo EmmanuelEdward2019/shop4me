@@ -13,6 +13,8 @@ import type { InvoiceItem, InvoiceMetadata, ShoppingListItem } from "@/types/cha
 
 interface AgentInvoiceFormProps {
   shoppingList: ShoppingListItem[];
+  /** Pre-filled items from buyer's invoice_response — overrides shoppingList derivation. */
+  initialItems?: InvoiceItem[];
   /** Optional GPS context — passed to the canonical fee calculator. */
   storeLat?: number | null;
   storeLng?: number | null;
@@ -28,6 +30,7 @@ interface AgentInvoiceFormProps {
 
 export const AgentInvoiceForm = ({
   shoppingList,
+  initialItems,
   storeLat,
   storeLng,
   deliveryLat,
@@ -41,6 +44,7 @@ export const AgentInvoiceForm = ({
 }: AgentInvoiceFormProps) => {
   const { fees, getServicePercentage, getQuote } = usePlatformSettings();
   const [items, setItems] = useState<InvoiceItem[]>(
+    initialItems ??
     shoppingList.map((item) => ({
       id: item.id,
       name: item.name,

@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,20 +17,12 @@ const LocationSharingToggle = ({
   orderStatus,
 }: LocationSharingToggleProps) => {
   const isActiveOrder = orderStatus === "shopping" || orderStatus === "in_transit";
-  const [autoStarted, setAutoStarted] = useState(false);
 
   const { isSharing, error, startSharing, stopSharing } = useAgentLocationSharing({
     orderId,
     agentId,
-    enabled: isActiveOrder && autoStarted,
+    enabled: false,
   });
-
-  // Auto-start sharing when order becomes active
-  useEffect(() => {
-    if (isActiveOrder && !autoStarted) {
-      setAutoStarted(true);
-    }
-  }, [isActiveOrder, autoStarted]);
 
   if (!isActiveOrder) {
     return null;
@@ -67,8 +58,8 @@ const LocationSharingToggle = ({
               </div>
               <p className="text-sm text-muted-foreground">
                 {isSharing
-                  ? "Buyer can see your location"
-                  : "Share your location with the buyer"}
+                  ? "Buyer can see your live location"
+                  : "Optional — lets the buyer track you and get a '5 min away' alert"}
               </p>
               {error && (
                 <p className="text-xs text-destructive mt-1">{error}</p>

@@ -1,9 +1,12 @@
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { Check, CheckCheck, Loader2, AlertCircle } from "lucide-react";
+import { Check, CheckCheck, Loader2, AlertCircle, Receipt } from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
 import { ShoppingListMessage } from "./ShoppingListMessage";
 import { InvoiceMessage } from "./InvoiceMessage";
+
+const fmtNGN = (n: number) =>
+  new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(n);
 
 interface ChatBubbleProps {
   message: ChatMessage & { _optimistic?: boolean; _status?: "sending" | "failed" };
@@ -36,6 +39,21 @@ export const ChatBubble = ({ message, isOwn, onInvoiceAction }: ChatBubbleProps)
               />
             )}
             {message.content && <p>{message.content}</p>}
+          </div>
+        );
+      case "invoice_response":
+        return (
+          <div className="space-y-1 min-w-[200px]">
+            <div className="flex items-center gap-1.5 font-medium text-sm">
+              <Receipt className="w-3.5 h-3.5" />
+              Invoice Changes Requested
+            </div>
+            <p className="text-sm opacity-90">{message.content}</p>
+            {(message.metadata as any)?.approvedTotal && (
+              <p className="text-xs opacity-70">
+                Expected total: {fmtNGN((message.metadata as any).approvedTotal)}
+              </p>
+            )}
           </div>
         );
       case "status_update":

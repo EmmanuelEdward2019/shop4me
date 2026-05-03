@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useHaptics } from "@/lib/native";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,7 +37,7 @@ import LocationSharingToggle from "@/components/agent/LocationSharingToggle";
 import DeliveryStatusUpdater from "@/components/agent/DeliveryStatusUpdater";
 import OrderCountdownTimer, { calculateEstimatedMinutes } from "@/components/order/OrderCountdownTimer";
 import type { Database } from "@/integrations/supabase/types";
-import type { ShoppingListItem, ShoppingListMetadata, InvoiceMetadata } from "@/types/chat";
+import type { ShoppingListItem, ShoppingListMetadata, InvoiceMetadata, InvoiceItem } from "@/types/chat";
 import { getLocationCoordinates } from "@/lib/lagos-locations";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
@@ -87,6 +87,12 @@ const AgentOrderDetail = () => {
   
   const { messages, sendMessage, uploadPhoto } = useChat({ orderId: id });
   const { invoice, loading: invoiceLoading, creating: invoiceCreating, createInvoice } = useInvoice({ orderId: id || "" });
+
+  // Detect if buyer has responded to an invoice with change requests
+  const buyerInvoiceResponse = useMemo(() => {
+    return [...messages].reverse().find((m) => m.message_type === "invoice_response");
+  }, [messages]);
+  const buyerEditedItems = (buyerInvoiceResponse?.metadata as any)?.editedItems as InvoiceItem[] | undefined;
   const { fees: platformFees } = usePlatformSettings();
 
   useEffect(() => {
@@ -483,6 +489,7 @@ const AgentOrderDetail = () => {
             {showInvoiceForm ? (
               <AgentInvoiceForm
                 shoppingList={getShoppingListFromOrder()}
+                initialItems={buyerEditedItems}
                 deliveryLat={order.delivery_latitude ?? null}
                 deliveryLng={order.delivery_longitude ?? null}
                 buyerZone={order.service_zone ?? null}
@@ -492,11 +499,33 @@ const AgentOrderDetail = () => {
                 disabled={invoiceCreating}
               />
             ) : invoice ? (
-              <InvoiceView
-                invoice={invoice}
-                customerName={customerProfile?.full_name || undefined}
-                locationName={order.location_name}
-              />
+              <div className="space-y-3">
+                <InvoiceView
+                  invoice={invoice}
+                  customerName={customerProfile?.full_name || undefined}
+                  locationName={order.location_name}
+                />
+                {buyerInvoiceResponse && (
+                  <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+                    <CardContent className="pt-4 space-y-2">
+                      <p className="text-sm font-semibold text-amber-800 dark:text-amber-400">
+                        Customer requested changes
+                      </p>
+                      <p className="text-xs text-amber-700 dark:text-amber-500">
+                        {buyerInvoiceResponse.content}
+                      </p>
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        onClick={() => setShowInvoiceForm(true)}
+                      >
+                        <Receipt className="w-4 h-4 mr-2" />
+                        Send Revised Invoice
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             ) : (
               <Card>
                 <CardHeader>

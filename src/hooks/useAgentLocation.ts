@@ -144,11 +144,15 @@ export const useAgentLocationSharing = ({
       },
       (err) => {
         console.error("Geolocation error:", err);
-        setError(err.message);
+        let errMsg = "Unable to get your location. Please try again.";
+        if (err.code === 1) errMsg = "Location permission denied. Enable it in your browser settings.";
+        else if (err.code === 2) errMsg = "Location unavailable. Check your device GPS.";
+        else if (err.code === 3) errMsg = "Location request timed out. Please try again.";
+        setError(errMsg);
         setIsSharing(false);
         toast({
-          title: "Location Error",
-          description: err.message,
+          title: "Location Unavailable",
+          description: errMsg,
           variant: "destructive",
         });
       },
