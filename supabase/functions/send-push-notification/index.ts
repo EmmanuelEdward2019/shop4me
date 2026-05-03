@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import webpush from "https://esm.sh/web-push@3.6.7";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -228,32 +229,40 @@ async function sendPushToUsers(
     console.error("Error fetching web subscriptions:", webSubError);
   }
 
-  const webResults = await Promise.allSettled(
-    (webSubs || []).map(async (sub: { endpoint: string; id: string }) => {
-      try {
-        const pushPayload = JSON.stringify({ title, body, url });
-        const response = await fetch(sub.endpoint, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Content-Encoding": "aes128gcm",
-            "TTL": "86400",
-          },
-          body: pushPayload,
-        });
+  const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY");
+  const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY");
 
-        if (!response.ok && response.status === 410) {
-          console.log("Removing expired web subscription:", sub.endpoint);
-          await supabase.from("push_subscriptions").delete().eq("id", sub.id);
-        }
+  let webResults: PromiseSettledResult<unknown>[] = [];
 
-        return { success: response.ok, type: "web", endpoint: sub.endpoint };
-      } catch (error) {
-        console.error("Error sending web push:", sub.endpoint, error);
-        return { success: false, type: "web", endpoint: sub.endpoint, error };
-      }
-    })
-  );
+  if (webSubs && webSubs.length > 0) {
+    if (!vapidPublicKey || !vapidPrivateKey) {
+      console.error("VAPID keys not configured — skipping web push");
+    } else {
+      webpush.setVapidDetails(
+        "mailto:support@shop4meng.com",
+        vapidPublicKey,
+        vapidPrivateKey,
+      );
+
+      webResults = await Promise.allSettled(
+        webSubs.map(async (sub: { endpoint: string; p256dh: string; auth: string; id: string }) => {
+          try {
+            await webpush.sendNotification(
+              { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+              JSON.stringify({ title, body, url, ...data }),
+            );
+            return { success: true, type: "web", endpoint: sub.endpoint };
+          } catch (err: any) {
+            console.error("Web push error:", sub.endpoint, err.statusCode, err.body);
+            if (err.statusCode === 410) {
+              await supabase.from("push_subscriptions").delete().eq("id", sub.id);
+            }
+            return { success: false, type: "web", endpoint: sub.endpoint, error: err.message };
+          }
+        })
+      );
+    }
+  }
 
   // ── 2. Expo Push ──
   const { data: expoTokens, error: expoError } = await supabase
