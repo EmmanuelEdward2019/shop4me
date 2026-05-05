@@ -108,7 +108,7 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
   };
 
   return (
-    <div className="space-y-3 min-w-[280px]">
+    <div className="space-y-3 w-full">
       <div className="flex items-center gap-2 font-medium">
         <Receipt className="w-4 h-4" />
         <span>Invoice</span>
@@ -119,7 +119,7 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
           <div key={item.id} className="space-y-1">
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2 flex-1">
-                <span className="truncate max-w-[120px]">{item.name}</span>
+                <span className="truncate min-w-0 flex-1">{item.name}</span>
                 {getStatusBadge(item.status)}
               </div>
               {isEditing ? (

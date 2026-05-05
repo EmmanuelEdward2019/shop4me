@@ -467,7 +467,7 @@ const AgentOrderDetail = () => {
               <MessageSquare className="w-4 h-4 mr-2" />
               Chat
             </TabsTrigger>
-            <TabsTrigger value="invoice" disabled={order.status === "pending" || order.status === "accepted"}>
+            <TabsTrigger value="invoice" disabled={order.status === "pending"}>
               <Receipt className="w-4 h-4 mr-2" />
               Invoice
             </TabsTrigger>

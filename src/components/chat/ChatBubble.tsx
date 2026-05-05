@@ -105,11 +105,50 @@ export const ChatBubble = ({ message, isOwn, onInvoiceAction }: ChatBubbleProps)
     }
   };
 
+  const timestamp = (
+    <div
+      className={cn(
+        "flex items-center gap-1 mt-1 text-[10px]",
+        message.message_type === "invoice"
+          ? "text-muted-foreground justify-end"
+          : isOwn
+          ? "text-primary-foreground/70 justify-end"
+          : "text-muted-foreground"
+      )}
+    >
+      <span>{format(new Date(message.created_at), "HH:mm")}</span>
+      {isOwn && (
+        message._status === "sending" ? (
+          <Loader2 className="w-3 h-3 animate-spin" />
+        ) : message._status === "failed" ? (
+          <AlertCircle className="w-3 h-3 text-destructive" />
+        ) : message.is_read ? (
+          <CheckCheck className="w-3 h-3" />
+        ) : (
+          <Check className="w-3 h-3" />
+        )
+      )}
+    </div>
+  );
+
   if (message.message_type === "system") {
     return (
       <div className="flex justify-center my-2">
         <div className="bg-muted/50 rounded-full px-4 py-1 text-xs text-muted-foreground">
           {message.content}
+        </div>
+      </div>
+    );
+  }
+
+  // Invoice messages use a neutral card so internal badges, separators and
+  // text all render correctly regardless of who sent the invoice.
+  if (message.message_type === "invoice") {
+    return (
+      <div className={cn("flex mb-3", isOwn ? "justify-end" : "justify-start")}>
+        <div className="w-[92%] rounded-2xl px-4 py-3 bg-card border text-foreground overflow-hidden">
+          {renderContent()}
+          {timestamp}
         </div>
       </div>
     );
@@ -126,25 +165,7 @@ export const ChatBubble = ({ message, isOwn, onInvoiceAction }: ChatBubbleProps)
         )}
       >
         {renderContent()}
-        <div
-          className={cn(
-            "flex items-center gap-1 mt-1 text-[10px]",
-            isOwn ? "text-primary-foreground/70 justify-end" : "text-muted-foreground"
-          )}
-        >
-          <span>{format(new Date(message.created_at), "HH:mm")}</span>
-          {isOwn && (
-            message._status === "sending" ? (
-              <Loader2 className="w-3 h-3 animate-spin" />
-            ) : message._status === "failed" ? (
-              <AlertCircle className="w-3 h-3 text-destructive" />
-            ) : message.is_read ? (
-              <CheckCheck className="w-3 h-3" />
-            ) : (
-              <Check className="w-3 h-3" />
-            )
-          )}
-        </div>
+        {timestamp}
       </div>
     </div>
   );
