@@ -174,9 +174,9 @@ export const WalletPaymentOption = ({
                   <CreditCard className="w-5 h-5 text-secondary-foreground" />
                 </div>
                 <div>
-                  <p className="font-medium text-foreground">Pay with Card</p>
+                  <p className="font-medium text-foreground">Pay with Card or Transfer</p>
                   <p className="text-sm text-muted-foreground">
-                    Debit/Credit card via Paystack
+                    Debit/Credit card or bank transfer via Paystack
                   </p>
                 </div>
               </div>

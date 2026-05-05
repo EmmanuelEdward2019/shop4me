@@ -41,21 +41,52 @@ export const ChatBubble = ({ message, isOwn, onInvoiceAction }: ChatBubbleProps)
             {message.content && <p>{message.content}</p>}
           </div>
         );
-      case "invoice_response":
+      case "invoice_response": {
+        const meta = message.metadata as any;
+        const editedItems: Array<{ id: string; name: string; quantity: number; actualPrice: number }> =
+          meta?.editedItems || [];
+        const approvedTotal: number | undefined = meta?.approvedTotal;
+        const itemsSubtotal = editedItems.reduce(
+          (sum, item) => sum + item.actualPrice * item.quantity,
+          0
+        );
         return (
-          <div className="space-y-1 min-w-[200px]">
+          <div className="space-y-2 min-w-[240px]">
             <div className="flex items-center gap-1.5 font-medium text-sm">
               <Receipt className="w-3.5 h-3.5" />
-              Invoice Changes Requested
+              Customer Requested Changes
             </div>
             <p className="text-sm opacity-90">{message.content}</p>
-            {(message.metadata as any)?.approvedTotal && (
-              <p className="text-xs opacity-70">
-                Expected total: {fmtNGN((message.metadata as any).approvedTotal)}
-              </p>
+            {editedItems.length > 0 && (
+              <div className="space-y-1.5 pt-2 border-t border-current/20">
+                <p className="text-[11px] font-semibold uppercase opacity-60 tracking-wide">
+                  Revised Items
+                </p>
+                {editedItems.map((item) => (
+                  <div key={item.id} className="flex justify-between text-xs gap-3">
+                    <span className="opacity-90">
+                      {item.name} <span className="opacity-60">×{item.quantity}</span>
+                    </span>
+                    <span className="shrink-0">{fmtNGN(item.actualPrice * item.quantity)}</span>
+                  </div>
+                ))}
+                <div className="border-t border-current/20 pt-1 space-y-0.5">
+                  <div className="flex justify-between text-xs opacity-70">
+                    <span>Subtotal</span>
+                    <span>{fmtNGN(itemsSubtotal)}</span>
+                  </div>
+                  {approvedTotal && (
+                    <div className="flex justify-between text-xs font-semibold">
+                      <span>Expected Total</span>
+                      <span>{fmtNGN(approvedTotal)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         );
+      }
       case "status_update":
         return (
           <div className="flex items-center gap-2 text-sm italic">

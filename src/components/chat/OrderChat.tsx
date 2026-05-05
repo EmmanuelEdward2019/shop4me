@@ -37,6 +37,8 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
   } = useChat({ orderId });
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const isNearBottomRef = useRef(true);
+  const hasInitialScrolledRef = useRef(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState(0);
   const observerRef = useRef<IntersectionObserver | null>(null);
@@ -67,9 +69,24 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
     return messages.filter((m) => !m.is_read && m.sender_id !== user.id).length;
   }, [messages, firstUnreadId, user]);
 
+  const handleScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    isNearBottomRef.current = distanceFromBottom < 80;
+  };
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "instant" });
-  }, [messages, typingUsers]);
+    if (loading) return;
+    if (!hasInitialScrolledRef.current) {
+      // First load: always jump to bottom
+      bottomRef.current?.scrollIntoView({ behavior: "instant" });
+      hasInitialScrolledRef.current = true;
+    } else if (isNearBottomRef.current) {
+      // New message arrived: only scroll if already near bottom
+      bottomRef.current?.scrollIntoView({ behavior: "instant" });
+    }
+  }, [messages, typingUsers, loading]);
 
   // Flush queued read-marks in batches to avoid chatty requests
   const queueRead = (id: string) => {
@@ -166,7 +183,7 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
   return (
     <>
       <div className={`flex flex-col h-full ${className}`}>
-        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
+        <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-4">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center py-12">
               <MessageSquare className="w-12 h-12 text-muted-foreground mb-3" />
