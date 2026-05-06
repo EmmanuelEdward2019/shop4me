@@ -57,7 +57,11 @@ type EmailType =
   | "order_paid_agent"
   | "order_paid_admin"
   | "order_delivered"
+  | "order_shipped"
   | "invoice_created"
+  | "new_order_agent"
+  | "new_order_admin"
+  | "rider_notified"
   | "compliance_warning"
   | "compliance_suspension"
   | "compliance_reinstatement"
@@ -585,6 +589,103 @@ Deno.serve(async (req) => {
              </ol>` +
             ctaButton("Open Rider Dashboard", "https://shop4meng.com/rider") +
             `<p style="color:#6b7280;font-size:14px;">Need help? Visit our <a href="https://shop4meng.com/help" style="color:#16a34a;">Help Center</a>.</p>`
+        );
+        break;
+      }
+
+      // ─── New Order → Agent ────────────────────────────────
+      case "new_order_agent": {
+        const { email, name, orderId, locationName, estimatedTotal, buyerName } = data;
+        to = email;
+        subject = `New Order — ${locationName}`;
+        body = emailLayout(
+          subject,
+          greetingLine(name || "Agent") +
+            `<p style="color:#4a4a4a;font-size:16px;">A new order has been placed at <strong>${locationName}</strong> and is waiting for you.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>Order:</strong> #${(orderId || "").slice(0, 8)}</p>
+               <p style="margin:4px 0 0;"><strong>Store:</strong> ${locationName}</p>
+               ${buyerName ? `<p style="margin:4px 0 0;"><strong>Buyer:</strong> ${buyerName}</p>` : ""}
+               ${estimatedTotal ? `<p style="margin:4px 0 0;"><strong>Est. Value:</strong> ${formatNGN(estimatedTotal)}</p>` : ""}`
+            ) +
+            `<p style="color:#4a4a4a;font-size:16px;">Log in now and accept the order before another agent does.</p>` +
+            ctaButton("View Order", `https://shop4meng.com/agent/orders/${orderId}`)
+        );
+        break;
+      }
+
+      // ─── New Order → Admin ────────────────────────────────
+      case "new_order_admin": {
+        const { email, orderId, locationName, estimatedTotal, buyerName, agentName } = data;
+        to = email;
+        subject = `[Admin] New Order — ${locationName}`;
+        body = emailLayout(
+          subject,
+          `<p style="color:#4a4a4a;font-size:16px;">A new order has been placed on the platform.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>Order:</strong> #${(orderId || "").slice(0, 8)}</p>
+               <p style="margin:4px 0 0;"><strong>Store:</strong> ${locationName}</p>
+               ${buyerName ? `<p style="margin:4px 0 0;"><strong>Buyer:</strong> ${buyerName}</p>` : ""}
+               ${agentName ? `<p style="margin:4px 0 0;"><strong>Assigned Agent:</strong> ${agentName}</p>` : `<p style="margin:4px 0 0;color:#d97706;"><strong>Agent:</strong> Unassigned</p>`}
+               ${estimatedTotal ? `<p style="margin:4px 0 0;"><strong>Est. Value:</strong> ${formatNGN(estimatedTotal)}</p>` : ""}`
+            ) +
+            ctaButton("View in Admin", `https://shop4meng.com/admin/orders/${orderId}`)
+        );
+        break;
+      }
+
+      // ─── Rider Notified (new pickup available) ────────────
+      case "rider_notified": {
+        const { email, name, orderId, storeName, deliveryAddress, buyerName } = data;
+        to = email;
+        subject = `New Pickup Available — ${storeName}`;
+        body = emailLayout(
+          subject,
+          greetingLine(name || "Rider") +
+            `<p style="color:#4a4a4a;font-size:16px;">A new order is ready for pickup at <strong>${storeName}</strong>. Open the app now to accept it before another rider does.</p>` +
+            infoBox(
+              `<p style="margin:0;"><strong>Store:</strong> ${storeName}</p>
+               ${buyerName ? `<p style="margin:4px 0 0;"><strong>Deliver To:</strong> ${buyerName}</p>` : ""}
+               ${deliveryAddress ? `<p style="margin:4px 0 0;"><strong>Delivery Address:</strong> ${deliveryAddress}</p>` : ""}`
+            ) +
+            `<p style="color:#4a4a4a;font-size:14px;color:#d97706;">⏰ Orders are time-sensitive. Respond quickly to stay active on the platform.</p>` +
+            ctaButton("Accept Pickup", "https://shop4meng.com/rider/available-pickups")
+        );
+        break;
+      }
+
+      // ─── Order Shipped → Buyer ────────────────────────────
+      case "order_shipped": {
+        let { email, name, orderId, locationName } = data;
+        if (!email && orderId) {
+          const { data: order } = await supabase
+            .from("orders")
+            .select("user_id, location_name")
+            .eq("id", orderId)
+            .single();
+          if (order) {
+            locationName = locationName || order.location_name;
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("full_name, email")
+              .eq("user_id", order.user_id)
+              .single();
+            if (profile) { email = profile.email; name = profile.full_name; }
+          }
+        }
+        if (!email) {
+          return new Response(JSON.stringify({ error: "Buyer email not found" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        to = email;
+        subject = `Your Order is On Its Way — ${locationName}`;
+        body = emailLayout(
+          subject,
+          greetingLine(name || "there") +
+            `<p style="color:#4a4a4a;font-size:16px;">Great news! Your order from <strong>${locationName}</strong> has been picked up by a rider and is now on its way to you. 🚴</p>` +
+            `<p style="color:#4a4a4a;font-size:16px;">Please be available to receive your delivery. You can track the status of your order in the app.</p>` +
+            ctaButton("Track Order", `https://shop4meng.com/dashboard/orders/${orderId}`)
         );
         break;
       }

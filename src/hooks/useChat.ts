@@ -11,6 +11,45 @@ interface UseChatOptions {
 
 type Metadata = ShoppingListMetadata | InvoiceMetadata | InvoiceResponseMetadata;
 
+const playMessageChime = () => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    // Two-tone "ding" — pleasant, not jarring
+    const play = (freq: number, start: number, end: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + end);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + end);
+    };
+    play(1046.5, 0, 0.18);   // C6
+    play(1318.5, 0.2, 0.45); // E6
+  } catch { /* no-op if audio blocked */ }
+};
+
+const showMessageNotification = async (senderLabel: string, content: string, orderId?: string) => {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    if ("serviceWorker" in navigator) {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification(`New message from ${senderLabel}`, {
+        body: content.length > 80 ? content.slice(0, 77) + "…" : content,
+        icon: "/logo.png",
+        badge: "/favicon.png",
+        tag: `chat-${orderId || "direct"}`,
+        renotify: true,
+        silent: false,
+        vibrate: [100, 50, 100],
+        data: { url: orderId ? `/dashboard/orders/${orderId}?tab=chat` : "/dashboard/messages" },
+      } as NotificationOptions);
+    }
+  } catch { /* no-op */ }
+};
+
 export const useChat = ({ orderId, receiverId }: UseChatOptions) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -82,6 +121,14 @@ export const useChat = ({ orderId, receiverId }: UseChatOptions) => {
             message_type: newMessage.message_type as MessageType,
             metadata: newMessage.metadata as unknown as Metadata | null,
           };
+
+          // Play chime and show OS notification for messages from other users
+          if (newMessage.sender_id !== user?.id) {
+            playMessageChime();
+            const preview = newMessage.content || (newMessage.message_type === "photo" ? "📷 Photo" : "New message");
+            showMessageNotification("your agent/buyer", preview, orderId);
+          }
+
           setMessages((prev) => {
             // Replace optimistic message from same sender with same content if present
             const optimisticIdx = prev.findIndex(

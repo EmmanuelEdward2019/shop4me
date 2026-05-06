@@ -226,10 +226,12 @@ serve(async (req) => {
             }
           }
 
-          // Send email to admin(s)
+          // Send email to admin(s) + push to agent and admins
           const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
+          const adminUserIds: string[] = [];
           if (adminRoles && adminRoles.length > 0) {
             for (const admin of adminRoles) {
+              adminUserIds.push(admin.user_id);
               const adminProfile = await getProfile(admin.user_id);
               if (adminProfile?.email) {
                 const agentProfile = order?.agent_id ? await getProfile(order.agent_id) : null;
@@ -243,6 +245,26 @@ serve(async (req) => {
                 });
               }
             }
+          }
+
+          // Push notifications: alert agent and all admins that payment was made
+          const pushTargets = [
+            ...(order?.agent_id ? [order.agent_id] : []),
+            ...adminUserIds,
+          ];
+          if (pushTargets.length > 0) {
+            const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+            const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+            fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
+              body: JSON.stringify({
+                userIds: pushTargets,
+                title: 'Payment Received!',
+                body: `${buyerProfile?.full_name || 'A buyer'} paid for their order at ${order?.location_name || 'a store'}.`,
+                url: `/agent/orders/${payment.order_id}`,
+              }),
+            }).catch(() => {});
           }
         }
         break;

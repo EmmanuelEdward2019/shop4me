@@ -111,6 +111,53 @@ serve(async (req) => {
         undefined, pushData
       );
 
+      // Also email each agent and all admins about the new order
+      const buyerProfile = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", String(order.user_id || ""))
+        .maybeSingle();
+      const buyerName = buyerProfile.data?.full_name || undefined;
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+      for (const agentId of agentUserIds) {
+        const agentProfile = await supabase
+          .from("profiles")
+          .select("full_name, email")
+          .eq("user_id", agentId)
+          .maybeSingle();
+        if (agentProfile.data?.email) {
+          fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+            body: JSON.stringify({
+              type: "new_order_agent",
+              data: { email: agentProfile.data.email, name: agentProfile.data.full_name, orderId, locationName, buyerName, estimatedTotal: order.estimated_total },
+            }),
+          }).catch(() => {});
+        }
+      }
+
+      const { data: adminRoles } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
+      for (const admin of (adminRoles || [])) {
+        const adminProfile = await supabase.from("profiles").select("email").eq("user_id", admin.user_id).maybeSingle();
+        if (adminProfile.data?.email) {
+          const assignedAgent = agentUserIds.length === 1
+            ? (await supabase.from("profiles").select("full_name").eq("user_id", agentUserIds[0]).maybeSingle()).data?.full_name
+            : undefined;
+          fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+            body: JSON.stringify({
+              type: "new_order_admin",
+              data: { email: adminProfile.data.email, orderId, locationName, buyerName, agentName: assignedAgent, estimatedTotal: order.estimated_total },
+            }),
+          }).catch(() => {});
+        }
+      }
+
       console.log(`Webhook push: store="${locationName}", zone="${serviceZone}", agents=${agentUserIds.length}`);
       return new Response(
         JSON.stringify({ success: true, results }),
@@ -121,8 +168,18 @@ serve(async (req) => {
     // ── Legacy client invoke shape ──
     const payload: PushPayload = rawBody;
     const { userId, role, title, body, url, data } = payload;
+    const explicitUserIds: string[] | undefined = (rawBody as any).userIds;
 
     let userIds: string[] = [];
+
+    // Direct userIds array — highest priority (used by paystack-webhook etc.)
+    if (explicitUserIds && explicitUserIds.length > 0) {
+      const results = await sendPushToUsers(supabase, explicitUserIds, title, body, url, data);
+      return new Response(
+        JSON.stringify({ success: true, results }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     if (role === "agent" && data?.service_zone) {
       const serviceZone = data.service_zone.trim().toLowerCase();

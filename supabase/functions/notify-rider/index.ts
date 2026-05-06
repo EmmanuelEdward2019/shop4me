@@ -18,10 +18,9 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, serviceKey);
 
     // Verify the caller is authenticated
     const authHeader = req.headers.get("Authorization");
@@ -191,17 +190,44 @@ serve(async (req) => {
 
     if (insertError) throw insertError;
 
-    // ── 6. Send push notification to all riders ───────────────────────────────
-    supabase.functions
-      .invoke("send-push-notification", {
-        body: {
-          role: "rider",
-          title: "New Pickup Available!",
-          body: `A new order from ${order.location_name} needs pickup. Accept it now!`,
-          url: "/rider/available-pickups",
-        },
-      })
-      .catch((err: unknown) => console.error("Push notification error:", err));
+    // ── 6. Push notification to all riders ───────────────────────────────────
+    fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      body: JSON.stringify({
+        role: "rider",
+        title: "New Pickup Available!",
+        body: `A new order from ${order.location_name} needs pickup. Accept it now!`,
+        url: "/rider/available-pickups",
+      }),
+    }).catch((err: unknown) => console.error("Push notification error:", err));
+
+    // ── 7. Email notification to all riders ──────────────────────────────────
+    const { data: riderRoles } = await supabase.from("user_roles").select("user_id").eq("role", "rider");
+    for (const riderRow of (riderRoles || [])) {
+      const { data: riderProfile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("user_id", riderRow.user_id)
+        .single();
+      if (riderProfile?.email) {
+        fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+          body: JSON.stringify({
+            type: "rider_notified",
+            data: {
+              email: riderProfile.email,
+              name: riderProfile.full_name,
+              orderId: order.id,
+              storeName: order.location_name,
+              deliveryAddress: deliveryAddress || null,
+              buyerName: buyerName || null,
+            },
+          }),
+        }).catch(() => {});
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true, id: alert?.id }),

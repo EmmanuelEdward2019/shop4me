@@ -302,6 +302,26 @@ const NewOrderPage = () => {
         },
       });
 
+      // Fire push + email notifications immediately after order creation.
+      // This runs in parallel with navigation and does not block the UI.
+      // The send-push-notification function handles both push delivery and
+      // agent/admin emails, using the same logic as the DB webhook path.
+      supabase.functions.invoke("send-push-notification", {
+        body: {
+          type: "INSERT",
+          table: "orders",
+          record: {
+            id: order.id,
+            status: order.status,
+            user_id: order.user_id,
+            agent_id: order.agent_id,
+            location_name: order.location_name,
+            service_zone: order.service_zone,
+            estimated_total: order.estimated_total,
+          },
+        },
+      }).catch(() => {});
+
       toast.success("Order created successfully!");
       navigate(`/dashboard/orders/${order.id}?tab=chat`);
     } catch (error) {

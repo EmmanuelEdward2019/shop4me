@@ -288,6 +288,9 @@ const AvailablePickups = () => {
   const markPickedUp = async (alertId: string) => {
     impact("medium");
     try {
+      // Find the alert so we can get the order_id for the buyer email
+      const alert = myDeliveries.find((d) => d.id === alertId);
+
       const { error } = await supabase
         .from("rider_alerts")
         .update({ order_picked_up_at: new Date().toISOString() })
@@ -295,6 +298,14 @@ const AvailablePickups = () => {
         .eq("rider_id", user?.id);
 
       if (error) throw error;
+
+      // Notify buyer that their order is on the way (fire-and-forget)
+      if (alert?.order_id) {
+        supabase.functions.invoke("send-notification-email", {
+          body: { type: "order_shipped", data: { orderId: alert.order_id } },
+        }).catch(() => {});
+      }
+
       notification("success");
       toast({ title: "Order Picked Up!", description: "Now deliver to the customer." });
       fetchAlerts();
