@@ -15,10 +15,28 @@ export const PushNotificationPrompt = () => {
   const [dismissed, setDismissed] = useState(false);
   const [showPrompt, setShowPrompt] = useState(false);
 
+  // Auto-subscribe silently when permission is already granted but subscription is missing.
+  // This recovers users who granted permission previously but whose subscription was cleared
+  // (e.g. browser update, VAPID key rotation).
   useEffect(() => {
-    const wasDismissed = localStorage.getItem("push-prompt-dismissed");
-    if (!wasDismissed && isSupported && !isSubscribed && permission === "default") {
-      const timer = setTimeout(() => setShowPrompt(true), 3000);
+    if (isSupported && !isSubscribed && permission === "granted" && !isLoading) {
+      subscribe();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSupported, isSubscribed, permission, isLoading]);
+
+  // Show the prompt if notifications are supported and the user hasn't granted or denied yet.
+  // We intentionally ignore the "dismissed" localStorage flag after 24 hours so users who
+  // tapped "Not now" get another chance — notifications are critical for agents and riders.
+  useEffect(() => {
+    if (!isSupported || isSubscribed || permission === "granted" || permission === "denied") return;
+
+    const dismissedAt = localStorage.getItem("push-prompt-dismissed-at");
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    const recentlyDismissed = dismissedAt && Date.now() - Number(dismissedAt) < twentyFourHours;
+
+    if (!recentlyDismissed) {
+      const timer = setTimeout(() => setShowPrompt(true), 2000);
       return () => clearTimeout(timer);
     }
   }, [isSupported, isSubscribed, permission]);
@@ -26,13 +44,14 @@ export const PushNotificationPrompt = () => {
   const handleDismiss = () => {
     setDismissed(true);
     setShowPrompt(false);
-    localStorage.setItem("push-prompt-dismissed", "true");
+    localStorage.setItem("push-prompt-dismissed-at", String(Date.now()));
   };
 
   const handleEnable = async () => {
     const success = await subscribe();
     if (success) {
       setShowPrompt(false);
+      localStorage.removeItem("push-prompt-dismissed-at");
     }
   };
 
@@ -53,7 +72,7 @@ export const PushNotificationPrompt = () => {
                 Enable notifications
               </h4>
               <p className="text-sm text-muted-foreground mb-3">
-                Get notified when you receive new messages from agents or buyers.
+                Get notified instantly when orders arrive — like WhatsApp alerts, with sound.
               </p>
               <div className="flex gap-2">
                 <Button size="sm" onClick={handleEnable} disabled={isLoading}>

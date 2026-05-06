@@ -206,8 +206,16 @@ const NewOrderPage = () => {
       .from("store_agents")
       .select("agent_id")
       .eq("store_id", locationData.id)
-      .then(({ data }) => setStoreAgentIds((data || []).map((r: any) => r.agent_id)));
-  }, [locationData?.id]);
+      .then(({ data }) => {
+        const ids = (data || []).map((r: any) => r.agent_id);
+        // Fallback: if store_agents is empty but the store has a directly assigned agent, use that
+        if (ids.length === 0 && locationData.assigned_agent_id) {
+          setStoreAgentIds([locationData.assigned_agent_id]);
+        } else {
+          setStoreAgentIds(ids);
+        }
+      });
+  }, [locationData?.id, locationData?.assigned_agent_id]);
 
   const onSubmit = async (data: OrderFormData) => {
     if (!user) return;
