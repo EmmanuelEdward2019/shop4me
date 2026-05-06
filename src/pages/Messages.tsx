@@ -81,7 +81,7 @@ const MessagesPage = () => {
     enrichOrders();
   }, [enrichOrders]);
 
-  // Realtime for new messages to refresh list
+  // Realtime: refresh unread counts on new messages and when messages are marked read
   useEffect(() => {
     if (!user) return;
 
@@ -90,6 +90,11 @@ const MessagesPage = () => {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "chat_messages" },
+        () => enrichOrders()
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "chat_messages" },
         () => enrichOrders()
       )
       .subscribe();

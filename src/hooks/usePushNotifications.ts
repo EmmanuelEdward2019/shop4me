@@ -28,6 +28,19 @@ export const usePushNotifications = () => {
     try {
       const registration = await navigator.serviceWorker.ready;
       const subscription = await (registration as any).pushManager.getSubscription();
+      if (subscription) {
+        // Verify subscription key matches current VAPID key
+        const existingKey = btoa(
+          String.fromCharCode(...new Uint8Array(subscription.options.applicationServerKey))
+        ).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+        const currentKey = VAPID_PUBLIC_KEY.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+        if (existingKey !== currentKey) {
+          // VAPID key changed — clear stale subscription so user gets prompted to re-subscribe
+          await subscription.unsubscribe();
+          setIsSubscribed(false);
+          return;
+        }
+      }
       setIsSubscribed(!!subscription);
     } catch (error) {
       console.error("Error checking subscription:", error);

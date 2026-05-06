@@ -44,14 +44,18 @@ export const ChatBubble = ({ message, isOwn, onInvoiceAction }: ChatBubbleProps)
       case "invoice_response": {
         const meta = message.metadata as any;
         const editedItems: Array<{ id: string; name: string; quantity: number; actualPrice: number }> =
-          meta?.editedItems || [];
+          (meta?.editedItems || []).map((i: any) => ({
+            ...i,
+            quantity: i.quantity ?? 1,
+            actualPrice: i.actualPrice ?? 0,
+          }));
         const approvedTotal: number | undefined = meta?.approvedTotal;
         const itemsSubtotal = editedItems.reduce(
           (sum, item) => sum + item.actualPrice * item.quantity,
           0
         );
         return (
-          <div className="space-y-2 min-w-[240px]">
+          <div className="space-y-2">
             <div className="flex items-center gap-1.5 font-medium text-sm">
               <Receipt className="w-3.5 h-3.5" />
               Customer Requested Changes
@@ -63,22 +67,22 @@ export const ChatBubble = ({ message, isOwn, onInvoiceAction }: ChatBubbleProps)
                   Revised Items
                 </p>
                 {editedItems.map((item) => (
-                  <div key={item.id} className="flex justify-between text-xs gap-3">
-                    <span className="opacity-90">
+                  <div key={item.id} className="flex justify-between gap-3 text-xs">
+                    <span className="opacity-90 truncate min-w-0">
                       {item.name} <span className="opacity-60">×{item.quantity}</span>
                     </span>
-                    <span className="shrink-0">{fmtNGN(item.actualPrice * item.quantity)}</span>
+                    <span className="shrink-0 whitespace-nowrap">{fmtNGN(item.actualPrice * item.quantity)}</span>
                   </div>
                 ))}
                 <div className="border-t border-current/20 pt-1 space-y-0.5">
-                  <div className="flex justify-between text-xs opacity-70">
-                    <span>Subtotal</span>
-                    <span>{fmtNGN(itemsSubtotal)}</span>
+                  <div className="flex justify-between text-xs opacity-70 gap-2">
+                    <span className="shrink-0">Subtotal</span>
+                    <span className="shrink-0">{fmtNGN(itemsSubtotal)}</span>
                   </div>
                   {approvedTotal && (
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span>Expected Total</span>
-                      <span>{fmtNGN(approvedTotal)}</span>
+                    <div className="flex justify-between text-xs font-semibold gap-2">
+                      <span className="shrink-0">Expected Total</span>
+                      <span className="shrink-0">{fmtNGN(approvedTotal)}</span>
                     </div>
                   )}
                 </div>
@@ -146,7 +150,7 @@ export const ChatBubble = ({ message, isOwn, onInvoiceAction }: ChatBubbleProps)
   if (message.message_type === "invoice") {
     return (
       <div className={cn("flex mb-3", isOwn ? "justify-end" : "justify-start")}>
-        <div className="w-[92%] rounded-2xl px-4 py-3 bg-card border text-foreground overflow-hidden">
+        <div className="w-[92%] rounded-2xl px-4 py-3 bg-card border text-foreground">
           {renderContent()}
           {timestamp}
         </div>

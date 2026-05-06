@@ -122,7 +122,11 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
 
     return () => {
       observerRef.current?.disconnect();
+      // Flush any pending reads immediately on unmount so the badge clears
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
+      const ids = Array.from(pendingReadRef.current);
+      pendingReadRef.current.clear();
+      if (ids.length > 0) markOrderMessagesRead(ids);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);

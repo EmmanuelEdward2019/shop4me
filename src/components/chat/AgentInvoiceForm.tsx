@@ -44,15 +44,20 @@ export const AgentInvoiceForm = ({
 }: AgentInvoiceFormProps) => {
   const { fees, getServicePercentage, getQuote } = usePlatformSettings();
   const [items, setItems] = useState<InvoiceItem[]>(
-    initialItems ??
-    shoppingList.map((item) => ({
-      id: item.id,
-      name: item.name,
-      quantity: item.quantity,
-      estimatedPrice: item.estimatedPrice,
-      actualPrice: item.estimatedPrice || 0,
-      status: "found" as const,
-    }))
+    initialItems
+      ? initialItems.map((item) => ({
+          ...item,
+          quantity: item.quantity ?? 1,
+          actualPrice: item.actualPrice ?? 0,
+        }))
+      : shoppingList.map((item) => ({
+          id: item.id,
+          name: item.name,
+          quantity: item.quantity ?? 1,
+          estimatedPrice: item.estimatedPrice,
+          actualPrice: item.estimatedPrice || 0,
+          status: "found" as const,
+        }))
   );
   const [notes, setNotes] = useState("");
   const [uploadingPhotoFor, setUploadingPhotoFor] = useState<string | null>(null);

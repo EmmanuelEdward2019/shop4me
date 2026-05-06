@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
 import type { InvoiceMetadata, InvoiceItem } from "@/types/chat";
 
 interface InvoiceMessageProps {
@@ -15,7 +14,13 @@ interface InvoiceMessageProps {
 
 export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProps) => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editedItems, setEditedItems] = useState<InvoiceItem[]>(metadata?.items || []);
+  const [editedItems, setEditedItems] = useState<InvoiceItem[]>(
+    (metadata?.items || []).map((item) => ({
+      ...item,
+      quantity: item.quantity ?? 1,
+      actualPrice: item.actualPrice ?? 0,
+    }))
+  );
   const [substituteRequests, setSubstituteRequests] = useState<Record<string, string>>({});
 
   if (!metadata?.items) return null;
@@ -24,24 +29,30 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
     return new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
-    }).format(amount);
+    }).format(amount ?? 0);
   };
 
+  const safeItems = (isEditing ? editedItems : metadata.items).map((item) => ({
+    ...item,
+    quantity: item.quantity ?? 1,
+    actualPrice: item.actualPrice ?? 0,
+  }));
+
+  const editedItemsTotal = editedItems.reduce(
+    (sum, item) => sum + (item.actualPrice ?? 0) * (item.quantity ?? 1),
+    0
+  );
+
   const calculateTotal = () => {
-    const itemsTotal = editedItems.reduce(
-      (sum, item) => sum + item.actualPrice * item.quantity,
-      0
-    );
-    const serviceFee = itemsTotal * 0.1;
-    const deliveryFee = metadata.deliveryFee;
-    return itemsTotal + serviceFee + deliveryFee;
+    const serviceFee = editedItemsTotal * 0.1;
+    return editedItemsTotal + serviceFee + (metadata.deliveryFee ?? 0);
   };
 
   const handleQuantityChange = (itemId: string, delta: number) => {
     setEditedItems((prev) =>
       prev.map((item) =>
         item.id === itemId
-          ? { ...item, quantity: Math.max(0, item.quantity + delta) }
+          ? { ...item, quantity: Math.max(0, (item.quantity ?? 1) + delta) }
           : item
       )
     );
@@ -61,11 +72,13 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
         .map((edited) => {
           const original = metadata.items.find((o) => o.id === edited.id);
           if (!original) return { itemId: edited.id, action: "remove" as const };
-          if (edited.quantity !== original.quantity) {
+          const editedQty = edited.quantity ?? 1;
+          const originalQty = original.quantity ?? 1;
+          if (editedQty !== originalQty) {
             return {
               itemId: edited.id,
               action: "quantity_change" as const,
-              newQuantity: edited.quantity,
+              newQuantity: editedQty,
             };
           }
           return null;
@@ -115,15 +128,15 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
       </div>
 
       <div className="space-y-2">
-        {(isEditing ? editedItems : metadata.items).map((item) => (
+        {safeItems.map((item) => (
           <div key={item.id} className="space-y-1">
-            <div className="flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2 flex-1">
+            <div className="flex items-start gap-2 text-sm">
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
                 <span className="truncate min-w-0 flex-1">{item.name}</span>
-                {getStatusBadge(item.status)}
+                <span className="shrink-0">{getStatusBadge(item.status)}</span>
               </div>
               {isEditing ? (
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <Button
                     size="icon"
                     variant="ghost"
@@ -132,7 +145,7 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
                   >
                     <Minus className="w-3 h-3" />
                   </Button>
-                  <span className="w-6 text-center">{item.quantity}</span>
+                  <span className="w-6 text-center text-xs">{item.quantity}</span>
                   <Button
                     size="icon"
                     variant="ghost"
@@ -151,7 +164,7 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
                   </Button>
                 </div>
               ) : (
-                <span>
+                <span className="shrink-0 ml-1 whitespace-nowrap text-right">
                   x{item.quantity} @ {formatCurrency(item.actualPrice)}
                 </span>
               )}
@@ -166,7 +179,7 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
             )}
             {isEditing && item.status === "not_found" && (
               <div className="flex items-center gap-2">
-                <MessageSquare className="w-3 h-3 text-muted-foreground" />
+                <MessageSquare className="w-3 h-3 text-muted-foreground shrink-0" />
                 <Input
                   placeholder="Request substitute..."
                   className="h-7 text-xs"
@@ -182,34 +195,26 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
       <Separator />
 
       <div className="space-y-1 text-sm">
-        <div className="flex justify-between">
-          <span className="opacity-70">Items Total</span>
-          <span>
-            {formatCurrency(
-              isEditing
-                ? editedItems.reduce((sum, i) => sum + i.actualPrice * i.quantity, 0)
-                : metadata.itemsTotal
-            )}
+        <div className="flex justify-between gap-2">
+          <span className="opacity-70 shrink-0">Items Total</span>
+          <span className="shrink-0 font-medium">
+            {formatCurrency(isEditing ? editedItemsTotal : (metadata.itemsTotal ?? 0))}
           </span>
         </div>
-        <div className="flex justify-between">
-          <span className="opacity-70">Service Fee (10%)</span>
-          <span>
-            {formatCurrency(
-              isEditing
-                ? editedItems.reduce((sum, i) => sum + i.actualPrice * i.quantity, 0) * 0.1
-                : metadata.serviceFee
-            )}
+        <div className="flex justify-between gap-2">
+          <span className="opacity-70 shrink-0">Service Fee (10%)</span>
+          <span className="shrink-0">
+            {formatCurrency(isEditing ? editedItemsTotal * 0.1 : (metadata.serviceFee ?? 0))}
           </span>
         </div>
-        <div className="flex justify-between">
-          <span className="opacity-70">Delivery Fee</span>
-          <span>{formatCurrency(metadata.deliveryFee)}</span>
+        <div className="flex justify-between gap-2">
+          <span className="opacity-70 shrink-0">Delivery Fee</span>
+          <span className="shrink-0">{formatCurrency(metadata.deliveryFee ?? 0)}</span>
         </div>
         <Separator />
-        <div className="flex justify-between font-semibold">
-          <span>Total</span>
-          <span>{formatCurrency(isEditing ? calculateTotal() : metadata.finalTotal)}</span>
+        <div className="flex justify-between gap-2 font-semibold">
+          <span className="shrink-0">Total</span>
+          <span className="shrink-0">{formatCurrency(isEditing ? calculateTotal() : (metadata.finalTotal ?? 0))}</span>
         </div>
       </div>
 

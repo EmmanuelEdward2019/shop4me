@@ -24,9 +24,12 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: data.body,
-    icon: '/favicon.ico',
-    badge: '/favicon.ico',
-    vibrate: [100, 50, 100],
+    icon: '/logo.png',
+    badge: '/favicon.png',
+    silent: false,
+    vibrate: [200, 100, 200],
+    tag: data.url || 'shop4me',
+    renotify: true,
     data: {
       url: data.url || '/dashboard/messages',
     },
