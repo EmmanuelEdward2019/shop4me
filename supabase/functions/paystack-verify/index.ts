@@ -196,6 +196,7 @@ serve(async (req) => {
         (async () => {
           try {
             const amount = transaction.amount / 100;
+            const newBalance = walletResult?.new_balance;
             const [buyerProfile, adminRoles] = await Promise.all([
               supabase.from('profiles').select('email, full_name').eq('user_id', payment.user_id).maybeSingle(),
               supabase.from('user_roles').select('user_id').eq('role', 'admin'),
@@ -205,7 +206,7 @@ serve(async (req) => {
               fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-                body: JSON.stringify({ type: 'wallet_topup', data: { email: buyerProfile.data.email, name: buyerProfile.data.full_name, amount } }),
+                body: JSON.stringify({ type: 'wallet_topup', data: { email: buyerProfile.data.email, name: buyerProfile.data.full_name, amount, newBalance, reference } }),
               }).catch(() => {});
             }
 
@@ -215,7 +216,7 @@ serve(async (req) => {
                 fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
-                  body: JSON.stringify({ type: 'wallet_topup_admin', data: { email: adminProfile.data.email, amount, buyerName: buyerProfile.data?.full_name } }),
+                  body: JSON.stringify({ type: 'wallet_topup_admin', data: { email: adminProfile.data.email, amount, newBalance, buyerName: buyerProfile.data?.full_name, buyerEmail: buyerProfile.data?.email, reference } }),
                 }).catch(() => {});
               }
             }
