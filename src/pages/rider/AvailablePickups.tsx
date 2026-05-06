@@ -212,7 +212,32 @@ const AvailablePickups = () => {
         .eq("status", "accepted")
         .order("created_at", { ascending: false });
 
-      setMyDeliveries(mine || []);
+      const myList: RiderAlert[] = mine || [];
+
+      // Enrich any accepted deliveries that are missing buyer details (legacy records
+      // created before the notify-rider edge function was in place).
+      const needsEnrich = myList.filter(
+        (d) => !d.buyer_name || !d.buyer_phone || !d.delivery_address
+      );
+      if (needsEnrich.length > 0) {
+        const { error } = await supabase.functions.invoke("notify-rider", {
+          body: { action: "enrich", alertIds: needsEnrich.map((d) => d.id) },
+        });
+        if (!error) {
+          // Re-fetch to get the now-enriched records
+          const { data: enriched } = await supabase
+            .from("rider_alerts")
+            .select("*")
+            .eq("rider_id", user?.id)
+            .eq("status", "accepted")
+            .order("created_at", { ascending: false });
+          setMyDeliveries(enriched || myList);
+        } else {
+          setMyDeliveries(myList);
+        }
+      } else {
+        setMyDeliveries(myList);
+      }
     } catch (error) {
       console.error("Error fetching alerts:", error);
     } finally {

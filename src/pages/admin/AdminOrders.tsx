@@ -38,6 +38,8 @@ interface Order {
   buyer_email?: string;
   buyer_name?: string;
   agent_email?: string;
+  rider_email?: string;
+  rider_name?: string;
 }
 
 const AdminOrders = () => {
@@ -59,17 +61,36 @@ const AdminOrders = () => {
 
       if (ordersError) throw ordersError;
 
+      // Fetch rider_alerts to resolve rider per order (accepted alerts only)
+      const orderIds = (ordersData || []).map((o) => o.id);
+      const { data: riderAlerts } = orderIds.length > 0
+        ? await supabase
+            .from("rider_alerts")
+            .select("order_id, rider_id")
+            .in("order_id", orderIds)
+            .not("rider_id", "is", null)
+        : { data: [] };
+
+      const riderIdByOrderId: Record<string, string> = {};
+      (riderAlerts || []).forEach((ra: any) => {
+        if (ra.rider_id) riderIdByOrderId[ra.order_id] = ra.rider_id;
+      });
+
       // Fetch all profiles to map user info
       const { data: profiles } = await supabase.from("profiles").select("*");
 
       const ordersWithUsers = (ordersData || []).map((order) => {
         const buyer = profiles?.find((p) => p.user_id === order.user_id);
         const agent = order.agent_id ? profiles?.find((p) => p.user_id === order.agent_id) : null;
+        const riderId = riderIdByOrderId[order.id];
+        const rider = riderId ? profiles?.find((p) => p.user_id === riderId) : null;
         return {
           ...order,
           buyer_email: buyer?.email,
           buyer_name: buyer?.full_name,
           agent_email: agent?.email,
+          rider_email: rider?.email,
+          rider_name: rider?.full_name,
         };
       });
 
@@ -188,6 +209,7 @@ const AdminOrders = () => {
                       <TableHead>Location</TableHead>
                       <TableHead>Buyer</TableHead>
                       <TableHead>Agent</TableHead>
+                      <TableHead>Rider</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Total</TableHead>
                       <TableHead>Date</TableHead>
@@ -215,8 +237,22 @@ const AdminOrders = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {order.agent_email || (
+                          {order.agent_email ? (
+                            <div>
+                              <p className="text-sm">{order.agent_email}</p>
+                            </div>
+                          ) : (
                             <span className="text-muted-foreground">Unassigned</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {order.rider_name || order.rider_email ? (
+                            <div>
+                              <p className="text-sm">{order.rider_name || "—"}</p>
+                              <p className="text-xs text-muted-foreground">{order.rider_email}</p>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">No rider</span>
                           )}
                         </TableCell>
                         <TableCell>

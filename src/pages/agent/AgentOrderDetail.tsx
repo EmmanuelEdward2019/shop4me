@@ -160,65 +160,23 @@ const AgentOrderDetail = () => {
   const notifyRider = async () => {
     if (!order || !user) return;
     try {
-      // Get store coordinates for geofencing
       const storeCoords = getLocationCoordinates(order.location_name);
-      
-      // Get buyer info for rider
-      let buyerName = customerProfile?.full_name || null;
-      let buyerPhone = customerProfile?.phone || null;
-      let deliveryAddr = "";
-      let deliveryLat: number | null = null;
-      let deliveryLng: number | null = null;
 
-      if (order.delivery_addresses) {
-        deliveryAddr = [
-          order.delivery_addresses.address_line1,
-          order.delivery_addresses.address_line2,
-          order.delivery_addresses.city,
-          order.delivery_addresses.state,
-          order.delivery_addresses.landmark ? `(Near: ${order.delivery_addresses.landmark})` : "",
-        ].filter(Boolean).join(", ");
-      }
-
-      // Try to get GPS coords from delivery address
-      if (order.delivery_address_id) {
-        const { data: addrData } = await supabase
-          .from("delivery_addresses")
-          .select("latitude, longitude")
-          .eq("id", order.delivery_address_id)
-          .single();
-        if (addrData) {
-          deliveryLat = addrData.latitude;
-          deliveryLng = addrData.longitude;
-        }
-      }
-
-      const { error } = await supabase.from("rider_alerts").insert({
-        order_id: order.id,
-        agent_id: user.id,
-        store_location_name: order.location_name,
-        status: "pending",
-        store_latitude: storeCoords.latitude,
-        store_longitude: storeCoords.longitude,
-        buyer_name: buyerName,
-        buyer_phone: buyerPhone,
-        delivery_address: deliveryAddr,
-        delivery_latitude: deliveryLat,
-        delivery_longitude: deliveryLng,
+      // Use the notify-rider edge function so it runs with service-role and can
+      // read the buyer's profile regardless of RLS — this ensures buyer_name,
+      // buyer_phone and delivery_address are always populated for the rider.
+      const { error } = await supabase.functions.invoke("notify-rider", {
+        body: {
+          orderId: order.id,
+          storeLatitude: storeCoords.latitude ?? null,
+          storeLongitude: storeCoords.longitude ?? null,
+        },
       });
+
       if (error) throw error;
+
       setRiderAlertSent(true);
       toast({ title: "Rider Notified!", description: "Nearby riders have been alerted about this pickup." });
-
-      // Send push notification to all riders
-      supabase.functions.invoke("send-push-notification", {
-        body: {
-          role: "rider",
-          title: "🚴 New Pickup Available!",
-          body: `A new order from ${order.location_name} needs pickup. Accept it now!`,
-          url: "/rider/available-pickups",
-        },
-      }).catch((err) => console.error("Push notification error:", err));
     } catch (error) {
       console.error("Error notifying rider:", error);
       toast({ title: "Error", description: "Failed to notify rider", variant: "destructive" });

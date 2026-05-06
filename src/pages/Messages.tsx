@@ -179,7 +179,7 @@ const MessagesPage = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-medium text-foreground truncate">
+                          <h3 className="font-medium text-foreground">
                             {order.location_name}
                           </h3>
                           {order.unread_count > 0 && (

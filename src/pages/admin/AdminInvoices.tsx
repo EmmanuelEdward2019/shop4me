@@ -57,10 +57,20 @@ const AdminInvoices = () => {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
+  const [paidRevenue, setPaidRevenue] = useState(0);
 
   const fetchInvoices = useCallback(async () => {
     setLoading(true);
     try {
+      // Fetch aggregate paid revenue across ALL invoices (not paginated)
+      supabase
+        .from("invoices")
+        .select("total")
+        .eq("status", "paid")
+        .then(({ data: paidRows }) => {
+          setPaidRevenue((paidRows || []).reduce((sum, r) => sum + (r.total || 0), 0));
+        });
+
       let query = supabase
         .from("invoices")
         .select("*", { count: "exact" })
@@ -182,9 +192,9 @@ const AdminInvoices = () => {
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <p className="text-sm text-muted-foreground">Total Revenue</p>
+              <p className="text-sm text-muted-foreground">Paid Revenue</p>
               <p className="text-2xl font-bold text-primary">
-                {formatCurrency(invoices.reduce((sum, inv) => sum + inv.total, 0))}
+                {formatCurrency(paidRevenue)}
               </p>
             </CardContent>
           </Card>

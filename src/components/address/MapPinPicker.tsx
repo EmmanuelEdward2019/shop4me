@@ -46,6 +46,9 @@ const FlyTo = ({ center }: { center: [number, number] }) => {
   return null;
 };
 
+// Plus Codes look like "2X49+WG2" or "WXPQ+R4 City" — not useful as street addresses.
+const isPlusCode = (s: string) => /^[23456789CFGHJMPQRVWX]{4,8}\+[23456789CFGHJMPQRVWX]{2,3}/i.test(s.trim());
+
 /** Reverse geocode via Nominatim. Includes a small timeout. */
 const reverseGeocode = async (lat: number, lng: number): Promise<ReverseGeocodedAddress | null> => {
   const controller = new AbortController();
@@ -67,7 +70,7 @@ const reverseGeocode = async (lat: number, lng: number): Promise<ReverseGeocoded
     const houseNumber = addr.house_number || "";
 
     // Nigerian addresses often lack a road field in Nominatim — fall through to
-    // neighbourhood/suburb names, then use the first two parts of display_name.
+    // neighbourhood/suburb names, then use display_name parts (skipping Plus Codes).
     let addressLine1 = "";
     if (houseNumber && road) {
       addressLine1 = `${houseNumber} ${road}`;
@@ -77,15 +80,21 @@ const reverseGeocode = async (lat: number, lng: number): Promise<ReverseGeocoded
       const areaName =
         addr.neighbourhood || addr.suburb || addr.quarter ||
         addr.city_district || addr.village || addr.hamlet || "";
-      if (areaName) {
+      if (areaName && !isPlusCode(areaName)) {
         addressLine1 = areaName;
       } else {
+        // Filter out Plus Code segments from display_name before using it
         const parts = (data.display_name || "")
           .split(",")
           .map((p: string) => p.trim())
-          .filter(Boolean);
+          .filter((p: string) => p && !isPlusCode(p));
         addressLine1 = parts.slice(0, 2).join(", ");
       }
+    }
+
+    // Final guard: if we still ended up with a Plus Code, fall back to coords label
+    if (!addressLine1 || isPlusCode(addressLine1)) {
+      addressLine1 = `Near ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     }
 
     const city =
