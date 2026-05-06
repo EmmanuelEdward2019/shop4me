@@ -16,7 +16,7 @@ const contactInfo = [
   {
     icon: MapPin,
     title: "Address",
-    details: ["23 Golden Valley Estate", "Port Harcourt, Rivers State", "Nigeria"],
+    details: ["23 Golden Valley Estate", "Port Harcourt, Rivers State", "Nigeria, Africa"],
   },
   {
     icon: Phone,

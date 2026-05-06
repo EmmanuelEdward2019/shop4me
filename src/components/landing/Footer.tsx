@@ -59,7 +59,7 @@ const Footer = () => {
               <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
               <p className="text-sm">
                 23 Golden Valley Estate,<br />
-                Port Harcourt, Rivers State, Nigeria
+                Port Harcourt, Rivers State, Nigeria, Africa
               </p>
             </div>
 

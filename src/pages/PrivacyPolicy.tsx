@@ -265,7 +265,7 @@ const PrivacyPolicy = () => {
                 <ul>
                   <li><strong>Email:</strong> support@shop4meng.com</li>
                   <li><strong>Phone:</strong> +234 XXX XXX XXXX</li>
-                  <li><strong>Address:</strong> 23 Golden Valley Estate, Port Harcourt, Rivers State, Nigeria</li>
+                  <li><strong>Address:</strong> 23 Golden Valley Estate, Port Harcourt, Rivers State, Nigeria, Africa</li>
                 </ul>
                 <p>
                   If you are not satisfied with our response, you have the right to lodge a complaint 

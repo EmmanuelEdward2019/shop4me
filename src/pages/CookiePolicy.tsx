@@ -134,7 +134,7 @@ const CookiePolicy = () => {
                 </p>
                 <ul>
                   <li>Email: privacy@shop4me.ng</li>
-                  <li>Address: 23 Golden Valley Estate, Port Harcourt, Rivers State, Nigeria</li>
+                  <li>Address: 23 Golden Valley Estate, Port Harcourt, Rivers State, Nigeria, Africa</li>
                 </ul>
               </ScrollAnimation>
             </div>
