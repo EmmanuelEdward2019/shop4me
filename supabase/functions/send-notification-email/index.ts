@@ -235,6 +235,7 @@ Deno.serve(async (req) => {
             ) +
             ctaButton("View in Admin", `https://shop4meng.com/admin/orders/${orderId}`)
         );
+        break;
       }
 
       // ─── Order Paid (Agent notification) ──────────────────

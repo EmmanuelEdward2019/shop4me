@@ -64,14 +64,14 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+    // Collect background tasks (emails + push) to await before responding,
+    // so Deno doesn't suspend the isolate and cancel in-flight fetches.
+    const backgroundTasks: Promise<unknown>[] = [];
 
-    // Helper to send notification emails (fire-and-forget)
-    async function sendNotificationEmail(type: string, data: Record<string, any>) {
-      if (!RESEND_API_KEY) {
-        console.warn('RESEND_API_KEY not set, skipping email notification');
-        return;
-      }
+    // Helper to send notification emails — returns the promise so callers can
+    // push it onto backgroundTasks. The downstream send-notification-email
+    // function checks RESEND_API_KEY itself, so we don't gate on it here.
+    async function sendNotificationEmail(type: string, data: Record<string, any>): Promise<void> {
       try {
         const url = `${supabaseUrl}/functions/v1/send-notification-email`;
         const res = await fetch(url, {
@@ -79,12 +79,17 @@ serve(async (req) => {
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
           body: JSON.stringify({ type, data }),
         });
-        const result = await res.json();
-        if (!res.ok) console.error(`Email notification (${type}) failed:`, result);
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) console.error(`Email notification (${type}) failed [${res.status}]:`, result);
         else console.log(`Email notification (${type}) sent successfully`);
       } catch (e) {
         console.error(`Email notification (${type}) error:`, e);
       }
+    }
+
+    // Wrapper that auto-tracks the promise so we can await all at the end.
+    function queueEmail(type: string, data: Record<string, any>): void {
+      backgroundTasks.push(sendNotificationEmail(type, data));
     }
 
     // Helper to get profile
@@ -154,7 +159,7 @@ serve(async (req) => {
             console.log(`Wallet credited successfully, new balance: ${walletResult?.new_balance}`);
             // Send wallet topup email to user
             if (buyerProfile?.email) {
-              sendNotificationEmail('wallet_topup', {
+              queueEmail('wallet_topup', {
                 email: buyerProfile.email,
                 name: buyerProfile.full_name,
                 amount: payment.amount,
@@ -169,7 +174,7 @@ serve(async (req) => {
               for (const admin of adminRolesWallet) {
                 const adminProfile = await getProfile(admin.user_id);
                 if (adminProfile?.email) {
-                  sendNotificationEmail('wallet_topup_admin', {
+                  queueEmail('wallet_topup_admin', {
                     email: adminProfile.email,
                     amount: payment.amount,
                     newBalance: walletResult?.new_balance,
@@ -201,7 +206,7 @@ serve(async (req) => {
 
           // Send payment success email to buyer
           if (buyerProfile?.email) {
-            sendNotificationEmail('payment_success', {
+            queueEmail('payment_success', {
               email: buyerProfile.email,
               name: buyerProfile.full_name,
               amount: payment.amount,
@@ -215,7 +220,7 @@ serve(async (req) => {
           if (order?.agent_id) {
             const agentProfile = await getProfile(order.agent_id);
             if (agentProfile?.email) {
-              sendNotificationEmail('order_paid_agent', {
+              queueEmail('order_paid_agent', {
                 email: agentProfile.email,
                 name: agentProfile.full_name,
                 amount: payment.amount,
@@ -235,7 +240,7 @@ serve(async (req) => {
               const adminProfile = await getProfile(admin.user_id);
               if (adminProfile?.email) {
                 const agentProfile = order?.agent_id ? await getProfile(order.agent_id) : null;
-                sendNotificationEmail('order_paid_admin', {
+                queueEmail('order_paid_admin', {
                   email: adminProfile.email,
                   amount: payment.amount,
                   orderId: payment.order_id,
@@ -253,18 +258,18 @@ serve(async (req) => {
             ...adminUserIds,
           ];
           if (pushTargets.length > 0) {
-            const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-            const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-            fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${serviceKey}` },
-              body: JSON.stringify({
-                userIds: pushTargets,
-                title: 'Payment Received!',
-                body: `${buyerProfile?.full_name || 'A buyer'} paid for their order at ${order?.location_name || 'a store'}.`,
-                url: `/agent/orders/${payment.order_id}`,
-              }),
-            }).catch(() => {});
+            backgroundTasks.push(
+              fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+                body: JSON.stringify({
+                  userIds: pushTargets,
+                  title: 'Payment Received!',
+                  body: `${buyerProfile?.full_name || 'A buyer'} paid for their order at ${order?.location_name || 'a store'}.`,
+                  url: `/agent/orders/${payment.order_id}`,
+                }),
+              }).catch((e) => console.error('Push notification error:', e))
+            );
           }
         }
         break;
@@ -290,7 +295,7 @@ serve(async (req) => {
         if (failedPayment) {
           const failedBuyer = await getProfile(failedPayment.user_id);
           if (failedBuyer?.email) {
-            sendNotificationEmail('payment_failed', {
+            queueEmail('payment_failed', {
               email: failedBuyer.email,
               name: failedBuyer.full_name,
               amount: failedPayment.amount,
@@ -317,6 +322,12 @@ serve(async (req) => {
 
       default:
         console.log(`Unhandled event type: ${event.event}`);
+    }
+
+    // Wait for all queued emails / push notifications to complete before
+    // responding, so the Deno isolate isn't suspended mid-fetch.
+    if (backgroundTasks.length > 0) {
+      await Promise.allSettled(backgroundTasks);
     }
 
     return new Response(
