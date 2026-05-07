@@ -284,6 +284,45 @@ export const useChat = ({ orderId, receiverId }: UseChatOptions) => {
 
       if (error) throw error;
       // Realtime echo will replace optimistic message
+
+      // Fire OS-level push so the recipient is notified even when their app is
+      // closed. We resolve recipients server-side: for direct messages it's the
+      // receiver; for order chats it's the other party on the order.
+      const preview = messageType === "photo" ? "📷 Photo" : (content || "New message");
+      const targetUrl = orderId ? `/dashboard/orders/${orderId}?tab=chat` : "/dashboard/messages";
+      if (receiverId) {
+        supabase.functions.invoke("send-push-notification", {
+          body: {
+            userIds: [receiverId],
+            title: "New message",
+            body: preview.length > 80 ? preview.slice(0, 77) + "…" : preview,
+            url: targetUrl,
+            data: { orderId: orderId || "", messageType },
+          },
+        }).catch(() => {});
+      } else if (orderId) {
+        // Resolve the other party from the order (buyer ↔ agent)
+        supabase
+          .from("orders")
+          .select("user_id, agent_id")
+          .eq("id", orderId)
+          .maybeSingle()
+          .then(({ data: order }) => {
+            if (!order) return;
+            const recipients = [order.user_id, order.agent_id]
+              .filter((id): id is string => !!id && id !== user.id);
+            if (recipients.length === 0) return;
+            supabase.functions.invoke("send-push-notification", {
+              body: {
+                userIds: recipients,
+                title: "New message",
+                body: preview.length > 80 ? preview.slice(0, 77) + "…" : preview,
+                url: targetUrl,
+                data: { orderId, messageType },
+              },
+            }).catch(() => {});
+          });
+      }
     } catch (error: any) {
       console.error("Error sending message:", error);
       // Mark optimistic as failed

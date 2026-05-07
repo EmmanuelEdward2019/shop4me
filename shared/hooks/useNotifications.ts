@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-const VAPID_PUBLIC_KEY = "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U";
+const VAPID_PUBLIC_KEY = "BBh4-TufpteH5AoeH3ME9KD_YdtdbfIOKoehLcpq93BKusMsm5-yA85IRI2d5kLDbrSk4PtTYg_oMpOljwlwxxY";
 
 interface UseNotificationsOptions {
   client: SupabaseClient;
@@ -83,11 +83,34 @@ export const useNotifications = ({
       setPermission(Notification.permission);
       const reg = await navigator.serviceWorker.ready;
       const sub = await (reg as any).pushManager.getSubscription();
+      if (sub) {
+        // Verify the subscription was made with the current VAPID key. If the
+        // server's key was rotated (or the wrong key was previously used), the
+        // existing subscription will silently fail to receive pushes — clear it
+        // so the user is re-prompted and re-subscribed with the correct key.
+        try {
+          const existingKey = btoa(
+            String.fromCharCode(...new Uint8Array(sub.options.applicationServerKey))
+          ).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+          const currentKey = VAPID_PUBLIC_KEY.replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+          if (existingKey !== currentKey) {
+            await sub.unsubscribe();
+            if (userId) {
+              await client.from("push_subscriptions").delete()
+                .eq("user_id", userId).eq("endpoint", sub.endpoint);
+            }
+            setIsSubscribed(false);
+            return;
+          }
+        } catch (keyErr) {
+          console.warn("VAPID key check skipped:", keyErr);
+        }
+      }
       setIsSubscribed(!!sub);
     } catch (err) {
       console.error("Check web subscription error:", err);
     }
-  }, []);
+  }, [client, userId]);
 
   const urlBase64ToUint8Array = (base64String: string) => {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
