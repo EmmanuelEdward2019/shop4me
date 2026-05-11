@@ -149,7 +149,11 @@ serve(async (req) => {
 
     // Send email notifications (fire-and-forget)
     const supabaseFnUrl = `${supabaseUrl}/functions/v1/send-notification-email`;
-    const emailHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` };
+    const emailHeaders = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${supabaseServiceKey}`,
+      'apikey': supabaseServiceKey,
+    };
 
     // Get buyer profile
     const { data: buyerProfile } = await supabase.from("profiles").select("full_name, email").eq("user_id", user.id).single();

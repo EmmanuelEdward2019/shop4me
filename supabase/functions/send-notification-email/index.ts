@@ -25,17 +25,27 @@ async function sendEmail(
   to: string | string[],
   subject: string,
   html: string,
+  tags?: { name: string; value: string }[],
 ): Promise<{ success: boolean; id?: string; error?: string }> {
+  const payload: Record<string, unknown> = {
+    from: FROM_EMAIL,
+    to: Array.isArray(to) ? to : [to],
+    subject,
+    html,
+  };
+  if (tags && tags.length > 0) payload.tags = tags;
+
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM_EMAIL, to: Array.isArray(to) ? to : [to], subject, html }),
+    body: JSON.stringify(payload),
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    console.error("Resend API error:", data);
+    console.error(`Resend API error [${res.status}] to=${Array.isArray(to) ? to.join(",") : to} subject="${subject}":`, JSON.stringify(data));
     return { success: false, error: `Email send failed [${res.status}]: ${JSON.stringify(data)}` };
   }
+  console.log(`Resend accepted email id=${data.id} to=${Array.isArray(to) ? to.join(",") : to} subject="${subject}"`);
   return { success: true, id: data.id };
 }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,7 +79,8 @@ type EmailType =
   | "withdrawal_transferred"
   | "withdrawal_confirmed"
   | "agent_approved"
-  | "rider_approved";
+  | "rider_approved"
+  | "_diagnostic";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -691,6 +702,27 @@ Deno.serve(async (req) => {
         break;
       }
 
+      // ─── Diagnostic (manual test) ─────────────────────────
+      // Use this to verify Resend connectivity end-to-end without going
+      // through Paystack. POST:
+      //   { "type": "_diagnostic", "data": { "email": "you@example.com" } }
+      case "_diagnostic": {
+        const { email } = data;
+        if (!email) {
+          return new Response(JSON.stringify({ error: "email is required" }), {
+            status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        to = email;
+        subject = `Shop4Me — Test email ${new Date().toISOString()}`;
+        body = emailLayout(
+          subject,
+          `<p style="color:#4a4a4a;font-size:16px;">This is a diagnostic email sent from <code>send-notification-email</code> at ${new Date().toISOString()}.</p>` +
+          `<p style="color:#6b7280;font-size:14px;">If you received this, Resend → Shop4Me wiring is working. Check your Resend webhook events for delivery confirmation.</p>`
+        );
+        break;
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: `Unknown email type: ${type}` }),
@@ -698,7 +730,16 @@ Deno.serve(async (req) => {
         );
     }
 
-    const result = await sendEmail(RESEND_API_KEY, to, subject, body);
+    // Resend tag names/values: ASCII letters, digits, underscores, dashes only.
+    // We sanitize values defensively.
+    const sanitizeTag = (v: string) => v.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 256);
+    const emailTags = [
+      { name: "category", value: sanitizeTag(type) },
+    ];
+    if (data?.orderId) emailTags.push({ name: "order_id", value: sanitizeTag(String(data.orderId)) });
+    if (data?.reference) emailTags.push({ name: "reference", value: sanitizeTag(String(data.reference)) });
+
+    const result = await sendEmail(RESEND_API_KEY, to, subject, body, emailTags);
 
     if (!result.success) {
       throw new Error(result.error);

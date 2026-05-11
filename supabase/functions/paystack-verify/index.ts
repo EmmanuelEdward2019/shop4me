@@ -147,11 +147,16 @@ serve(async (req) => {
             emailTasks.push(
               fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                  'apikey': supabaseServiceKey,
+                },
                 body: JSON.stringify({ type, data }),
               }).then(async (r) => {
-                if (!r.ok) console.error(`Email (${type}) failed [${r.status}]:`, await r.text());
-                else console.log(`Email (${type}) sent`);
+                const j = await r.json().catch(() => ({}));
+                if (!r.ok) console.error(`Email (${type}) failed [${r.status}]:`, JSON.stringify(j));
+                else console.log(`Email (${type}) sent: id=${(j as any)?.emailId || "?"}`);
               }).catch((e) => console.error(`Email (${type}) error:`, e))
             );
           };
@@ -210,11 +215,16 @@ serve(async (req) => {
             emailTasks.push(
               fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                  'apikey': supabaseServiceKey,
+                },
                 body: JSON.stringify({ type, data }),
               }).then(async (r) => {
-                if (!r.ok) console.error(`Email (${type}) failed [${r.status}]:`, await r.text());
-                else console.log(`Email (${type}) sent`);
+                const j = await r.json().catch(() => ({}));
+                if (!r.ok) console.error(`Email (${type}) failed [${r.status}]:`, JSON.stringify(j));
+                else console.log(`Email (${type}) sent: id=${(j as any)?.emailId || "?"}`);
               }).catch((e) => console.error(`Email (${type}) error:`, e))
             );
           };

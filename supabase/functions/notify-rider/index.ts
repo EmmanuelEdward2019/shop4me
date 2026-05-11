@@ -193,7 +193,7 @@ serve(async (req) => {
     // ── 6. Push notification to all riders ───────────────────────────────────
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey },
       body: JSON.stringify({
         role: "rider",
         title: "New Pickup Available!",
@@ -213,7 +213,7 @@ serve(async (req) => {
       if (riderProfile?.email) {
         fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey },
           body: JSON.stringify({
             type: "rider_notified",
             data: {

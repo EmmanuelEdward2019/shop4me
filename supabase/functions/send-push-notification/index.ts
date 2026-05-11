@@ -131,7 +131,7 @@ serve(async (req) => {
         if (agentProfile.data?.email) {
           fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey },
             body: JSON.stringify({
               type: "new_order_agent",
               data: { email: agentProfile.data.email, name: agentProfile.data.full_name, orderId, locationName, buyerName, estimatedTotal: order.estimated_total },
@@ -149,7 +149,7 @@ serve(async (req) => {
             : undefined;
           fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}` },
+            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey },
             body: JSON.stringify({
               type: "new_order_admin",
               data: { email: adminProfile.data.email, orderId, locationName, buyerName, agentName: assignedAgent, estimatedTotal: order.estimated_total },

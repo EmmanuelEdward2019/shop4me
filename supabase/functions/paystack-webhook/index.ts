@@ -76,12 +76,16 @@ serve(async (req) => {
         const url = `${supabaseUrl}/functions/v1/send-notification-email`;
         const res = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'apikey': supabaseServiceKey,
+          },
           body: JSON.stringify({ type, data }),
         });
         const result = await res.json().catch(() => ({}));
         if (!res.ok) console.error(`Email notification (${type}) failed [${res.status}]:`, result);
-        else console.log(`Email notification (${type}) sent successfully`);
+        else console.log(`Email notification (${type}) sent: id=${result?.emailId || "?"}`);
       } catch (e) {
         console.error(`Email notification (${type}) error:`, e);
       }
@@ -261,7 +265,11 @@ serve(async (req) => {
             backgroundTasks.push(
               fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseServiceKey}` },
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabaseServiceKey}`,
+                  'apikey': supabaseServiceKey,
+                },
                 body: JSON.stringify({
                   userIds: pushTargets,
                   title: 'Payment Received!',
