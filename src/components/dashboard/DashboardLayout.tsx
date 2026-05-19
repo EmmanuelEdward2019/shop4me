@@ -29,6 +29,7 @@ import {
 import logo from "@/assets/logo.png";
 import DashboardHeaderNav from "./DashboardHeaderNav";
 import DashboardFooter from "./DashboardFooter";
+import NotificationsBell from "@/components/notifications/NotificationsBell";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -73,7 +74,8 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <img src={logo} alt="Shop4Me" className="h-8" />
         </Link>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          <NotificationsBell />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
@@ -160,8 +162,9 @@ const DashboardLayout = ({ children }: DashboardLayoutProps) => {
             {navItems.find((item) => item.href === location.pathname)?.label || "Dashboard"}
           </h1>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
             <DashboardHeaderNav variant="buyer" />
+            <NotificationsBell />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

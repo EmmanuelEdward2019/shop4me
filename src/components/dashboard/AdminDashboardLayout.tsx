@@ -33,11 +33,13 @@ import {
   DollarSign,
   Store,
   Gift,
+  Wallet,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import AdminViewSwitcher from "./AdminViewSwitcher";
 import DashboardHeaderNav from "./DashboardHeaderNav";
 import DashboardFooter from "./DashboardFooter";
+import NotificationsBell from "@/components/notifications/NotificationsBell";
 
 interface AdminDashboardLayoutProps {
   children: React.ReactNode;
@@ -50,6 +52,7 @@ const navItems = [
   { label: "Invoices", href: "/admin/invoices", icon: Receipt },
   { label: "Agents", href: "/admin/agents", icon: UserCheck },
   { label: "Riders", href: "/admin/riders", icon: Bike },
+  { label: "Rider Payouts", href: "/admin/riders?tab=withdrawals", icon: Wallet },
   { label: "Compliance", href: "/admin/compliance", icon: ShieldCheck },
   { label: "Applications", href: "/admin/applications", icon: ClipboardList },
   { label: "Messages", href: "/admin/messages", icon: MessageSquare },
@@ -95,7 +98,8 @@ const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
           </span>
         </Link>
 
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-1">
+          <NotificationsBell />
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="rounded-full">
@@ -140,7 +144,19 @@ const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
         {/* Navigation */}
         <nav className="p-4 space-y-1 overflow-y-auto" style={{ maxHeight: "calc(100vh - 4rem - 4.5rem)" }}>
           {navItems.map((item) => {
-            const isActive = location.pathname === item.href;
+            // Highlight nav items that match path + (optional) ?tab= query.
+            // "Rider Payouts" is /admin/riders?tab=withdrawals while plain
+            // "Riders" is /admin/riders — they share a path but differ on
+            // the active tab, so we need both pathname and search to match.
+            const [itemPath, itemQuery = ""] = item.href.split("?");
+            const itemParams = new URLSearchParams(itemQuery);
+            const currentTab = location.search.includes("tab=")
+              ? new URLSearchParams(location.search).get("tab")
+              : null;
+            const expectedTab = itemParams.get("tab");
+            const isActive =
+              location.pathname === itemPath &&
+              (expectedTab ? currentTab === expectedTab : !currentTab);
             return (
               <Link
                 key={item.href}
@@ -184,12 +200,21 @@ const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
         {/* Desktop Header */}
         <header className="hidden lg:flex h-16 items-center justify-between px-6 border-b border-border bg-background">
           <h1 className="text-lg font-display font-semibold text-foreground">
-            {navItems.find((item) => item.href === location.pathname)?.label || "Admin Dashboard"}
+            {(() => {
+              const tab = new URLSearchParams(location.search).get("tab");
+              const match = navItems.find((item) => {
+                const [path, query = ""] = item.href.split("?");
+                const expectedTab = new URLSearchParams(query).get("tab");
+                return location.pathname === path && (expectedTab ? expectedTab === tab : !tab);
+              });
+              return match?.label || "Admin Dashboard";
+            })()}
           </h1>
 
           <div className="flex items-center gap-4">
             <DashboardHeaderNav variant="admin" />
             <AdminViewSwitcher />
+            <NotificationsBell />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="gap-2">

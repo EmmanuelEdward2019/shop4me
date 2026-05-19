@@ -434,6 +434,27 @@ Deno.serve(async (req) => {
         const { data: wRow } = await supabase.from("rider_withdrawals").select("amount").eq("id", withdrawalId).single();
         const amount = Number(wRow?.amount ?? 0);
 
+        // In-app notification fan-out for admins
+        await Promise.allSettled((adminRolesRes.data ?? []).map((admin: any) =>
+          supabase.from("notifications").insert({
+            user_id: admin.user_id,
+            type: "withdrawal_requested",
+            title: `Rider payout requested — ${formatNGN(amount)}`,
+            body: `${riderName} requested a withdrawal of ${formatNGN(amount)} to ${bankName} ${accountNumber}.`,
+            link: "/admin/riders",
+            data: { withdrawalId, riderId, amount },
+          })
+        ));
+        // Confirmation to the rider
+        await supabase.from("notifications").insert({
+          user_id: riderId,
+          type: "withdrawal_requested",
+          title: "Withdrawal request submitted",
+          body: `We received your request for ${formatNGN(amount)}. Admin will transfer to your bank account shortly.`,
+          link: "/rider/earnings",
+          data: { withdrawalId, amount },
+        });
+
         const adminEmails: string[] = [];
         for (const admin of (adminRolesRes.data ?? [])) {
           const { data: ap } = await supabase.from("profiles").select("email").eq("user_id", admin.user_id).single();
@@ -491,8 +512,19 @@ Deno.serve(async (req) => {
         const { riderId, amount, bankName, accountNumber } = data;
 
         const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("user_id", riderId).single();
-        if (!profile?.email) break;
 
+        // In-app notification for the rider — fires regardless of email
+        // configuration so the rider always sees the bell update.
+        await supabase.from("notifications").insert({
+          user_id: riderId,
+          type: "withdrawal_transferred",
+          title: `Payout of ${formatNGN(amount)} sent`,
+          body: `Check your bank (${bankName || "—"} ${accountNumber || ""}) and confirm receipt in the app.`,
+          link: "/rider/earnings",
+          data: { amount, bankName, accountNumber },
+        });
+
+        if (!profile?.email) break;
         to = profile.email;
         subject = `Your Withdrawal of ${formatNGN(amount)} Has Been Sent`;
         body = emailLayout(
@@ -521,6 +553,18 @@ Deno.serve(async (req) => {
 
         const riderName = profileRes.data?.full_name || "A Rider";
         const riderEmail = profileRes.data?.email || "";
+
+        // In-app notification fan-out for admins
+        await Promise.allSettled((adminRolesRes.data ?? []).map((admin: any) =>
+          supabase.from("notifications").insert({
+            user_id: admin.user_id,
+            type: "withdrawal_confirmed",
+            title: `Rider confirmed receipt — ${formatNGN(amount)}`,
+            body: `${riderName} confirmed receipt of ${formatNGN(amount)}. Withdrawal complete.`,
+            link: "/admin/riders",
+            data: { riderId, amount },
+          })
+        ));
 
         const adminEmails: string[] = [];
         for (const admin of (adminRolesRes.data ?? [])) {

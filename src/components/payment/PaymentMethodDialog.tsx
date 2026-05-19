@@ -89,18 +89,28 @@ export const PaymentMethodDialog = ({
         body: { orderId, amount },
       });
 
-      if (error) throw error;
-
-      if (data.success) {
-        toast.success("Payment successful!");
-        onOpenChange(false);
-        onSuccess?.();
-        // Navigate to refresh the order
-        navigate(`/dashboard/orders/${orderId}`, { replace: true });
-        window.location.reload();
-      } else {
-        throw new Error(data.error || "Payment failed");
+      // supabase-js surfaces non-2xx responses in `error`, but the function
+      // also returns a JSON body with the original error message. Prefer
+      // the function-level message when present so the user sees the
+      // actual reason ("Insufficient balance", etc.) instead of a generic
+      // "Edge Function returned a non-2xx status code".
+      if (error || !data?.success) {
+        const fnError =
+          data && typeof data === "object" && "error" in data
+            ? String((data as { error: unknown }).error)
+            : null;
+        const message = fnError || error?.message || "Payment failed";
+        throw new Error(message);
       }
+
+      toast.success("Payment successful!");
+      onOpenChange(false);
+      onSuccess?.();
+      // Soft-navigate to the order page; the realtime subscription on
+      // OrderDetail will refresh the timeline as soon as the orders.status
+      // update lands. We deliberately avoid window.location.reload() —
+      // it nukes any in-flight realtime channels.
+      navigate(`/dashboard/orders/${orderId}`, { replace: true });
     } catch (error) {
       console.error("Wallet payment error:", error);
       toast.error(error instanceof Error ? error.message : "Payment failed");

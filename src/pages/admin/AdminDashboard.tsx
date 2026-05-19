@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Package, UserCheck, Wallet, TrendingUp, Clock } from "lucide-react";
+import { Users, Package, UserCheck, Wallet, TrendingUp, Clock, ArrowRight } from "lucide-react";
 
 interface DashboardStats {
   totalUsers: number;
@@ -11,6 +12,8 @@ interface DashboardStats {
   pendingOrders: number;
   totalRevenue: number;
   activeOrders: number;
+  pendingWithdrawals: number;
+  pendingWithdrawalAmount: number;
 }
 
 const AdminDashboard = () => {
@@ -21,6 +24,8 @@ const AdminDashboard = () => {
     pendingOrders: 0,
     totalRevenue: 0,
     activeOrders: 0,
+    pendingWithdrawals: 0,
+    pendingWithdrawalAmount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
@@ -40,6 +45,7 @@ const AdminDashboard = () => {
         paymentsResult,
         activeOrdersResult,
         recentOrdersResult,
+        pendingWithdrawalsResult,
       ] = await Promise.all([
         supabase.from("profiles").select("id", { count: "exact", head: true }),
         supabase.from("orders").select("id", { count: "exact", head: true }),
@@ -48,9 +54,12 @@ const AdminDashboard = () => {
         supabase.from("payments").select("amount").eq("status", "success"),
         supabase.from("orders").select("id", { count: "exact", head: true }).in("status", ["accepted", "shopping", "in_transit"]),
         supabase.from("orders").select("*, profiles!orders_user_id_fkey(full_name, email)").order("created_at", { ascending: false }).limit(5),
+        supabase.from("rider_withdrawals" as any).select("amount").eq("status", "pending"),
       ]);
 
       const totalRevenue = paymentsResult.data?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+      const pendingWithdrawalRows = (pendingWithdrawalsResult.data ?? []) as Array<{ amount: number }>;
+      const pendingWithdrawalAmount = pendingWithdrawalRows.reduce((sum, w) => sum + Number(w.amount || 0), 0);
 
       setStats({
         totalUsers: usersResult.count || 0,
@@ -59,6 +68,8 @@ const AdminDashboard = () => {
         pendingOrders: pendingOrdersResult.count || 0,
         totalRevenue,
         activeOrders: activeOrdersResult.count || 0,
+        pendingWithdrawals: pendingWithdrawalRows.length,
+        pendingWithdrawalAmount,
       });
 
       setRecentOrders(recentOrdersResult.data || []);
@@ -92,6 +103,34 @@ const AdminDashboard = () => {
           <h1 className="text-2xl font-display font-bold text-foreground">Admin Overview</h1>
           <p className="text-muted-foreground">Monitor platform activity and manage users.</p>
         </div>
+
+        {/* Pending Rider Payouts callout */}
+        {!loading && stats.pendingWithdrawals > 0 && (
+          <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+            <CardContent className="pt-4 pb-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-amber-200 dark:bg-amber-900 flex items-center justify-center">
+                  <Wallet className="w-5 h-5 text-amber-700 dark:text-amber-300" />
+                </div>
+                <div>
+                  <p className="font-semibold text-amber-900 dark:text-amber-200">
+                    {stats.pendingWithdrawals} pending rider payout{stats.pendingWithdrawals === 1 ? "" : "s"}
+                  </p>
+                  <p className="text-sm text-amber-800 dark:text-amber-300">
+                    Total {formatCurrency(stats.pendingWithdrawalAmount)} waiting to be transferred.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to="/admin/riders?tab=withdrawals"
+                className="inline-flex items-center gap-1 text-sm font-medium text-amber-900 dark:text-amber-200 hover:underline whitespace-nowrap"
+              >
+                Process payouts
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

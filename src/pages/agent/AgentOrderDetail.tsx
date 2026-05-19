@@ -102,6 +102,32 @@ const AgentOrderDetail = () => {
     }
   }, [id]);
 
+  // Realtime: refresh order whenever the orders row changes. This is what
+  // moves the agent's status timeline past "Agent Assigned" once the
+  // buyer's payment completes server-side.
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`agent-order-status:${id}`)
+      .on(
+        "postgres_changes" as any,
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `id=eq.${id}`,
+        },
+        () => {
+          fetchOrder();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
   const fetchOrder = async () => {
     setLoading(true);
     try {

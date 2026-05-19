@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createNotification, getAdminUserIds } from "../_shared/notifications.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -142,10 +143,13 @@ serve(async (req) => {
         // Get buyer profile for emails
         const buyerProfile = await getProfile(payment.user_id);
 
-        // Handle wallet topup using atomic function
+        // Handle wallet topup using atomic function. Topups are explicitly
+        // flagged with `payment_method = 'wallet_topup'` (or via metadata) —
+        // direct order payments via Paystack never reach this branch, so
+        // those amounts never get added to the wallet balance.
         if (payment.payment_method === 'wallet_topup' || metadata.type === 'wallet_topup') {
           console.log(`Processing wallet topup for user ${payment.user_id}, amount: ${payment.amount}`);
-          
+
           const { data: walletResult, error: walletError } = await supabase.rpc(
             'update_wallet_balance',
             {
@@ -161,6 +165,17 @@ serve(async (req) => {
             console.error('Failed to update wallet balance:', walletError);
           } else {
             console.log(`Wallet credited successfully, new balance: ${walletResult?.new_balance}`);
+            // In-app notification for buyer
+            backgroundTasks.push(
+              createNotification(supabase, {
+                userId: payment.user_id,
+                type: 'wallet_topup',
+                title: 'Wallet funded',
+                body: `₦${Number(payment.amount).toLocaleString('en-NG')} added to your wallet. New balance: ₦${Number(walletResult?.new_balance ?? 0).toLocaleString('en-NG')}.`,
+                link: '/dashboard/wallet',
+                data: { amount: payment.amount, newBalance: walletResult?.new_balance, reference },
+              })
+            );
             // Send wallet topup email to user
             if (buyerProfile?.email) {
               queueEmail('wallet_topup', {
@@ -176,6 +191,16 @@ serve(async (req) => {
             const { data: adminRolesWallet } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
             if (adminRolesWallet && adminRolesWallet.length > 0) {
               for (const admin of adminRolesWallet) {
+                backgroundTasks.push(
+                  createNotification(supabase, {
+                    userId: admin.user_id,
+                    type: 'wallet_topup_admin',
+                    title: `Wallet topup — ₦${Number(payment.amount).toLocaleString('en-NG')}`,
+                    body: `${buyerProfile?.full_name || 'A user'} topped up ₦${Number(payment.amount).toLocaleString('en-NG')}.`,
+                    link: '/admin/payments',
+                    data: { amount: payment.amount, buyerId: payment.user_id, reference },
+                  })
+                );
                 const adminProfile = await getProfile(admin.user_id);
                 if (adminProfile?.email) {
                   queueEmail('wallet_topup_admin', {
@@ -192,7 +217,9 @@ serve(async (req) => {
           }
         }
 
-        // Update order status to paid
+        // Update order status to paid. Direct paystack order payments are
+        // recorded as a `payments` row (visible in admin dashboard) but
+        // never touch the wallet balance.
         if (payment?.order_id) {
           // Get order details for email
           const { data: order } = await supabase
@@ -201,12 +228,31 @@ serve(async (req) => {
             .eq('id', payment.order_id)
             .single();
 
-          await supabase
+          const { error: orderUpdateError } = await supabase
             .from('orders')
-            .update({ status: 'paid' })
+            .update({ status: 'paid', updated_at: new Date().toISOString() })
             .eq('id', payment.order_id);
-          
-          console.log(`Order ${payment.order_id} marked as paid`);
+          if (orderUpdateError) {
+            console.error('Failed to update order status:', orderUpdateError);
+          } else {
+            console.log(`Order ${payment.order_id} marked as paid`);
+          }
+
+          const amountStr = `₦${Number(payment.amount).toLocaleString('en-NG')}`;
+          const orderShort = String(payment.order_id).slice(0, 8);
+          const buyerName = buyerProfile?.full_name || 'A buyer';
+
+          // In-app notification: buyer
+          backgroundTasks.push(
+            createNotification(supabase, {
+              userId: payment.user_id,
+              type: 'order_payment_success',
+              title: 'Payment successful',
+              body: `${amountStr} payment confirmed for your order${order?.location_name ? ` at ${order.location_name}` : ''}.`,
+              link: `/dashboard/orders/${payment.order_id}`,
+              data: { orderId: payment.order_id, amount: payment.amount, reference, source: 'paystack' },
+            })
+          );
 
           // Send payment success email to buyer
           if (buyerProfile?.email) {
@@ -220,8 +266,18 @@ serve(async (req) => {
             });
           }
 
-          // Send email to agent
+          // Send email + in-app to agent
           if (order?.agent_id) {
+            backgroundTasks.push(
+              createNotification(supabase, {
+                userId: order.agent_id,
+                type: 'order_paid',
+                title: 'Order paid — start delivery',
+                body: `${buyerName} paid ${amountStr} for order #${orderShort}${order?.location_name ? ` at ${order.location_name}` : ''}.`,
+                link: `/agent/orders/${payment.order_id}`,
+                data: { orderId: payment.order_id, amount: payment.amount, source: 'paystack' },
+              })
+            );
             const agentProfile = await getProfile(order.agent_id);
             if (agentProfile?.email) {
               queueEmail('order_paid_agent', {
@@ -230,29 +286,35 @@ serve(async (req) => {
                 amount: payment.amount,
                 orderId: payment.order_id,
                 locationName: order.location_name,
-                buyerName: buyerProfile?.full_name || 'A buyer',
+                buyerName,
               });
             }
           }
 
-          // Send email to admin(s) + push to agent and admins
-          const { data: adminRoles } = await supabase.from('user_roles').select('user_id').eq('role', 'admin');
-          const adminUserIds: string[] = [];
-          if (adminRoles && adminRoles.length > 0) {
-            for (const admin of adminRoles) {
-              adminUserIds.push(admin.user_id);
-              const adminProfile = await getProfile(admin.user_id);
-              if (adminProfile?.email) {
-                const agentProfile = order?.agent_id ? await getProfile(order.agent_id) : null;
-                queueEmail('order_paid_admin', {
-                  email: adminProfile.email,
-                  amount: payment.amount,
-                  orderId: payment.order_id,
-                  locationName: order?.location_name,
-                  buyerName: buyerProfile?.full_name,
-                  agentName: agentProfile?.full_name,
-                });
-              }
+          // Send email + in-app to admin(s) + push to agent and admins
+          const adminUserIds = await getAdminUserIds(supabase);
+          for (const adminUserId of adminUserIds) {
+            backgroundTasks.push(
+              createNotification(supabase, {
+                userId: adminUserId,
+                type: 'order_paid_admin',
+                title: `Order paid (Paystack) — ${amountStr}`,
+                body: `${buyerName} paid ${amountStr} for order #${orderShort}${order?.location_name ? ` at ${order.location_name}` : ''}.`,
+                link: `/admin/orders/${payment.order_id}`,
+                data: { orderId: payment.order_id, amount: payment.amount, source: 'paystack', buyerId: payment.user_id, agentId: order?.agent_id ?? null },
+              })
+            );
+            const adminProfile = await getProfile(adminUserId);
+            if (adminProfile?.email) {
+              const agentProfile = order?.agent_id ? await getProfile(order.agent_id) : null;
+              queueEmail('order_paid_admin', {
+                email: adminProfile.email,
+                amount: payment.amount,
+                orderId: payment.order_id,
+                locationName: order?.location_name,
+                buyerName: buyerProfile?.full_name,
+                agentName: agentProfile?.full_name,
+              });
             }
           }
 
@@ -299,8 +361,18 @@ serve(async (req) => {
           .select('user_id, amount')
           .single();
 
-        // Send failure email to buyer
+        // Send failure email + in-app notification to buyer
         if (failedPayment) {
+          backgroundTasks.push(
+            createNotification(supabase, {
+              userId: failedPayment.user_id,
+              type: 'payment_failed',
+              title: 'Payment failed',
+              body: `Your payment of ₦${Number(failedPayment.amount).toLocaleString('en-NG')} could not be processed. Please try again.`,
+              link: '/dashboard/orders',
+              data: { reference, amount: failedPayment.amount },
+            })
+          );
           const failedBuyer = await getProfile(failedPayment.user_id);
           if (failedBuyer?.email) {
             queueEmail('payment_failed', {

@@ -27,6 +27,7 @@ import {
 import logo from "@/assets/logo.png";
 import DashboardHeaderNav from "./DashboardHeaderNav";
 import DashboardFooter from "./DashboardFooter";
+import NotificationsBell from "@/components/notifications/NotificationsBell";
 
 interface RiderDashboardLayoutProps {
   children: React.ReactNode;
@@ -111,6 +112,7 @@ const RiderDashboardLayout = ({ children }: RiderDashboardLayoutProps) => {
           <div className="flex-1" />
 
           <DashboardHeaderNav variant="agent" />
+          <NotificationsBell />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

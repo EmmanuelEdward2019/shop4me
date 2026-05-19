@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +49,9 @@ const fmt = (n: number) => "₦" + new Intl.NumberFormat("en-NG").format(Math.ro
 
 const AdminRiders = () => {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") === "withdrawals" ? "withdrawals" : "riders";
+  const [tab, setTab] = useState<string>(initialTab);
   const [riders, setRiders] = useState<RiderWithStats[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,7 +228,16 @@ const AdminRiders = () => {
           <p className="text-muted-foreground">Monitor rider performance and manage withdrawal requests.</p>
         </div>
 
-        <Tabs defaultValue="riders">
+        <Tabs
+          value={tab}
+          onValueChange={(v) => {
+            setTab(v);
+            const next = new URLSearchParams(searchParams);
+            if (v === "withdrawals") next.set("tab", "withdrawals");
+            else next.delete("tab");
+            setSearchParams(next, { replace: true });
+          }}
+        >
           <TabsList>
             <TabsTrigger value="riders">All Riders</TabsTrigger>
             <TabsTrigger value="withdrawals" className="relative">

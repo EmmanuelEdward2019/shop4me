@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createNotification, getAdminUserIds } from "../_shared/notifications.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -122,25 +123,34 @@ serve(async (req) => {
       }
 
       if (payment.order_id) {
-        // Order payment - update order status
-        await supabase
+        // Order payment - update order status. The matching `payments` row
+        // is what shows up in the admin dashboard; we do NOT touch the
+        // wallet balance for direct Paystack order payments.
+        const { error: orderUpdateError } = await supabase
           .from('orders')
-          .update({ status: 'paid' })
+          .update({ status: 'paid', updated_at: new Date().toISOString() })
           .eq('id', payment.order_id);
+        if (orderUpdateError) {
+          console.error('Failed to update order status:', orderUpdateError);
+        }
 
         console.log(`Payment ${payment.id} successful for order ${payment.order_id}`);
 
-        // Send emails — awaited so the Deno isolate isn't suspended mid-fetch.
-        // Only reaches here when the webhook hasn't already processed this payment.
+        // Send emails + in-app notifications — awaited so the Deno isolate
+        // isn't suspended mid-fetch. Only reaches here when the webhook
+        // hasn't already processed this payment.
         try {
-          const [buyerProfile, orderRow, adminRoles] = await Promise.all([
+          const [buyerProfile, orderRow, adminIds] = await Promise.all([
             supabase.from('profiles').select('email, full_name').eq('user_id', payment.user_id).maybeSingle(),
             supabase.from('orders').select('agent_id, location_name, estimated_total').eq('id', payment.order_id).maybeSingle(),
-            supabase.from('user_roles').select('user_id').eq('role', 'admin'),
+            getAdminUserIds(supabase),
           ]);
 
           const order = orderRow.data;
           const amount = transaction.amount / 100;
+          const amountStr = `₦${amount.toLocaleString('en-NG')}`;
+          const orderShort = String(payment.order_id).slice(0, 8);
+          const buyerName = buyerProfile.data?.full_name || 'A buyer';
           const emailTasks: Promise<unknown>[] = [];
 
           const postEmail = (type: string, data: Record<string, any>) => {
@@ -161,21 +171,55 @@ serve(async (req) => {
             );
           };
 
+          // In-app: buyer
+          emailTasks.push(
+            createNotification(supabase, {
+              userId: payment.user_id,
+              type: 'order_payment_success',
+              title: 'Payment successful',
+              body: `${amountStr} payment confirmed for your order${order?.location_name ? ` at ${order.location_name}` : ''}.`,
+              link: `/dashboard/orders/${payment.order_id}`,
+              data: { orderId: payment.order_id, amount, reference, source: 'paystack' },
+            })
+          );
+
           if (buyerProfile.data?.email) {
             postEmail('payment_success', { email: buyerProfile.data.email, name: buyerProfile.data.full_name, orderId: payment.order_id, amount, locationName: order?.location_name, reference });
           }
 
+          let agentName: string | null = null;
           if (order?.agent_id) {
             const agentProfile = await supabase.from('profiles').select('email, full_name').eq('user_id', order.agent_id).maybeSingle();
+            agentName = agentProfile.data?.full_name || null;
+            emailTasks.push(
+              createNotification(supabase, {
+                userId: order.agent_id,
+                type: 'order_paid',
+                title: 'Order paid — start delivery',
+                body: `${buyerName} paid ${amountStr} for order #${orderShort}${order?.location_name ? ` at ${order.location_name}` : ''}.`,
+                link: `/agent/orders/${payment.order_id}`,
+                data: { orderId: payment.order_id, amount, source: 'paystack' },
+              })
+            );
             if (agentProfile.data?.email) {
               postEmail('order_paid_agent', { email: agentProfile.data.email, name: agentProfile.data.full_name, orderId: payment.order_id, amount, buyerName: buyerProfile.data?.full_name, locationName: order.location_name });
             }
           }
 
-          for (const admin of (adminRoles.data || [])) {
-            const adminProfile = await supabase.from('profiles').select('email').eq('user_id', admin.user_id).maybeSingle();
+          for (const adminUserId of adminIds) {
+            emailTasks.push(
+              createNotification(supabase, {
+                userId: adminUserId,
+                type: 'order_paid_admin',
+                title: `Order paid (Paystack) — ${amountStr}`,
+                body: `${buyerName} paid ${amountStr} for order #${orderShort}${order?.location_name ? ` at ${order.location_name}` : ''}.`,
+                link: `/admin/orders/${payment.order_id}`,
+                data: { orderId: payment.order_id, amount, source: 'paystack', buyerId: payment.user_id, agentId: order?.agent_id ?? null },
+              })
+            );
+            const adminProfile = await supabase.from('profiles').select('email').eq('user_id', adminUserId).maybeSingle();
             if (adminProfile.data?.email) {
-              postEmail('order_paid_admin', { email: adminProfile.data.email, orderId: payment.order_id, amount, buyerName: buyerProfile.data?.full_name, locationName: order?.location_name });
+              postEmail('order_paid_admin', { email: adminProfile.data.email, orderId: payment.order_id, amount, buyerName: buyerProfile.data?.full_name, agentName, locationName: order?.location_name });
             }
           }
 
@@ -200,14 +244,16 @@ serve(async (req) => {
           console.log(`Wallet credited via verify, new balance: ${walletResult?.new_balance}`);
         }
 
-        // Send emails — awaited so the Deno isolate isn't suspended mid-fetch.
-        // Only reaches here when the webhook hasn't already processed this payment.
+        // Send emails + in-app notifications — awaited so the Deno isolate
+        // isn't suspended mid-fetch. Only reaches here when the webhook
+        // hasn't already processed this payment.
         try {
           const amount = transaction.amount / 100;
+          const amountStr = `₦${amount.toLocaleString('en-NG')}`;
           const newBalance = walletResult?.new_balance;
-          const [buyerProfile, adminRoles] = await Promise.all([
+          const [buyerProfile, adminIds] = await Promise.all([
             supabase.from('profiles').select('email, full_name').eq('user_id', payment.user_id).maybeSingle(),
-            supabase.from('user_roles').select('user_id').eq('role', 'admin'),
+            getAdminUserIds(supabase),
           ]);
           const emailTasks: Promise<unknown>[] = [];
 
@@ -229,12 +275,34 @@ serve(async (req) => {
             );
           };
 
+          // In-app: buyer
+          emailTasks.push(
+            createNotification(supabase, {
+              userId: payment.user_id,
+              type: 'wallet_topup',
+              title: 'Wallet funded',
+              body: `${amountStr} added to your wallet. New balance: ₦${Number(newBalance ?? 0).toLocaleString('en-NG')}.`,
+              link: '/dashboard/wallet',
+              data: { amount, newBalance, reference },
+            })
+          );
+
           if (buyerProfile.data?.email) {
             postEmail('wallet_topup', { email: buyerProfile.data.email, name: buyerProfile.data.full_name, amount, newBalance, reference });
           }
 
-          for (const admin of (adminRoles.data || [])) {
-            const adminProfile = await supabase.from('profiles').select('email').eq('user_id', admin.user_id).maybeSingle();
+          for (const adminUserId of adminIds) {
+            emailTasks.push(
+              createNotification(supabase, {
+                userId: adminUserId,
+                type: 'wallet_topup_admin',
+                title: `Wallet topup — ${amountStr}`,
+                body: `${buyerProfile.data?.full_name || 'A user'} topped up ${amountStr}.`,
+                link: '/admin/payments',
+                data: { amount, buyerId: payment.user_id, reference },
+              })
+            );
+            const adminProfile = await supabase.from('profiles').select('email').eq('user_id', adminUserId).maybeSingle();
             if (adminProfile.data?.email) {
               postEmail('wallet_topup_admin', { email: adminProfile.data.email, amount, newBalance, buyerName: buyerProfile.data?.full_name, buyerEmail: buyerProfile.data?.email, reference });
             }

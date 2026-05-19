@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import { usePlatformSettings } from "@/hooks/usePlatformSettings";
 import type { InvoiceItem, InvoiceMetadata, ShoppingListItem } from "@/types/chat";
 
@@ -43,19 +44,26 @@ export const AgentInvoiceForm = ({
   disabled,
 }: AgentInvoiceFormProps) => {
   const { fees, getServicePercentage, getQuote } = usePlatformSettings();
+  // Always seed the agent's "Actual Price" with the buyer-estimated price
+  // (when the agent has not yet typed anything). For revised invoices we
+  // also fall back to the original buyer estimate so the field never shows
+  // ₦0 — the agent must explicitly type a new value to override it.
   const [items, setItems] = useState<InvoiceItem[]>(
     initialItems
       ? initialItems.map((item) => ({
           ...item,
           quantity: item.quantity ?? 1,
-          actualPrice: item.actualPrice ?? 0,
+          actualPrice:
+            item.actualPrice && item.actualPrice > 0
+              ? item.actualPrice
+              : item.estimatedPrice ?? 0,
         }))
       : shoppingList.map((item) => ({
           id: item.id,
           name: item.name,
           quantity: item.quantity ?? 1,
           estimatedPrice: item.estimatedPrice,
-          actualPrice: item.estimatedPrice || 0,
+          actualPrice: item.estimatedPrice ?? 0,
           status: "found" as const,
         }))
   );
@@ -103,6 +111,18 @@ export const AgentInvoiceForm = ({
 
   const [submitting, setSubmitting] = useState(false);
   const handleSubmit = async () => {
+    // Block submission if any "found" item still has a zero price — that's
+    // never a valid invoice line and almost always means the agent forgot
+    // to confirm the price.
+    const zeroPriced = items.filter(
+      (i) => i.status === "found" && (!i.actualPrice || i.actualPrice <= 0)
+    );
+    if (zeroPriced.length > 0) {
+      toast.error(
+        `Set a price for: ${zeroPriced.map((i) => i.name).join(", ")}`
+      );
+      return;
+    }
     setSubmitting(true);
     try {
       // Get authoritative numbers from the edge function
@@ -172,9 +192,20 @@ export const AgentInvoiceForm = ({
                   <Label className="text-xs">Actual Price (₦)</Label>
                   <Input
                     type="number"
-                    value={item.actualPrice}
+                    min={0}
+                    step="0.01"
+                    placeholder={
+                      item.estimatedPrice
+                        ? `Buyer est. ${formatCurrency(item.estimatedPrice)}`
+                        : "Enter price"
+                    }
+                    value={item.actualPrice > 0 ? item.actualPrice : ""}
                     onChange={(e) =>
-                      updateItem(item.id, "actualPrice", parseFloat(e.target.value) || 0)
+                      updateItem(
+                        item.id,
+                        "actualPrice",
+                        e.target.value === "" ? 0 : parseFloat(e.target.value) || 0
+                      )
                     }
                   />
                 </div>

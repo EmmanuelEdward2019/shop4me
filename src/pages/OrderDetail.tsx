@@ -143,6 +143,32 @@ const OrderDetailPage = () => {
     }
   }, [user, id]);
 
+  // Realtime: keep the status timeline in sync with database changes —
+  // the moment `pay-with-wallet` or `paystack-webhook` updates the order
+  // row, the timeline jumps past "Agent Assigned" without a manual refresh.
+  useEffect(() => {
+    if (!id || !user) return;
+    const channel = supabase
+      .channel(`order-status:${id}`)
+      .on(
+        "postgres_changes" as any,
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "orders",
+          filter: `id=eq.${id}`,
+        },
+        () => {
+          fetchOrderDetails();
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, user]);
+
   const checkExistingReview = async () => {
     if (!user || !id) return;
     const { data } = await supabase

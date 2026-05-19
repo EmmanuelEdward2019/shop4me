@@ -28,6 +28,7 @@ import {
 import logo from "@/assets/logo.png";
 import DashboardHeaderNav from "./DashboardHeaderNav";
 import DashboardFooter from "./DashboardFooter";
+import NotificationsBell from "@/components/notifications/NotificationsBell";
 
 interface AgentDashboardLayoutProps {
   children: React.ReactNode;
@@ -117,6 +118,7 @@ const AgentDashboardLayout = ({ children }: AgentDashboardLayoutProps) => {
           <div className="flex-1" />
 
           <DashboardHeaderNav variant="agent" />
+          <NotificationsBell />
 
           {/* User menu */}
           <DropdownMenu>
