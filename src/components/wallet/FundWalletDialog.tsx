@@ -54,12 +54,21 @@ const FundWalletDialog = ({ open, onOpenChange, email, onSuccess }: FundWalletDi
     try {
       const callbackUrl = `${window.location.origin}/dashboard/wallet?verify=true`;
 
+      // Attach the current session's access_token explicitly — without
+      // this, supabase-js can fall back to the anon key, which the edge
+      // function then rejects with "Invalid authentication".
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        throw new Error("You're signed out — please sign in again to fund your wallet.");
+      }
       const { data, error } = await supabase.functions.invoke("paystack-wallet-topup", {
         body: {
           amount: numericAmount,
           email: email,
           callbackUrl,
         },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       // supabase-js wraps non-2xx responses with a generic
