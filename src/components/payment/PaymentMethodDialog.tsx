@@ -77,6 +77,45 @@ export const PaymentMethodDialog = ({
 
   const canPayWithWallet = walletBalance >= amount;
 
+  // supabase-js v2 surfaces non-2xx edge-function responses as
+  // `FunctionsHttpError` with `data === null`. The real JSON body
+  // (which contains the function's own `{ error: "..." }`) lives on
+  // `error.context`, which is the underlying Response. We read it
+  // here so users see the actual reason ("Insufficient balance",
+  // "Order is already paid", a Paystack message, etc.) instead of
+  // the generic "Edge Function returned a non-2xx status code".
+  const extractFunctionError = async (
+    error: unknown,
+    data: unknown,
+  ): Promise<string | null> => {
+    if (
+      data &&
+      typeof data === "object" &&
+      "error" in (data as Record<string, unknown>)
+    ) {
+      return String((data as { error: unknown }).error);
+    }
+    const ctx = (error as { context?: Response | undefined })?.context;
+    if (ctx && typeof ctx.text === "function") {
+      try {
+        const cloned = typeof ctx.clone === "function" ? ctx.clone() : ctx;
+        const body = await cloned.text();
+        if (body) {
+          try {
+            const parsed = JSON.parse(body);
+            if (parsed?.error) return String(parsed.error);
+            if (parsed?.message) return String(parsed.message);
+          } catch {
+            return body.slice(0, 240);
+          }
+        }
+      } catch (e) {
+        console.error("Could not read edge function error body:", e);
+      }
+    }
+    return null;
+  };
+
   const handlePayWithWallet = async () => {
     if (!canPayWithWallet) {
       toast.error("Insufficient wallet balance");
@@ -89,18 +128,13 @@ export const PaymentMethodDialog = ({
         body: { orderId, amount },
       });
 
-      // supabase-js surfaces non-2xx responses in `error`, but the function
-      // also returns a JSON body with the original error message. Prefer
-      // the function-level message when present so the user sees the
-      // actual reason ("Insufficient balance", etc.) instead of a generic
-      // "Edge Function returned a non-2xx status code".
       if (error || !data?.success) {
-        const fnError =
-          data && typeof data === "object" && "error" in data
-            ? String((data as { error: unknown }).error)
-            : null;
-        const message = fnError || error?.message || "Payment failed";
-        throw new Error(message);
+        const fnError = await extractFunctionError(error, data);
+        throw new Error(
+          fnError ||
+            (error as { message?: string })?.message ||
+            "Payment failed",
+        );
       }
 
       toast.success("Payment successful!");
@@ -131,9 +165,16 @@ export const PaymentMethodDialog = ({
         },
       });
 
-      if (error) throw error;
+      if (error || !data?.success) {
+        const fnError = await extractFunctionError(error, data);
+        throw new Error(
+          fnError ||
+            (error as { message?: string })?.message ||
+            "Failed to initialize payment",
+        );
+      }
 
-      if (data.authorization_url) {
+      if (data?.authorization_url) {
         window.location.href = data.authorization_url;
       } else {
         throw new Error("No payment URL received");
