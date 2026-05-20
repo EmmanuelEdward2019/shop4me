@@ -1,18 +1,24 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Receipt, Check, Edit, Minus, Plus, Trash2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import type { InvoiceMetadata, InvoiceItem } from "@/types/chat";
+import { normalizeInvoiceMetadata } from "@/lib/invoiceMetadata";
 
 interface InvoiceMessageProps {
-  metadata: InvoiceMetadata;
+  // Accept loosely-shaped metadata so invoices produced by clients that
+  // serialize fields as snake_case (e.g. the RN app: `actual_price`,
+  // `items_total`, `service_fee`, etc.) still render correctly. We
+  // normalize to the canonical camelCase shape immediately.
+  metadata: InvoiceMetadata | Record<string, unknown>;
   isOwn: boolean;
   onAction?: (action: "approve" | "edit", changes?: any) => void;
 }
 
-export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProps) => {
+export const InvoiceMessage = ({ metadata: rawMetadata, isOwn, onAction }: InvoiceMessageProps) => {
+  const metadata = useMemo(() => normalizeInvoiceMetadata(rawMetadata), [rawMetadata]);
   const [isEditing, setIsEditing] = useState(false);
   const [editedItems, setEditedItems] = useState<InvoiceItem[]>(
     (metadata?.items || []).map((item) => ({
@@ -23,7 +29,7 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
   );
   const [substituteRequests, setSubstituteRequests] = useState<Record<string, string>>({});
 
-  if (!metadata?.items) return null;
+  if (!metadata?.items || metadata.items.length === 0) return null;
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {

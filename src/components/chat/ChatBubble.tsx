@@ -4,6 +4,7 @@ import { Check, CheckCheck, Loader2, AlertCircle, Receipt } from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
 import { ShoppingListMessage } from "./ShoppingListMessage";
 import { InvoiceMessage } from "./InvoiceMessage";
+import { normalizeInvoiceResponseMetadata } from "@/lib/invoiceMetadata";
 
 const fmtNGN = (n: number) =>
   new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(n);
@@ -42,14 +43,17 @@ export const ChatBubble = ({ message, isOwn, onInvoiceAction }: ChatBubbleProps)
           </div>
         );
       case "invoice_response": {
-        const meta = message.metadata as any;
-        const editedItems: Array<{ id: string; name: string; quantity: number; actualPrice: number }> =
-          (meta?.editedItems || []).map((i: any) => ({
-            ...i,
-            quantity: i.quantity ?? 1,
-            actualPrice: i.actualPrice ?? 0,
-          }));
-        const approvedTotal: number | undefined = meta?.approvedTotal;
+        // Normalize so both camelCase (web) and snake_case (RN) payloads
+        // produce the same rendered shape — fixes the buyer's revised
+        // invoice rendering with ₦0 when RN was the sender.
+        const meta = normalizeInvoiceResponseMetadata(message.metadata);
+        const editedItems = (meta.editedItems ?? []).map((i) => ({
+          id: i.id,
+          name: i.name,
+          quantity: i.quantity ?? 1,
+          actualPrice: i.actualPrice ?? 0,
+        }));
+        const approvedTotal: number | undefined = meta.approvedTotal;
         const itemsSubtotal = editedItems.reduce(
           (sum, item) => sum + item.actualPrice * item.quantity,
           0

@@ -38,6 +38,7 @@ import DeliveryStatusUpdater from "@/components/agent/DeliveryStatusUpdater";
 import OrderCountdownTimer, { calculateEstimatedMinutes } from "@/components/order/OrderCountdownTimer";
 import type { Database } from "@/integrations/supabase/types";
 import type { ShoppingListItem, ShoppingListMetadata, InvoiceMetadata, InvoiceItem } from "@/types/chat";
+import { normalizeInvoiceResponseMetadata } from "@/lib/invoiceMetadata";
 import { getLocationCoordinates } from "@/lib/lagos-locations";
 
 type Order = Database["public"]["Tables"]["orders"]["Row"];
@@ -88,11 +89,18 @@ const AgentOrderDetail = () => {
   const { messages, sendMessage, uploadPhoto } = useChat({ orderId: id });
   const { invoice, loading: invoiceLoading, creating: invoiceCreating, createInvoice } = useInvoice({ orderId: id || "" });
 
-  // Detect if buyer has responded to an invoice with change requests
+  // Detect if buyer has responded to an invoice with change requests.
+  // Normalize the metadata so the agent's revised-invoice form receives
+  // the buyer's items in canonical camelCase regardless of which client
+  // (web or RN) sent the response.
   const buyerInvoiceResponse = useMemo(() => {
     return [...messages].reverse().find((m) => m.message_type === "invoice_response");
   }, [messages]);
-  const buyerEditedItems = (buyerInvoiceResponse?.metadata as any)?.editedItems as InvoiceItem[] | undefined;
+  const buyerEditedItems = useMemo<InvoiceItem[] | undefined>(() => {
+    if (!buyerInvoiceResponse?.metadata) return undefined;
+    const normalized = normalizeInvoiceResponseMetadata(buyerInvoiceResponse.metadata);
+    return normalized.editedItems?.length ? normalized.editedItems : undefined;
+  }, [buyerInvoiceResponse]);
   const { fees: platformFees } = usePlatformSettings();
 
   useEffect(() => {
