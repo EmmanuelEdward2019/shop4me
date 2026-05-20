@@ -152,8 +152,23 @@ export const OrderChat = ({ orderId, orderTotal, userEmail, className }: OrderCh
     action: "approve" | "edit",
     changes?: any
   ) => {
-    if (action === "approve" && orderTotal && userEmail) {
-      setPaymentAmount(changes?.approvedTotal || orderTotal);
+    if (action === "approve") {
+      // Prefer the invoice's approvedTotal (passed in `changes`) — it's
+      // the canonical number coming out of InvoiceMessage. Fall back to
+      // the order's stored final_total. The dialog was previously
+      // gated on `orderTotal && userEmail`, which silently swallowed
+      // taps when `order.final_total` was null/0 (e.g. invoices sent
+      // from the RN app before the snake_case fix landed).
+      const amount = Number(changes?.approvedTotal) || Number(orderTotal) || 0;
+      if (!userEmail) {
+        console.error("Cannot open payment dialog — userEmail missing");
+        return;
+      }
+      if (amount <= 0) {
+        console.error("Cannot open payment dialog — invoice total is 0", { changes, orderTotal });
+        return;
+      }
+      setPaymentAmount(amount);
       setShowPaymentDialog(true);
     } else if (action === "edit") {
       await sendMessage(
