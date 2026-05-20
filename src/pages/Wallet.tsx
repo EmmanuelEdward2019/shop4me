@@ -1,8 +1,9 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWallet } from "@shared/hooks";
+import type { WalletTransaction } from "@shared/types";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,63 @@ const WalletPage = () => {
     type: "all",
     dateRange: undefined,
   });
+  // Direct Paystack order payments (no wallet involvement). These don't
+  // live in `wallet_transactions` — they're rows in `payments` with an
+  // order_id — so we fetch them separately and merge into the unified
+  // transaction history below.
+  const [orderPayments, setOrderPayments] = useState<WalletTransaction[]>([]);
+
+  const fetchOrderPayments = useCallback(async () => {
+    if (!user) {
+      setOrderPayments([]);
+      return;
+    }
+    const { data, error } = await supabase
+      .from("payments")
+      .select("id, amount, status, payment_method, order_id, provider_reference, created_at")
+      .eq("user_id", user.id)
+      .eq("status", "success")
+      .not("order_id", "is", null)
+      .neq("payment_method", "wallet_topup")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) {
+      console.error("Failed to fetch order payments:", error);
+      return;
+    }
+    setOrderPayments(
+      (data ?? []).map((p) => ({
+        // Prefix the id so it can never collide with a wallet_transaction
+        // id and so the export/filter components can distinguish source.
+        id: `payment_${p.id}`,
+        wallet_id: "",
+        type: "debit",
+        amount: Number(p.amount),
+        description: `Order payment${p.order_id ? ` (#${String(p.order_id).slice(0, 8)})` : ""} via ${(p.payment_method as string) || "Paystack"}`,
+        reference: p.provider_reference,
+        created_at: p.created_at,
+      })),
+    );
+  }, [user]);
+
+  useEffect(() => {
+    fetchOrderPayments();
+  }, [fetchOrderPayments]);
+
+  // After a topup verify completes, refresh order payments too — picks up
+  // any direct-paystack payment that completed while the user was away.
+  useEffect(() => {
+    if (!verifying) fetchOrderPayments();
+  }, [verifying, fetchOrderPayments]);
+
+  // Unified, time-sorted list: wallet transactions + direct paystack
+  // order payments. This is what feeds the Transaction History section
+  // and the existing filter / export components.
+  const mergedTransactions = useMemo(() => {
+    return [...transactions, ...orderPayments].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    );
+  }, [transactions, orderPayments]);
 
   // Check for payment verification on return from Paystack
   useEffect(() => {
@@ -85,9 +143,9 @@ const WalletPage = () => {
     }
   };
 
-  // Apply filters to transactions
+  // Apply filters to transactions (merged: wallet + direct paystack)
   const applyFilters = useCallback(() => {
-    let filtered = [...transactions];
+    let filtered = [...mergedTransactions];
 
     if (filters.type !== "all") {
       filtered = filtered.filter((tx) => tx.type === filters.type);
@@ -103,7 +161,7 @@ const WalletPage = () => {
     }
 
     setFilteredTransactions(filtered);
-  }, [transactions, filters]);
+  }, [mergedTransactions, filters]);
 
   useEffect(() => {
     applyFilters();
@@ -260,7 +318,7 @@ const WalletPage = () => {
                   </div>
                 ))}
               </div>
-            ) : transactions.length === 0 ? (
+            ) : mergedTransactions.length === 0 ? (
               <div className="text-center py-12">
                 <Clock className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground mb-2">No transactions yet</p>
@@ -287,7 +345,7 @@ const WalletPage = () => {
               <div className="space-y-4">
                 {(filters.type !== "all" || filters.dateRange) && (
                   <p className="text-sm text-muted-foreground">
-                    Showing {filteredTransactions.length} of {transactions.length} transactions
+                    Showing {filteredTransactions.length} of {mergedTransactions.length} transactions
                   </p>
                 )}
                 
@@ -341,8 +399,8 @@ const WalletPage = () => {
         </Card>
 
         {/* Monthly Spending Summary */}
-        {transactions.length > 0 && (
-          <MonthlySpendingSummary transactions={transactions} />
+        {mergedTransactions.length > 0 && (
+          <MonthlySpendingSummary transactions={mergedTransactions} />
         )}
 
         {/* Saved Payment Cards */}

@@ -70,12 +70,19 @@ serve(async (req) => {
       newStatus = 'failed';
     }
 
-    // Update payment record
+    // Update payment record. Preserve the topup flag if this was a wallet
+    // topup, otherwise record the actual Paystack channel — so wallet
+    // topups stay clearly labelled and direct order payments never appear
+    // as topups in the admin dashboard.
+    const verifiedPaymentMethod =
+      payment.payment_method === 'wallet_topup'
+        ? 'wallet_topup'
+        : (transaction.channel || payment.payment_method || 'card');
     const { error: updateError } = await supabase
       .from('payments')
       .update({
         status: newStatus,
-        payment_method: transaction.channel, // 'card', 'bank', 'ussd', etc.
+        payment_method: verifiedPaymentMethod,
         provider_response: transaction,
       })
       .eq('id', payment.id);
@@ -225,8 +232,10 @@ serve(async (req) => {
 
           await Promise.allSettled(emailTasks);
         } catch (e) { console.error('Email dispatch error (order payment):', e); }
-      } else if (payment.payment_method === 'wallet_topup') {
-        // Wallet topup - credit using atomic RPC
+      } else if (payment.payment_method === 'wallet_topup' && !payment.order_id) {
+        // Wallet topup - credit using atomic RPC.
+        // Belt-and-braces: require BOTH the wallet_topup flag AND a null
+        // order_id. A payment tied to an order can never credit the wallet.
         const { data: walletResult, error: walletRpcError } = await supabase.rpc(
           'update_wallet_balance',
           {

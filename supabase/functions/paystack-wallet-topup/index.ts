@@ -55,16 +55,33 @@ serve(async (req) => {
 
     console.log(`Initializing wallet topup for user ${user.id}, amount: ${amount}`);
 
-    // Get user's wallet
-    const { data: wallet, error: walletError } = await supabase
+    // Get user's wallet — auto-create on first topup so new users can
+    // fund without a separate provisioning step. Wallets are created with
+    // balance 0 by the auth signup trigger, but historical accounts may
+    // be missing the row.
+    let { data: wallet, error: walletError } = await supabase
       .from('wallets')
       .select('id')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (walletError || !wallet) {
-      console.error('Wallet not found:', walletError);
-      throw new Error('Wallet not found');
+    if (walletError) {
+      console.error('Wallet lookup error:', walletError);
+      throw new Error('Wallet lookup failed');
+    }
+
+    if (!wallet) {
+      console.log(`No wallet for user ${user.id} — creating one`);
+      const { data: created, error: createError } = await supabase
+        .from('wallets')
+        .insert({ user_id: user.id, balance: 0 })
+        .select('id')
+        .single();
+      if (createError || !created) {
+        console.error('Failed to create wallet:', createError);
+        throw new Error('Could not create wallet. Please contact support.');
+      }
+      wallet = created;
     }
 
     // Create a unique reference for this topup

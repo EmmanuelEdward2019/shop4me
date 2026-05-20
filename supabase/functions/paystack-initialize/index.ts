@@ -65,7 +65,11 @@ serve(async (req) => {
       throw new Error('Order not found');
     }
 
-    // Create payment record
+    // Create payment record. Note `payment_method` is explicitly set to
+    // 'order_payment' (not null) so the webhook can never accidentally
+    // treat a direct order payment as a wallet topup. The real channel
+    // ('card', 'bank', 'ussd', etc.) overwrites this once Paystack
+    // confirms the charge.
     const { data: payment, error: paymentError } = await supabase
       .from('payments')
       .insert({
@@ -75,6 +79,7 @@ serve(async (req) => {
         currency: 'NGN',
         status: 'pending',
         provider: 'paystack',
+        payment_method: 'order_payment',
       })
       .select()
       .single();
@@ -100,6 +105,9 @@ serve(async (req) => {
           order_id: orderId,
           payment_id: payment.id,
           user_id: user.id,
+          // Explicit discriminator so the webhook never confuses an order
+          // payment with a wallet topup. NEVER set this to "wallet_topup".
+          type: 'order_payment',
         },
       }),
     });

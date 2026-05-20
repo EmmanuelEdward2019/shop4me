@@ -62,17 +62,22 @@ const FundWalletDialog = ({ open, onOpenChange, email, onSuccess }: FundWalletDi
         },
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (!data.success) {
-        throw new Error(data.error || "Failed to initialize payment");
+      // supabase-js wraps non-2xx responses with a generic
+      // "Edge Function returned a non-2xx status code" — the actual reason
+      // lives in `data.error`. Always prefer the function-level message.
+      if (error || !data?.success) {
+        const fnError =
+          data && typeof data === "object" && "error" in data
+            ? String((data as { error: unknown }).error)
+            : null;
+        throw new Error(fnError || error?.message || "Failed to initialize payment");
       }
 
       // Redirect to Paystack
       if (data.authorization_url) {
         window.location.href = data.authorization_url;
+      } else {
+        throw new Error("Paystack did not return a payment URL");
       }
     } catch (error: any) {
       console.error("Fund wallet error:", error);

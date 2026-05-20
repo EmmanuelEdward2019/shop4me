@@ -238,15 +238,37 @@ const OrderDetailPage = () => {
   const fetchAgentInfo = async (agentId: string) => {
     setAgentLoading(true);
     try {
-      const { data, error } = await supabase
+      // Try the rich application row first (photo, markets, experience).
+      // If RLS or a missing row makes it unreachable, fall back to the
+      // agent's profile so the card at least shows the agent's name —
+      // anything is better than the stale "Waiting for Agent" copy when
+      // an agent has already been assigned.
+      const { data: appData } = await supabase
         .from("agent_applications")
         .select("full_name, photo_url, market_knowledge, experience_description")
         .eq("user_id", agentId)
         .eq("status", "approved")
-        .single();
+        .maybeSingle();
 
-      if (error) throw error;
-      setAgentInfo(data);
+      if (appData) {
+        setAgentInfo(appData);
+        return;
+      }
+
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("user_id", agentId)
+        .maybeSingle();
+
+      if (profileData) {
+        setAgentInfo({
+          full_name: profileData.full_name,
+          photo_url: null,
+          market_knowledge: null,
+          experience_description: null,
+        });
+      }
     } catch (error) {
       console.error("Error fetching agent info:", error);
     } finally {

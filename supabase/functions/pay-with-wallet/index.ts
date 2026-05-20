@@ -239,6 +239,19 @@ serve(async (req) => {
       }).catch((e) => console.error(`Email (${type}) error:`, e));
 
     if (buyerProfile?.email) {
+      // 1. The order-payment confirmation — same template every order
+      //    pays sees, regardless of method (wallet vs direct Paystack).
+      //    Keeps the buyer's "your order is paid" mail consistent.
+      postEmail("payment_success", {
+        email: buyerProfile.email,
+        name: buyerProfile.full_name,
+        amount,
+        orderId,
+        locationName,
+        reference: `wallet_${walletResult.transaction_id ?? orderId}`,
+      });
+      // 2. The wallet-movement receipt — surfaces the new balance so the
+      //    buyer can reconcile their wallet without opening the app.
       postEmail("wallet_spent", {
         email: buyerProfile.email,
         name: buyerProfile.full_name,

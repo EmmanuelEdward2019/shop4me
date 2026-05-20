@@ -124,12 +124,20 @@ serve(async (req) => {
           break;
         }
 
-        // Now update the payment record
+        // Now update the payment record. Preserve the original
+        // payment_method for wallet topups (so the admin dashboard keeps
+        // showing "Wallet Top-up"). For everything else, write the real
+        // Paystack channel ('card', 'bank', 'ussd', etc.) so direct order
+        // payments are NOT mislabelled as wallet topups.
+        const finalPaymentMethod =
+          originalPayment.payment_method === 'wallet_topup'
+            ? 'wallet_topup'
+            : (transaction.channel || originalPayment.payment_method || 'card');
         const { error: paymentError } = await supabase
           .from('payments')
           .update({
             status: 'success',
-            payment_method: originalPayment.payment_method === 'wallet_topup' ? 'wallet_topup' : transaction.channel,
+            payment_method: finalPaymentMethod,
             provider_response: transaction,
           })
           .eq('id', originalPayment.id);
@@ -143,11 +151,18 @@ serve(async (req) => {
         // Get buyer profile for emails
         const buyerProfile = await getProfile(payment.user_id);
 
-        // Handle wallet topup using atomic function. Topups are explicitly
-        // flagged with `payment_method = 'wallet_topup'` (or via metadata) —
-        // direct order payments via Paystack never reach this branch, so
-        // those amounts never get added to the wallet balance.
-        if (payment.payment_method === 'wallet_topup' || metadata.type === 'wallet_topup') {
+        // Handle wallet topup using atomic function. A payment is a wallet
+        // topup ONLY when both:
+        //   1. `payment_method = 'wallet_topup'` or `metadata.type =
+        //      'wallet_topup'` — the explicit topup flag, AND
+        //   2. `order_id IS NULL` — never credit the wallet for a payment
+        //      tied to an order, even if some upstream code mislabels it.
+        // This belt-and-braces gate is what stops direct Paystack order
+        // payments from being silently added to the buyer's wallet.
+        const isWalletTopup =
+          (payment.payment_method === 'wallet_topup' || metadata.type === 'wallet_topup') &&
+          !payment.order_id;
+        if (isWalletTopup) {
           console.log(`Processing wallet topup for user ${payment.user_id}, amount: ${payment.amount}`);
 
           const { data: walletResult, error: walletError } = await supabase.rpc(

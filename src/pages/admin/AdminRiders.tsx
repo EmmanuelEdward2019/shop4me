@@ -144,27 +144,47 @@ const AdminRiders = () => {
       if (rows.length === 0) { setWithdrawals([]); return; }
 
       const riderIds = [...new Set(rows.map((r: any) => r.rider_id))];
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("user_id, full_name, email, phone")
-        .in("user_id", riderIds);
+      // Pull profile + onboarding bank details in parallel. Bank details
+      // captured during rider onboarding live in `agent_applications`;
+      // we fall back to those when the withdrawal row itself is missing
+      // them (older requests created before the bank columns were
+      // populated, or migrations that didn't backfill).
+      const [profilesResult, applicationsResult] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("user_id, full_name, email, phone")
+          .in("user_id", riderIds),
+        supabase
+          .from("agent_applications")
+          .select("user_id, bank_name, account_number, account_name")
+          .in("user_id", riderIds),
+      ]);
 
-      const profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.user_id, p]));
+      const profileMap = Object.fromEntries((profilesResult.data ?? []).map((p) => [p.user_id, p]));
+      const appMap = Object.fromEntries(
+        (applicationsResult.data ?? []).map((a: any) => [a.user_id, a]),
+      );
 
-      setWithdrawals(rows.map((r: any) => ({
-        id: r.id,
-        rider_id: r.rider_id,
-        amount: Number(r.amount),
-        bank_name: r.bank_name,
-        account_name: r.account_name,
-        account_number: r.account_number,
-        status: r.status,
-        requested_at: r.requested_at,
-        transferred_at: r.transferred_at,
-        rider_name: profileMap[r.rider_id]?.full_name ?? "—",
-        rider_email: profileMap[r.rider_id]?.email ?? "—",
-        rider_phone: profileMap[r.rider_id]?.phone ?? "—",
-      })));
+      setWithdrawals(rows.map((r: any) => {
+        const app = appMap[r.rider_id];
+        return {
+          id: r.id,
+          rider_id: r.rider_id,
+          amount: Number(r.amount),
+          // Prefer the value on the withdrawal row (frozen at request
+          // time) but fall back to the rider's onboarding application
+          // so the admin always sees the account to transfer to.
+          bank_name: r.bank_name || app?.bank_name || null,
+          account_name: r.account_name || app?.account_name || null,
+          account_number: r.account_number || app?.account_number || null,
+          status: r.status,
+          requested_at: r.requested_at,
+          transferred_at: r.transferred_at,
+          rider_name: profileMap[r.rider_id]?.full_name ?? "—",
+          rider_email: profileMap[r.rider_id]?.email ?? "—",
+          rider_phone: profileMap[r.rider_id]?.phone ?? "—",
+        };
+      }));
     } catch (err) {
       console.error("Error fetching withdrawals:", err);
     } finally {
@@ -423,9 +443,23 @@ const AdminRiders = () => {
                               <p className="text-xs text-muted-foreground">{w.rider_phone}</p>
                             </TableCell>
                             <TableCell>
-                              <p className="font-medium text-sm">{w.bank_name || "—"}</p>
-                              <p className="text-xs text-muted-foreground">{w.account_number}</p>
-                              <p className="text-xs text-muted-foreground">{w.account_name}</p>
+                              {w.bank_name || w.account_number || w.account_name ? (
+                                <div className="space-y-0.5">
+                                  <p className="font-medium text-sm">
+                                    {w.bank_name || <span className="text-muted-foreground italic">Bank not set</span>}
+                                  </p>
+                                  <p className="text-xs font-mono">
+                                    {w.account_number || <span className="text-muted-foreground italic">No account number</span>}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {w.account_name || <span className="italic">No account name</span>}
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="text-xs text-destructive italic">
+                                  No bank details on file — contact rider before transferring.
+                                </p>
+                              )}
                             </TableCell>
                             <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">
                               {fmt(w.amount)}

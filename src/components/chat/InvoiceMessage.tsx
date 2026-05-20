@@ -58,6 +58,25 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
     );
   };
 
+  // The buyer can propose a different price during negotiation. Empty
+  // input is treated as "keep the agent's price" — we never overwrite the
+  // prefilled value with 0 silently.
+  const handlePriceChange = (itemId: string, raw: string) => {
+    setEditedItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        const original = metadata.items.find((o) => o.id === itemId);
+        const originalPrice = original?.actualPrice ?? item.actualPrice ?? 0;
+        if (raw === "") {
+          return { ...item, actualPrice: originalPrice };
+        }
+        const parsed = parseFloat(raw);
+        if (Number.isNaN(parsed) || parsed < 0) return item;
+        return { ...item, actualPrice: parsed };
+      })
+    );
+  };
+
   const handleRemoveItem = (itemId: string) => {
     setEditedItems((prev) => prev.filter((item) => item.id !== itemId));
   };
@@ -69,21 +88,33 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
   const handleApprove = () => {
     if (isEditing) {
       const changes = editedItems
-        .map((edited) => {
+        .flatMap((edited) => {
           const original = metadata.items.find((o) => o.id === edited.id);
-          if (!original) return { itemId: edited.id, action: "remove" as const };
+          if (!original) return [{ itemId: edited.id, action: "remove" as const }];
+          const out: any[] = [];
           const editedQty = edited.quantity ?? 1;
           const originalQty = original.quantity ?? 1;
           if (editedQty !== originalQty) {
-            return {
+            out.push({
               itemId: edited.id,
               action: "quantity_change" as const,
               newQuantity: editedQty,
-            };
+            });
           }
-          return null;
-        })
-        .filter(Boolean);
+          // Buyer-proposed price differs from the agent's invoice price.
+          // Surfaced as its own change-record so the agent's revised
+          // invoice form picks it up via initialItems.actualPrice.
+          const originalPrice = original.actualPrice ?? 0;
+          const editedPrice = edited.actualPrice ?? 0;
+          if (editedPrice !== originalPrice) {
+            out.push({
+              itemId: edited.id,
+              action: "price_change" as const,
+              newPrice: editedPrice,
+            });
+          }
+          return out;
+        });
 
       const removed = metadata.items
         .filter((orig) => !editedItems.find((e) => e.id === orig.id))
@@ -169,6 +200,36 @@ export const InvoiceMessage = ({ metadata, isOwn, onAction }: InvoiceMessageProp
                 </span>
               )}
             </div>
+            {isEditing && (
+              <div className="flex items-center gap-2 pl-1">
+                <span className="text-[11px] text-muted-foreground shrink-0">Price (₦)</span>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  className="h-7 text-xs w-28"
+                  value={item.actualPrice > 0 ? item.actualPrice : ""}
+                  placeholder={String(
+                    metadata.items.find((o) => o.id === item.id)?.actualPrice ?? 0
+                  )}
+                  onChange={(e) => handlePriceChange(item.id, e.target.value)}
+                  onBlur={(e) => {
+                    // Empty / zero on blur → restore the agent's original
+                    // price. Buyer can clear the field to "abandon" their
+                    // proposal without losing the prefilled value.
+                    if (
+                      e.target.value === "" ||
+                      Number(e.target.value) <= 0
+                    ) {
+                      handlePriceChange(item.id, "");
+                    }
+                  }}
+                />
+                <span className="text-[11px] text-muted-foreground">
+                  = {formatCurrency((item.actualPrice ?? 0) * (item.quantity ?? 1))}
+                </span>
+              </div>
+            )}
             {item.photoUrl && (
               <img
                 src={item.photoUrl}

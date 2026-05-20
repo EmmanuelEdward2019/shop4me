@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Receipt, Camera, Send, Check, X, PackageOpen } from "lucide-react";
+import { Receipt, Camera, Send, Check, X, PackageOpen, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -48,25 +48,38 @@ export const AgentInvoiceForm = ({
   // (when the agent has not yet typed anything). For revised invoices we
   // also fall back to the original buyer estimate so the field never shows
   // ₦0 — the agent must explicitly type a new value to override it.
-  const [items, setItems] = useState<InvoiceItem[]>(
-    initialItems
-      ? initialItems.map((item) => ({
+  //
+  // estimatedPrice must NEVER be wiped from state — if `initialItems`
+  // doesn't carry it through, we look it up from the original
+  // shoppingList by item.id so it stays visible to the agent and remains
+  // the seed for actualPrice.
+  const [items, setItems] = useState<InvoiceItem[]>(() => {
+    const shoppingById = new Map(shoppingList.map((s) => [s.id, s]));
+    if (initialItems) {
+      return initialItems.map((item) => {
+        const original = shoppingById.get(item.id);
+        const preservedEstimate = item.estimatedPrice ?? original?.estimatedPrice;
+        const seededActual =
+          item.actualPrice && item.actualPrice > 0
+            ? item.actualPrice
+            : preservedEstimate ?? 0;
+        return {
           ...item,
-          quantity: item.quantity ?? 1,
-          actualPrice:
-            item.actualPrice && item.actualPrice > 0
-              ? item.actualPrice
-              : item.estimatedPrice ?? 0,
-        }))
-      : shoppingList.map((item) => ({
-          id: item.id,
-          name: item.name,
-          quantity: item.quantity ?? 1,
-          estimatedPrice: item.estimatedPrice,
-          actualPrice: item.estimatedPrice ?? 0,
-          status: "found" as const,
-        }))
-  );
+          quantity: item.quantity ?? original?.quantity ?? 1,
+          estimatedPrice: preservedEstimate,
+          actualPrice: seededActual,
+        };
+      });
+    }
+    return shoppingList.map((item) => ({
+      id: item.id,
+      name: item.name,
+      quantity: item.quantity ?? 1,
+      estimatedPrice: item.estimatedPrice,
+      actualPrice: item.estimatedPrice ?? 0,
+      status: "found" as const,
+    }));
+  });
   const [notes, setNotes] = useState("");
   const [uploadingPhotoFor, setUploadingPhotoFor] = useState<string | null>(null);
   const [isHeavyOrder, setIsHeavyOrder] = useState(initialIsHeavy);
@@ -92,6 +105,14 @@ export const AgentInvoiceForm = ({
   const itemsTotal = items
     .filter((i) => i.status !== "not_found")
     .reduce((sum, item) => sum + item.actualPrice * item.quantity, 0);
+
+  // Any "found" item whose actualPrice is still zero (or missing). The
+  // submit button stays disabled until this list is empty — the buyer
+  // should never receive an invoice with ₦0 lines while service/delivery
+  // fees are non-zero.
+  const itemsNeedingPrice = items.filter(
+    (i) => i.status === "found" && (!i.actualPrice || i.actualPrice <= 0),
+  );
 
   // Live preview: tiered service fee + default delivery fee (admin-controlled).
   // Final numbers are re-fetched from the edge function on submit so admin
@@ -207,7 +228,42 @@ export const AgentInvoiceForm = ({
                         e.target.value === "" ? 0 : parseFloat(e.target.value) || 0
                       )
                     }
+                    onBlur={() => {
+                      // Empty/zero on blur — fall back to the buyer's
+                      // estimate (when one exists). This means the agent
+                      // can accept the buyer's price by simply not typing
+                      // anything, and we never silently send a ₦0 line.
+                      if (
+                        (!item.actualPrice || item.actualPrice <= 0) &&
+                        item.estimatedPrice &&
+                        item.estimatedPrice > 0
+                      ) {
+                        updateItem(item.id, "actualPrice", item.estimatedPrice);
+                      }
+                    }}
+                    className={
+                      !item.actualPrice || item.actualPrice <= 0
+                        ? "border-amber-400 focus-visible:ring-amber-400"
+                        : undefined
+                    }
                   />
+                  {(!item.actualPrice || item.actualPrice <= 0) && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-1 flex items-start gap-1">
+                      <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                      {item.estimatedPrice && item.estimatedPrice > 0
+                        ? `Enter market price or tap to use buyer's ${formatCurrency(item.estimatedPrice)}.`
+                        : "Enter the market price before sending the invoice."}
+                    </p>
+                  )}
+                  {item.estimatedPrice && item.estimatedPrice > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => updateItem(item.id, "actualPrice", item.estimatedPrice)}
+                      className="text-[11px] text-primary hover:underline mt-1"
+                    >
+                      Use buyer's estimate ({formatCurrency(item.estimatedPrice)})
+                    </button>
+                  )}
                 </div>
                 <div>
                   <Label className="text-xs">Photo (optional)</Label>
@@ -314,7 +370,27 @@ export const AgentInvoiceForm = ({
           </p>
         </div>
 
-        <Button className="w-full" onClick={handleSubmit} disabled={disabled || submitting}>
+        {itemsNeedingPrice.length > 0 && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 p-3 flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+            <div className="text-sm text-amber-800 dark:text-amber-200">
+              <p className="font-medium">Set a price for:</p>
+              <p className="text-xs mt-0.5">
+                {itemsNeedingPrice.map((i) => i.name).join(", ")}
+              </p>
+              <p className="text-[11px] mt-1 text-amber-700 dark:text-amber-300">
+                Type the market price, tap "Use buyer's estimate", or mark
+                the item as not found.
+              </p>
+            </div>
+          </div>
+        )}
+
+        <Button
+          className="w-full"
+          onClick={handleSubmit}
+          disabled={disabled || submitting || itemsNeedingPrice.length > 0}
+        >
           <Send className="w-4 h-4 mr-2" />
           {submitting ? "Calculating…" : "Send Invoice to Customer"}
         </Button>
