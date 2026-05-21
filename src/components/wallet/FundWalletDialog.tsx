@@ -54,13 +54,18 @@ const FundWalletDialog = ({ open, onOpenChange, email, onSuccess }: FundWalletDi
     try {
       const callbackUrl = `${window.location.origin}/dashboard/wallet?verify=true`;
 
-      // Attach the current session's access_token explicitly — without
-      // this, supabase-js can fall back to the anon key, which the edge
-      // function then rejects with "Invalid authentication".
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
+      // Force a fresh access_token before invoking. The token cached in
+      // localStorage may be expired — PostgREST still accepts it (it
+      // validates locally with the project secret), but the edge
+      // function calls GoTrue, which rejects expired tokens. Forcing a
+      // refresh guarantees the token GoTrue receives is fresh.
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const { data: cached } = refreshed.session
+        ? { data: refreshed }
+        : await supabase.auth.getSession();
+      const accessToken = cached.session?.access_token;
       if (!accessToken) {
-        throw new Error("You're signed out — please sign in again to fund your wallet.");
+        throw new Error("Your session has expired — please sign in again to fund your wallet.");
       }
       const { data, error } = await supabase.functions.invoke("paystack-wallet-topup", {
         body: {

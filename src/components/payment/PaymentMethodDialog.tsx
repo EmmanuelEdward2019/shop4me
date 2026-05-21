@@ -116,16 +116,24 @@ export const PaymentMethodDialog = ({
     return null;
   };
 
-  // Resolve the current session's access_token at call time. Without
-  // this, supabase-js sometimes lets `functions.invoke` fall back to the
-  // anon key in the Authorization header — the edge function then calls
-  // `auth.getUser(token)`, GoTrue rejects the anon JWT as "not a user
-  // token", and the user sees "Invalid token" / "Invalid authentication"
-  // even though they're signed in.
-  const getAuthHeaders = async (): Promise<Record<string, string> | undefined> => {
+  // Resolve a fresh access_token at call time.
+  //
+  // The cached session in localStorage may be stale: PostgREST validates
+  // JWTs locally with the project secret, so direct DB reads still work
+  // even after the token's `exp` has passed — but the edge function
+  // calls GoTrue's `/auth/v1/user`, which rejects expired tokens. That's
+  // the "Invalid token" / "Invalid authentication" the user keeps
+  // seeing. Forcing `refreshSession()` makes GoTrue mint a brand-new
+  // access_token that's guaranteed to validate.
+  const getFreshAccessToken = async (): Promise<string | null> => {
+    const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+    if (!refreshError && refreshed.session?.access_token) {
+      return refreshed.session.access_token;
+    }
+    // Refresh failed (e.g. refresh_token revoked). Fall back to the
+    // cached session — better than nothing for a final attempt.
     const { data } = await supabase.auth.getSession();
-    const token = data.session?.access_token;
-    return token ? { Authorization: `Bearer ${token}` } : undefined;
+    return data.session?.access_token ?? null;
   };
 
   const handlePayWithWallet = async () => {
@@ -136,13 +144,13 @@ export const PaymentMethodDialog = ({
 
     setIsProcessing(true);
     try {
-      const headers = await getAuthHeaders();
-      if (!headers) {
-        throw new Error("You're signed out — please sign in again to pay.");
+      const accessToken = await getFreshAccessToken();
+      if (!accessToken) {
+        throw new Error("Your session has expired — please sign in again to pay.");
       }
       const { data, error } = await supabase.functions.invoke("pay-with-wallet", {
         body: { orderId, amount },
-        headers,
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (error || !data?.success) {
@@ -173,9 +181,9 @@ export const PaymentMethodDialog = ({
   const handlePayWithCard = async () => {
     setIsProcessing(true);
     try {
-      const headers = await getAuthHeaders();
-      if (!headers) {
-        throw new Error("You're signed out — please sign in again to pay.");
+      const accessToken = await getFreshAccessToken();
+      if (!accessToken) {
+        throw new Error("Your session has expired — please sign in again to pay.");
       }
       const { data, error } = await supabase.functions.invoke("paystack-initialize", {
         body: {
@@ -184,7 +192,7 @@ export const PaymentMethodDialog = ({
           email,
           callbackUrl: `${window.location.origin}/dashboard/orders/${orderId}`,
         },
-        headers,
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
 
       if (error || !data?.success) {
