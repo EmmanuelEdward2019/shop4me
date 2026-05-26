@@ -1,6 +1,98 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createNotification, getAdminUserIds } from "../_shared/notifications.ts";
+
+// ─── Inlined helpers ──────────────────────────────────────────────
+// `supabase functions deploy <name>` does not bundle the
+// `supabase/functions/_shared/` directory alongside the function, so
+// we inline the helpers here. Keep this block in sync with
+// `_shared/notifications.ts` and `_shared/audit.ts`.
+
+interface NotificationPayload {
+  userId: string | null | undefined;
+  type: string;
+  title: string;
+  body?: string;
+  link?: string;
+  data?: Record<string, unknown>;
+}
+
+async function createNotification(
+  supabase: any,
+  payload: NotificationPayload,
+): Promise<void> {
+  if (!payload.userId) return;
+  try {
+    const { error } = await supabase.from("notifications").insert({
+      user_id: payload.userId,
+      type: payload.type,
+      title: payload.title,
+      body: payload.body ?? null,
+      link: payload.link ?? null,
+      data: payload.data ?? null,
+    });
+    if (error) console.error(`[notifications] insert failed user=${payload.userId} type=${payload.type}:`, error);
+  } catch (e) {
+    console.error(`[notifications] error user=${payload.userId} type=${payload.type}:`, e);
+  }
+}
+
+async function getAdminUserIds(supabase: any): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "admin");
+  if (error) {
+    console.error("[notifications] failed to fetch admins:", error);
+    return [];
+  }
+  return (data ?? []).map((r: { user_id: string }) => r.user_id);
+}
+
+function getRequestIp(req: Request): string | null {
+  return (
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    null
+  );
+}
+
+interface AuditPayload {
+  action: string;
+  actorId?: string | null;
+  actorRole?: string | null;
+  targetType?: string | null;
+  targetId?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+async function recordAudit(
+  supabase: any,
+  req: Request | null,
+  payload: AuditPayload,
+): Promise<number | null> {
+  try {
+    const { data, error } = await supabase.rpc("record_audit", {
+      p_action: payload.action,
+      p_actor_id: payload.actorId ?? null,
+      p_actor_role: payload.actorRole ?? null,
+      p_target_type: payload.targetType ?? null,
+      p_target_id: payload.targetId ?? null,
+      p_ip: req ? getRequestIp(req) : null,
+      p_user_agent: req ? req.headers.get("user-agent") : null,
+      p_metadata: payload.metadata ?? null,
+    });
+    if (error) {
+      console.error(`[audit] record_audit failed for action=${payload.action}:`, error);
+      return null;
+    }
+    return typeof data === "number" ? data : null;
+  } catch (e) {
+    console.error(`[audit] unexpected failure for action=${payload.action}:`, e);
+    return null;
+  }
+}
+// ─── End inlined helpers ──────────────────────────────────────────
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -103,6 +195,16 @@ serve(async (req) => {
 
     if (!walletResult?.success) {
       console.log("Wallet debit failed:", walletResult?.error);
+      // Audit the rejection — useful for spotting fraud (an attacker
+      // repeatedly probing wallets) and for buyer support.
+      await recordAudit(supabase, req, {
+        action: "wallet.debit_failed",
+        actorId: user.id,
+        actorRole: "buyer",
+        targetType: "order",
+        targetId: orderId,
+        metadata: { amount, reason: walletResult?.error ?? "insufficient_balance" },
+      });
       return new Response(
         JSON.stringify({ error: walletResult?.error || "Insufficient balance" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -148,6 +250,22 @@ serve(async (req) => {
     } else {
       console.log(`Order ${orderId} status -> paid`);
     }
+
+    // Audit the successful debit. Fire-and-forget — recordAudit
+    // swallows errors so a logging failure can never affect the
+    // user's payment.
+    await recordAudit(supabase, req, {
+      action: "wallet.debit_for_order",
+      actorId: user.id,
+      actorRole: "buyer",
+      targetType: "order",
+      targetId: orderId,
+      metadata: {
+        amount,
+        new_balance: walletResult.new_balance,
+        transaction_id: walletResult.transaction_id,
+      },
+    });
 
     // Create agent earnings if agent is assigned
     if (order.agent_id && order.service_fee) {

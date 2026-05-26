@@ -1,6 +1,55 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+// ─── Inlined audit helper (see _shared/audit.ts) ──────────────────
+// `supabase functions deploy` doesn't bundle `_shared/`, so the
+// helper is duplicated here. Keep in sync with `_shared/audit.ts`.
+function getRequestIp(req: Request): string | null {
+  return (
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    null
+  );
+}
+
+interface AuditPayload {
+  action: string;
+  actorId?: string | null;
+  actorRole?: string | null;
+  targetType?: string | null;
+  targetId?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+async function recordAudit(
+  supabase: any,
+  req: Request | null,
+  payload: AuditPayload,
+): Promise<number | null> {
+  try {
+    const { data, error } = await supabase.rpc("record_audit", {
+      p_action: payload.action,
+      p_actor_id: payload.actorId ?? null,
+      p_actor_role: payload.actorRole ?? null,
+      p_target_type: payload.targetType ?? null,
+      p_target_id: payload.targetId ?? null,
+      p_ip: req ? getRequestIp(req) : null,
+      p_user_agent: req ? req.headers.get("user-agent") : null,
+      p_metadata: payload.metadata ?? null,
+    });
+    if (error) {
+      console.error(`[audit] record_audit failed for action=${payload.action}:`, error);
+      return null;
+    }
+    return typeof data === "number" ? data : null;
+  } catch (e) {
+    console.error(`[audit] unexpected failure for action=${payload.action}:`, e);
+    return null;
+  }
+}
+// ─── End inlined audit helper ─────────────────────────────────────
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -131,11 +180,24 @@ serve(async (req) => {
     // Update payment with Paystack reference
     await supabase
       .from('payments')
-      .update({ 
+      .update({
         provider_reference: paystackData.data.reference,
         provider_response: paystackData.data,
       })
       .eq('id', payment.id);
+
+    await recordAudit(supabase, req, {
+      action: "payment.paystack_initialized",
+      actorId: user.id,
+      actorRole: "buyer",
+      targetType: "order",
+      targetId: orderId,
+      metadata: {
+        amount,
+        payment_id: payment.id,
+        reference: paystackData.data.reference,
+      },
+    });
 
     return new Response(
       JSON.stringify({

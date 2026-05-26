@@ -1,8 +1,19 @@
-// Shared helper for inserting in-app notifications from edge functions.
-// All payment / order / withdrawal flows call this alongside the Resend
-// email so the bell-icon UI stays in lockstep with the outbound emails.
+// DO NOT IMPORT FROM EDGE FUNCTIONS.
 //
-// Service-role only. Do not import from client code.
+// `supabase functions deploy <name>` does NOT bundle the
+// `supabase/functions/_shared/` directory alongside the function it
+// deploys, so any function importing `../_shared/notifications.ts`
+// will fail at deploy time with:
+//   "Failed to bundle the function (reason: Module not found …)"
+//
+// Edge functions that need these helpers inline a local copy.
+// This file is the canonical reference; propagate any change here
+// into each function file's "Inlined helpers" block.
+//
+// Edge functions that currently contain an inlined copy:
+//   - pay-with-wallet/index.ts
+//   - paystack-verify/index.ts
+//   - paystack-webhook/index.ts
 
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -51,8 +62,6 @@ export async function createNotifications(
   await Promise.allSettled(payloads.map((p) => createNotification(supabase, p)));
 }
 
-// Resolve all admin user_ids in one query. Useful when fanning out admin
-// notifications for order / payment / withdrawal events.
 export async function getAdminUserIds(supabase: SupabaseClient): Promise<string[]> {
   const { data, error } = await supabase
     .from("user_roles")

@@ -13,6 +13,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, Lock, User, ArrowLeft, Loader2 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
+import {
+  checkLoginLockout,
+  formatLockoutMessage,
+  recordAuthEvent,
+} from "@/lib/authAudit";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -92,10 +97,37 @@ const AuthPage = () => {
 
   const handleLogin = async (data: LoginFormData) => {
     setIsLoading(true);
+
+    // Server-side lockout pre-check (Slice B). Fail-OPEN: if the
+    // RPC errors for any reason, `lockout.locked` comes back false
+    // and the login proceeds normally — a bug in the audit layer
+    // can never block a real user.
+    const lockout = await checkLoginLockout(data.email);
+    if (lockout.locked) {
+      setIsLoading(false);
+      toast.error(formatLockoutMessage(lockout));
+      // Observational record so admins can see the lockout itself
+      // in the security tab (Slice D).
+      recordAuthEvent({
+        eventType: "signin_failed",
+        email: data.email,
+        metadata: { reason: "locked_out", retry_in_seconds: lockout.retryInSeconds },
+      });
+      return;
+    }
+
     const { error } = await signIn(data.email, data.password);
     setIsLoading(false);
 
     if (error) {
+      // Audit the failure (fail-safe). We log the email so the
+      // server-side lockout check can count attempts.
+      recordAuthEvent({
+        eventType: "signin_failed",
+        email: data.email,
+        metadata: { reason: error.message },
+      });
+
       if (error.message.includes("Invalid login credentials")) {
         toast.error("Invalid email or password. Please try again.");
       } else if (error.message.includes("Email not confirmed")) {
@@ -104,6 +136,7 @@ const AuthPage = () => {
         toast.error(error.message);
       }
     } else {
+      recordAuthEvent({ eventType: "signin_success", email: data.email });
       toast.success("Welcome back!");
       // Redirect will happen via useEffect when role loads
     }
@@ -112,6 +145,7 @@ const AuthPage = () => {
   const handleSignup = async (data: SignupFormData) => {
     if (rateLimitCooldown > 0) return;
     setIsLoading(true);
+    recordAuthEvent({ eventType: "signup_attempt", email: data.email });
     const { error } = await signUp(data.email, data.password, data.fullName);
     setIsLoading(false);
 
@@ -125,6 +159,7 @@ const AuthPage = () => {
         toast.error(error.message);
       }
     } else {
+      recordAuthEvent({ eventType: "signup_success", email: data.email });
       toast.success("Account created! Please check your email to verify your account.");
       setActiveTab("login");
     }
@@ -144,6 +179,7 @@ const AuthPage = () => {
         toast.error(error.message);
       }
     } else {
+      recordAuthEvent({ eventType: "password_reset_requested", email: data.email });
       toast.success("Password reset email sent! Please check your inbox.");
       setShowReset(false);
     }

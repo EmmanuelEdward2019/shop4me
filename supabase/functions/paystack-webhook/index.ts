@@ -1,6 +1,96 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createNotification, getAdminUserIds } from "../_shared/notifications.ts";
+
+// ─── Inlined helpers (see _shared/{notifications,audit}.ts) ───────
+// `supabase functions deploy` doesn't bundle `_shared/`, so we
+// duplicate the helpers here. Keep in sync with the shared files.
+
+interface NotificationPayload {
+  userId: string | null | undefined;
+  type: string;
+  title: string;
+  body?: string;
+  link?: string;
+  data?: Record<string, unknown>;
+}
+
+async function createNotification(
+  supabase: any,
+  payload: NotificationPayload,
+): Promise<void> {
+  if (!payload.userId) return;
+  try {
+    const { error } = await supabase.from("notifications").insert({
+      user_id: payload.userId,
+      type: payload.type,
+      title: payload.title,
+      body: payload.body ?? null,
+      link: payload.link ?? null,
+      data: payload.data ?? null,
+    });
+    if (error) console.error(`[notifications] insert failed user=${payload.userId} type=${payload.type}:`, error);
+  } catch (e) {
+    console.error(`[notifications] error user=${payload.userId} type=${payload.type}:`, e);
+  }
+}
+
+async function getAdminUserIds(supabase: any): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "admin");
+  if (error) {
+    console.error("[notifications] failed to fetch admins:", error);
+    return [];
+  }
+  return (data ?? []).map((r: { user_id: string }) => r.user_id);
+}
+
+function getRequestIp(req: Request): string | null {
+  return (
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    null
+  );
+}
+
+interface AuditPayload {
+  action: string;
+  actorId?: string | null;
+  actorRole?: string | null;
+  targetType?: string | null;
+  targetId?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+async function recordAudit(
+  supabase: any,
+  req: Request | null,
+  payload: AuditPayload,
+): Promise<number | null> {
+  try {
+    const { data, error } = await supabase.rpc("record_audit", {
+      p_action: payload.action,
+      p_actor_id: payload.actorId ?? null,
+      p_actor_role: payload.actorRole ?? null,
+      p_target_type: payload.targetType ?? null,
+      p_target_id: payload.targetId ?? null,
+      p_ip: req ? getRequestIp(req) : null,
+      p_user_agent: req ? req.headers.get("user-agent") : null,
+      p_metadata: payload.metadata ?? null,
+    });
+    if (error) {
+      console.error(`[audit] record_audit failed for action=${payload.action}:`, error);
+      return null;
+    }
+    return typeof data === "number" ? data : null;
+  } catch (e) {
+    console.error(`[audit] unexpected failure for action=${payload.action}:`, e);
+    return null;
+  }
+}
+// ─── End inlined helpers ──────────────────────────────────────────
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -180,6 +270,19 @@ serve(async (req) => {
             console.error('Failed to update wallet balance:', walletError);
           } else {
             console.log(`Wallet credited successfully, new balance: ${walletResult?.new_balance}`);
+            // Webhook fires unauthenticated — actor is the service.
+            await recordAudit(supabase, req, {
+              action: "wallet.topup_credited",
+              actorId: payment.user_id,
+              actorRole: "service",
+              targetType: "payment",
+              targetId: payment.id,
+              metadata: {
+                amount: payment.amount,
+                new_balance: walletResult?.new_balance,
+                reference,
+              },
+            });
             // In-app notification for buyer
             backgroundTasks.push(
               createNotification(supabase, {
@@ -251,6 +354,19 @@ serve(async (req) => {
             console.error('Failed to update order status:', orderUpdateError);
           } else {
             console.log(`Order ${payment.order_id} marked as paid`);
+            await recordAudit(supabase, req, {
+              action: "payment.order_paid",
+              actorId: payment.user_id,
+              actorRole: "service",
+              targetType: "order",
+              targetId: payment.order_id,
+              metadata: {
+                payment_id: payment.id,
+                amount: payment.amount,
+                channel: transaction.channel,
+                reference,
+              },
+            });
           }
 
           const amountStr = `₦${Number(payment.amount).toLocaleString('en-NG')}`;
@@ -378,6 +494,18 @@ serve(async (req) => {
 
         // Send failure email + in-app notification to buyer
         if (failedPayment) {
+          await recordAudit(supabase, req, {
+            action: "payment.failed",
+            actorId: failedPayment.user_id,
+            actorRole: "service",
+            targetType: "payment",
+            targetId: null,
+            metadata: {
+              amount: failedPayment.amount,
+              reference,
+              gateway_response: transaction?.gateway_response,
+            },
+          });
           backgroundTasks.push(
             createNotification(supabase, {
               userId: failedPayment.user_id,

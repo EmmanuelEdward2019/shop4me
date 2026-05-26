@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { recordAuthEvent } from "@/lib/authAudit";
 
 interface AuthContextType {
   user: User | null;
@@ -48,6 +49,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             .single()
             .then(({ data }) => {
               if (data?.is_suspended) {
+                // Log the kick BEFORE signing out so the row carries
+                // the user's id (signOut clears auth.uid()).
+                recordAuthEvent({
+                  eventType: "suspended_kicked",
+                  email: session.user.email,
+                  userId: session.user.id,
+                  metadata: { trigger: "signin_check" },
+                });
                 supabase.auth.signOut();
                 return;
               }
@@ -94,6 +103,12 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         { event: "UPDATE", schema: "public", table: "profiles", filter: `user_id=eq.${user.id}` },
         (payload) => {
           if (payload.new.is_suspended) {
+            recordAuthEvent({
+              eventType: "suspended_kicked",
+              email: user.email,
+              userId: user.id,
+              metadata: { trigger: "realtime_update" },
+            });
             supabase.auth.signOut();
           }
         }
@@ -131,6 +146,16 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const signOut = async () => {
+    // Capture identity BEFORE we clear the session — auth.uid() is
+    // null after signOut returns.
+    const departing = user;
+    if (departing) {
+      recordAuthEvent({
+        eventType: "signout",
+        email: departing.email,
+        userId: departing.id,
+      });
+    }
     await supabase.auth.signOut();
   };
 

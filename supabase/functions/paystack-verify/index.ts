@@ -1,6 +1,96 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createNotification, getAdminUserIds } from "../_shared/notifications.ts";
+
+// ─── Inlined helpers (see _shared/{notifications,audit}.ts) ───────
+// `supabase functions deploy` doesn't bundle `_shared/`, so we
+// duplicate the helpers here. Keep in sync with the shared files.
+
+interface NotificationPayload {
+  userId: string | null | undefined;
+  type: string;
+  title: string;
+  body?: string;
+  link?: string;
+  data?: Record<string, unknown>;
+}
+
+async function createNotification(
+  supabase: any,
+  payload: NotificationPayload,
+): Promise<void> {
+  if (!payload.userId) return;
+  try {
+    const { error } = await supabase.from("notifications").insert({
+      user_id: payload.userId,
+      type: payload.type,
+      title: payload.title,
+      body: payload.body ?? null,
+      link: payload.link ?? null,
+      data: payload.data ?? null,
+    });
+    if (error) console.error(`[notifications] insert failed user=${payload.userId} type=${payload.type}:`, error);
+  } catch (e) {
+    console.error(`[notifications] error user=${payload.userId} type=${payload.type}:`, e);
+  }
+}
+
+async function getAdminUserIds(supabase: any): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select("user_id")
+    .eq("role", "admin");
+  if (error) {
+    console.error("[notifications] failed to fetch admins:", error);
+    return [];
+  }
+  return (data ?? []).map((r: { user_id: string }) => r.user_id);
+}
+
+function getRequestIp(req: Request): string | null {
+  return (
+    req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    null
+  );
+}
+
+interface AuditPayload {
+  action: string;
+  actorId?: string | null;
+  actorRole?: string | null;
+  targetType?: string | null;
+  targetId?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+async function recordAudit(
+  supabase: any,
+  req: Request | null,
+  payload: AuditPayload,
+): Promise<number | null> {
+  try {
+    const { data, error } = await supabase.rpc("record_audit", {
+      p_action: payload.action,
+      p_actor_id: payload.actorId ?? null,
+      p_actor_role: payload.actorRole ?? null,
+      p_target_type: payload.targetType ?? null,
+      p_target_id: payload.targetId ?? null,
+      p_ip: req ? getRequestIp(req) : null,
+      p_user_agent: req ? req.headers.get("user-agent") : null,
+      p_metadata: payload.metadata ?? null,
+    });
+    if (error) {
+      console.error(`[audit] record_audit failed for action=${payload.action}:`, error);
+      return null;
+    }
+    return typeof data === "number" ? data : null;
+  } catch (e) {
+    console.error(`[audit] unexpected failure for action=${payload.action}:`, e);
+    return null;
+  }
+}
+// ─── End inlined helpers ──────────────────────────────────────────
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -143,6 +233,20 @@ serve(async (req) => {
 
         console.log(`Payment ${payment.id} successful for order ${payment.order_id}`);
 
+        await recordAudit(supabase, req, {
+          action: "payment.order_verified",
+          actorId: payment.user_id,
+          actorRole: "buyer",
+          targetType: "order",
+          targetId: payment.order_id,
+          metadata: {
+            payment_id: payment.id,
+            amount: transaction.amount / 100,
+            channel: transaction.channel,
+            reference,
+          },
+        });
+
         // Send emails + in-app notifications — awaited so the Deno isolate
         // isn't suspended mid-fetch. Only reaches here when the webhook
         // hasn't already processed this payment.
@@ -251,6 +355,19 @@ serve(async (req) => {
           console.error('Failed to credit wallet:', walletRpcError);
         } else {
           console.log(`Wallet credited via verify, new balance: ${walletResult?.new_balance}`);
+          await recordAudit(supabase, req, {
+            action: "wallet.topup_verified",
+            actorId: payment.user_id,
+            actorRole: "buyer",
+            targetType: "payment",
+            targetId: payment.id,
+            metadata: {
+              amount: transaction.amount / 100,
+              new_balance: walletResult?.new_balance,
+              channel: transaction.channel,
+              reference,
+            },
+          });
         }
 
         // Send emails + in-app notifications — awaited so the Deno isolate
