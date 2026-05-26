@@ -25,6 +25,7 @@ const footerLinks = {
     { label: "Terms of Service", href: "/terms", isRoute: true },
     { label: "Privacy Policy", href: "/privacy", isRoute: true },
     { label: "Cookie Policy", href: "/cookies", isRoute: true },
+    { label: "Delete Account", href: "/delete-account", isRoute: true },
     { label: "Newsletter", href: "/newsletter", isRoute: true },
   ],
 };
