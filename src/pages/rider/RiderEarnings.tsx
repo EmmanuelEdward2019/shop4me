@@ -16,9 +16,13 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
-  Wallet, TrendingUp, Clock, CheckCircle2, Loader2, AlertCircle, BanknoteIcon,
+  Wallet, TrendingUp, Clock, CheckCircle2, Loader2, AlertCircle, BanknoteIcon, History,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 interface Earning {
   id: string;
@@ -62,14 +66,22 @@ const RiderEarnings = () => {
   const { toast } = useToast();
   const [earnings, setEarnings] = useState<Earning[]>([]);
   const [activeWithdrawal, setActiveWithdrawal] = useState<Withdrawal | null>(null);
+  const [withdrawalHistory, setWithdrawalHistory] = useState<Withdrawal[]>([]);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  // History filters
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
+  // Re-rendering "now" so locked → available flips without a manual
+  // refresh. Ticks every 60s; cheap because the comparison is local.
+  const [tick, setTick] = useState(0);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
     try {
-      const [earningsRes, withdrawalRes] = await Promise.all([
+      const [earningsRes, activeRes, historyRes] = await Promise.all([
         supabase
           .from("rider_earnings" as any)
           .select("*")
@@ -83,6 +95,12 @@ const RiderEarnings = () => {
           .order("requested_at", { ascending: false })
           .limit(1)
           .maybeSingle(),
+        supabase
+          .from("rider_withdrawals" as any)
+          .select("*")
+          .eq("rider_id", user.id)
+          .order("requested_at", { ascending: false })
+          .limit(50),
       ]);
       setEarnings(((earningsRes.data ?? []) as any[]).map((r) => ({
         id: r.id,
@@ -95,7 +113,8 @@ const RiderEarnings = () => {
         completed_at: r.completed_at,
         withdrawal_id: r.withdrawal_id ?? null,
       })));
-      setActiveWithdrawal(withdrawalRes.data ? (withdrawalRes.data as any) : null);
+      setActiveWithdrawal(activeRes.data ? (activeRes.data as any) : null);
+      setWithdrawalHistory(((historyRes.data ?? []) as any[]) as Withdrawal[]);
     } catch (err) {
       console.error("Error loading earnings:", err);
     } finally {
@@ -105,6 +124,17 @@ const RiderEarnings = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // 60-second ticker: re-evaluates `now` so the "Locked → Available"
+  // transition fires automatically when an earning crosses available_at.
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  // `tick` participates so memoised filtering/summing recomputes when
+  // the minute rolls over.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _tickDep = tick;
   const now = new Date();
   const totalEarned = earnings.reduce((s, e) => s + e.rider_amount, 0);
   const availableAmount = earnings
@@ -361,13 +391,40 @@ const RiderEarnings = () => {
           </Card>
         )}
 
-        {/* Earnings history table */}
+        {/* Earnings history table — with filters */}
         <Card>
           <CardHeader>
-            <CardTitle>Earnings History</CardTitle>
-            <CardDescription>
-              85% of delivery fee per order goes to you. 15% is the platform commission.
-            </CardDescription>
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+              <div>
+                <CardTitle>Earnings History</CardTitle>
+                <CardDescription>
+                  85% of delivery fee per order goes to you. 15% is the platform commission.
+                </CardDescription>
+              </div>
+              <div className="grid grid-cols-2 sm:flex sm:items-end gap-2">
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">Status</label>
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="h-9 w-full sm:w-36"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="available">Available</SelectItem>
+                      <SelectItem value="locked">Locked</SelectItem>
+                      <SelectItem value="withdraw_requested">Requested</SelectItem>
+                      <SelectItem value="paid">Paid</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">From</label>
+                  <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-9 w-full sm:w-40" />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground block mb-1">To</label>
+                  <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-9 w-full sm:w-40" />
+                </div>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -379,39 +436,137 @@ const RiderEarnings = () => {
                 <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
                 <p className="text-muted-foreground">No earnings yet. Complete your first delivery!</p>
               </div>
+            ) : (() => {
+              const filtered = earnings.filter((e) => {
+                if (statusFilter !== "all") {
+                  if (statusFilter === "locked") {
+                    if (!(e.status === "pending" && new Date(e.available_at) > now)) return false;
+                  } else if (statusFilter === "available") {
+                    if (!(e.status === "pending" && new Date(e.available_at) <= now)) return false;
+                  } else {
+                    if (e.status !== statusFilter) return false;
+                  }
+                }
+                if (dateFrom && new Date(e.completed_at) < new Date(dateFrom)) return false;
+                if (dateTo) {
+                  const end = new Date(dateTo);
+                  end.setHours(23, 59, 59, 999);
+                  if (new Date(e.completed_at) > end) return false;
+                }
+                return true;
+              });
+              if (filtered.length === 0) {
+                return (
+                  <div className="text-center py-12 text-sm text-muted-foreground">
+                    No earnings match your filters.
+                  </div>
+                );
+              }
+              return (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Delivery Fee</TableHead>
+                        <TableHead className="text-right">Platform (15%)</TableHead>
+                        <TableHead className="text-right">Your Earnings</TableHead>
+                        <TableHead>Unlocks</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filtered.map((e) => (
+                        <TableRow key={e.id}>
+                          <TableCell>
+                            <p className="font-medium text-sm">
+                              {new Date(e.completed_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(e.completed_at).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" })}
+                            </p>
+                          </TableCell>
+                          <TableCell className="text-right">{fmt(e.delivery_fee)}</TableCell>
+                          <TableCell className="text-right text-muted-foreground">−{fmt(e.platform_cut)}</TableCell>
+                          <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">{fmt(e.rider_amount)}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {new Date(e.available_at).toLocaleString("en-NG", {
+                              day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                            })}
+                          </TableCell>
+                          <TableCell>{statusBadge(e.status, e.available_at)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              );
+            })()}
+          </CardContent>
+        </Card>
+
+        {/* Withdrawal history */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="w-5 h-5" /> Withdrawal History
+            </CardTitle>
+            <CardDescription>All your past and pending withdrawal requests.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12" />)}
+              </div>
+            ) : withdrawalHistory.length === 0 ? (
+              <div className="text-center py-8 text-sm text-muted-foreground">
+                You haven't made any withdrawal requests yet.
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead className="text-right">Delivery Fee</TableHead>
-                      <TableHead className="text-right">Platform (15%)</TableHead>
-                      <TableHead className="text-right">Your Earnings</TableHead>
-                      <TableHead>Unlocks</TableHead>
+                      <TableHead>Requested</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead>Bank</TableHead>
+                      <TableHead>Transferred</TableHead>
+                      <TableHead>Confirmed</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {earnings.map((e) => (
-                      <TableRow key={e.id}>
-                        <TableCell>
-                          <p className="font-medium text-sm">
-                            {new Date(e.completed_at).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(e.completed_at).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit" })}
-                          </p>
-                        </TableCell>
-                        <TableCell className="text-right">{fmt(e.delivery_fee)}</TableCell>
-                        <TableCell className="text-right text-muted-foreground">−{fmt(e.platform_cut)}</TableCell>
-                        <TableCell className="text-right font-bold text-emerald-600 dark:text-emerald-400">{fmt(e.rider_amount)}</TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {new Date(e.available_at).toLocaleString("en-NG", {
-                            day: "numeric", month: "short", hour: "2-digit", minute: "2-digit",
+                    {withdrawalHistory.map((w) => (
+                      <TableRow key={w.id}>
+                        <TableCell className="text-sm">
+                          {new Date(w.requested_at).toLocaleString("en-NG", {
+                            day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
                           })}
                         </TableCell>
-                        <TableCell>{statusBadge(e.status, e.available_at)}</TableCell>
+                        <TableCell className="text-right font-bold">{fmt(Number(w.amount))}</TableCell>
+                        <TableCell className="text-sm">
+                          {w.bank_name || "—"}<br />
+                          <span className="text-xs text-muted-foreground">{w.account_number || ""}</span>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {w.transferred_at
+                            ? new Date(w.transferred_at).toLocaleDateString("en-NG", { day: "numeric", month: "short" })
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {w.confirmed_at
+                            ? new Date(w.confirmed_at).toLocaleDateString("en-NG", { day: "numeric", month: "short" })
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          {w.status === "confirmed" ? (
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Confirmed</Badge>
+                          ) : w.status === "transferred" ? (
+                            <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">Transferred</Badge>
+                          ) : (
+                            <Badge variant="outline">Pending</Badge>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
