@@ -26,7 +26,9 @@ const AppDownloadButtons = ({ variant = "dark", className = "" }: AppDownloadBut
       </a>
       
       <a
-        href="#"
+        href="https://play.google.com/store/apps/details?id=com.shop4meng.app"
+        target="_blank"
+        rel="noopener noreferrer"
         className={`inline-flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-200 hover:scale-105 ${
           isDark
             ? "bg-foreground text-background border-foreground hover:bg-foreground/90"
