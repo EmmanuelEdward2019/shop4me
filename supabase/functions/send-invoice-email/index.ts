@@ -1,12 +1,37 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+// CORS: if ALLOWED_ORIGINS (comma-separated) is configured, only matching
+// browser origins are echoed back; otherwise we fall back to '*'.
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") ?? "";
+  const allowOrigin =
+    ALLOWED_ORIGINS.length === 0
+      ? "*"
+      : ALLOWED_ORIGINS.includes(origin)
+        ? origin
+        : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Vary": "Origin",
+  };
+}
+
+// HTML-escape any user/DB-supplied string before interpolating into email HTML.
+function escapeHtml(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  return String(v).replace(/[&<>"']/g, (c) =>
+    c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;"
+  );
+}
 
 Deno.serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -34,7 +59,10 @@ Deno.serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     const { data: claimsData, error: claimsError } =
       await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const callerRole = (claimsData?.claims as Record<string, any> | undefined)?.role;
+    // Require a real logged-in user (or service role) — reject the public anon
+    // key so this can't be used as an unauthenticated relay.
+    if (claimsError || (callerRole !== "authenticated" && callerRole !== "service_role")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -86,8 +114,11 @@ Deno.serve(async (req) => {
       .eq("id", invoice.order_id)
       .single();
 
-    const buyerName = buyerProfile.full_name || "Valued Customer";
-    const locationName = order?.location_name || "your order";
+    // Recipient stays raw (buyerProfile.email); everything interpolated into the
+    // HTML body is escaped. invoice_number is escaped at its use sites below.
+    const buyerName = escapeHtml(buyerProfile.full_name || "Valued Customer");
+    const locationName = escapeHtml(order?.location_name || "your order");
+    const invoiceNumberEsc = escapeHtml(invoice.invoice_number);
     const formattedTotal = new Intl.NumberFormat("en-NG", {
       style: "currency",
       currency: "NGN",
@@ -99,7 +130,7 @@ Deno.serve(async (req) => {
           <h1 style="color: #ffffff; margin: 0; font-size: 24px;">Shop4Me</h1>
         </div>
         <div style="padding: 32px 24px;">
-          <h2 style="color: #1a1a1a; margin-top: 0;">Invoice ${invoice.invoice_number}</h2>
+          <h2 style="color: #1a1a1a; margin-top: 0;">Invoice ${invoiceNumberEsc}</h2>
           <p style="color: #4a4a4a; font-size: 16px;">Hi ${buyerName},</p>
           <p style="color: #4a4a4a; font-size: 16px;">
             Your agent has generated a final invoice for your order from <strong>${locationName}</strong>.
@@ -107,7 +138,7 @@ Deno.serve(async (req) => {
           <div style="background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 24px 0;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
               <span style="color: #6b7280;">Invoice Number</span>
-              <strong>${invoice.invoice_number}</strong>
+              <strong>${invoiceNumberEsc}</strong>
             </div>
             <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
               <span style="color: #6b7280;">Subtotal</span>
@@ -152,7 +183,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         from: "Shop4Me <onboarding@resend.dev>",
         to: [buyerProfile.email],
-        subject: `Invoice ${invoice.invoice_number} - ${locationName}`,
+        subject: `Invoice ${invoiceNumberEsc} - ${locationName}`,
         html: emailHtml,
       }),
     });

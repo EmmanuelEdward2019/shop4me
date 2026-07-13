@@ -50,10 +50,48 @@ async function sendEmail(
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// CORS: if ALLOWED_ORIGINS (comma-separated) is configured, only matching
+// browser origins are echoed back; otherwise we fall back to '*'. Set
+// ALLOWED_ORIGINS to lock the API down to the web origin(s).
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get("Origin") ?? "";
+  const allowOrigin =
+    ALLOWED_ORIGINS.length === 0
+      ? "*"
+      : ALLOWED_ORIGINS.includes(origin)
+        ? origin
+        : ALLOWED_ORIGINS[0];
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-app-secret",
+    "Vary": "Origin",
+  };
+}
+
+// HTML-escape any user/DB-supplied string before interpolating into email HTML.
+function escapeHtml(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  return String(v).replace(/[&<>"']/g, (c) =>
+    c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;"
+  );
+}
+
+// Keys that must NOT be HTML-escaped: recipient addresses, URLs, and UUIDs
+// interpolated inside hrefs. Every other string field is escaped so a malicious
+// `name`, `notes`, `locationName`, etc. can't inject markup into the email.
+const NO_ESCAPE_KEYS = new Set(["email", "resetLink", "orderId", "riderId", "withdrawalId", "invoiceId"]);
+function escData(raw: Record<string, any>): Record<string, any> {
+  const out: Record<string, any> = {};
+  for (const [k, v] of Object.entries(raw ?? {})) {
+    out[k] = typeof v === "string" && !NO_ESCAPE_KEYS.has(k) ? escapeHtml(v) : v;
+  }
+  return out;
+}
 
 type EmailType =
   | "welcome"
@@ -83,6 +121,7 @@ type EmailType =
   | "_diagnostic";
 
 Deno.serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -91,12 +130,47 @@ Deno.serve(async (req) => {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     if (!RESEND_API_KEY) throw new Error("RESEND_API_KEY is not configured");
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
 
-    const { type, data } = (await req.json()) as { type: EmailType; data: Record<string, any> };
+    // ── Auth gate (phased hardening) ──────────────────────────────────────
+    // This function runs with the service-role key, so it must NOT be an open
+    // relay. Accept only:
+    //   • server-to-server callers presenting the service-role key,
+    //   • a logged-in user (valid JWT with role 'authenticated'/'service_role'),
+    //   • or a caller with the shared app secret (for future logged-out flows).
+    // Anonymous callers (anon apikey / no token) are rejected. Per-type role
+    // checks + full server-side recipient derivation land in the follow-up pass.
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+    const appSecret = Deno.env.get("APP_SHARED_SECRET");
+    const providedSecret = req.headers.get("x-app-secret");
+    let authorized = false;
+    if (token && token === serviceKey) {
+      authorized = true; // trusted server-to-server caller
+    } else if (appSecret && providedSecret && providedSecret === appSecret) {
+      authorized = true; // trusted app caller (logged-out flows)
+    } else if (token) {
+      const authClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+      );
+      const { data: claimsData } = await authClient.auth.getClaims(token);
+      const role = (claimsData?.claims as Record<string, any> | undefined)?.role;
+      if (role === "authenticated" || role === "service_role") authorized = true;
+    }
+    if (!authorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { type, data: rawData } = (await req.json()) as { type: EmailType; data: Record<string, any> };
+    // Every string field is HTML-escaped up front (except recipients/URLs/ids),
+    // so all `${…}` interpolations below are safe by default. DB-derived values
+    // fetched inside individual cases are escaped explicitly at their source.
+    const data = escData(rawData || {});
 
     let to: string | string[] = "";
     let subject = "";
@@ -291,9 +365,9 @@ Deno.serve(async (req) => {
         if (!email && orderId) {
           const { data: order } = await supabase.from("orders").select("user_id, location_name").eq("id", orderId).single();
           if (order) {
-            locationName = locationName || order.location_name;
+            locationName = locationName || escapeHtml(order.location_name);
             const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("user_id", order.user_id).single();
-            if (profile) { email = profile.email; name = profile.full_name; }
+            if (profile) { email = profile.email; name = escapeHtml(profile.full_name); }
           }
         }
         if (!email) { return new Response(JSON.stringify({ error: "Buyer email not found" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
@@ -316,14 +390,14 @@ Deno.serve(async (req) => {
         if (!email && invoiceId) {
           const { data: inv } = await supabase.from("invoices").select("buyer_id, order_id, invoice_number, subtotal, service_fee, delivery_fee, discount, total").eq("id", invoiceId).single();
           if (inv) {
-            invoiceNumber = invoiceNumber || inv.invoice_number;
+            invoiceNumber = invoiceNumber || escapeHtml(inv.invoice_number);
             subtotal = subtotal ?? inv.subtotal;
             serviceFee = serviceFee ?? inv.service_fee;
             deliveryFee = deliveryFee ?? inv.delivery_fee;
             discount = discount ?? inv.discount;
             total = total ?? inv.total;
             const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("user_id", inv.buyer_id).single();
-            if (profile) { email = profile.email; name = name || profile.full_name; }
+            if (profile) { email = profile.email; name = name || escapeHtml(profile.full_name); }
             const { data: order } = await supabase.from("orders").select("location_name").eq("id", inv.order_id).single();
             if (order) { locationName = locationName || order.location_name; }
           }
@@ -423,12 +497,12 @@ Deno.serve(async (req) => {
           supabase.from("user_roles").select("user_id").eq("role", "admin"),
         ]);
 
-        const riderName = profileRes.data?.full_name || "A Rider";
-        const riderEmail = profileRes.data?.email || "";
-        const riderPhone = profileRes.data?.phone || "";
-        const bankName = appRes.data?.bank_name || "—";
-        const accountNumber = appRes.data?.account_number || "—";
-        const accountName = appRes.data?.account_name || "—";
+        const riderName = escapeHtml(profileRes.data?.full_name || "A Rider");
+        const riderEmail = escapeHtml(profileRes.data?.email || "");
+        const riderPhone = escapeHtml(profileRes.data?.phone || "");
+        const bankName = escapeHtml(appRes.data?.bank_name || "—");
+        const accountNumber = escapeHtml(appRes.data?.account_number || "—");
+        const accountName = escapeHtml(appRes.data?.account_name || "—");
 
         // Fetch the withdrawal amount
         const { data: wRow } = await supabase.from("rider_withdrawals").select("amount").eq("id", withdrawalId).single();
@@ -529,7 +603,7 @@ Deno.serve(async (req) => {
         subject = `Your Withdrawal of ${formatNGN(amount)} Has Been Sent`;
         body = emailLayout(
           subject,
-          greetingLine(profile.full_name || "Rider") +
+          greetingLine(escapeHtml(profile.full_name) || "Rider") +
             `<p style="color:#4a4a4a;font-size:16px;">Great news! We have transferred your earnings to your bank account. Please check and confirm receipt in the app.</p>` +
             infoBox(
               `<p style="margin:0;"><strong>Amount Transferred:</strong> ${formatNGN(amount)}</p>
@@ -551,8 +625,8 @@ Deno.serve(async (req) => {
           supabase.from("user_roles").select("user_id").eq("role", "admin"),
         ]);
 
-        const riderName = profileRes.data?.full_name || "A Rider";
-        const riderEmail = profileRes.data?.email || "";
+        const riderName = escapeHtml(profileRes.data?.full_name || "A Rider");
+        const riderEmail = escapeHtml(profileRes.data?.email || "");
 
         // In-app notification fan-out for admins
         await Promise.allSettled((adminRolesRes.data ?? []).map((admin: any) =>
@@ -599,7 +673,7 @@ Deno.serve(async (req) => {
         const storeList = Array.isArray(stores) && stores.length > 0
           ? stores.map((s: any) => {
               const fullName = [s.parent_brand, s.name, s.branch_name].filter(Boolean).join(" – ");
-              return `<li style="margin:4px 0;">${fullName}</li>`;
+              return `<li style="margin:4px 0;">${escapeHtml(fullName)}</li>`;
             }).join("")
           : `<li style="margin:4px 0;">To be assigned by your area coordinator</li>`;
         body = emailLayout(
@@ -720,13 +794,13 @@ Deno.serve(async (req) => {
             .eq("id", orderId)
             .single();
           if (order) {
-            locationName = locationName || order.location_name;
+            locationName = locationName || escapeHtml(order.location_name);
             const { data: profile } = await supabase
               .from("profiles")
               .select("full_name, email")
               .eq("user_id", order.user_id)
               .single();
-            if (profile) { email = profile.email; name = profile.full_name; }
+            if (profile) { email = profile.email; name = escapeHtml(profile.full_name); }
           }
         }
         if (!email) {

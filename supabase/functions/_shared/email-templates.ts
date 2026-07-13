@@ -32,6 +32,15 @@ export function formatNGN(amount: number): string {
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(amount);
 }
 
+// HTML-escape any user/DB-supplied string before interpolating into email HTML.
+// Functions inline their own copy (deploy doesn't bundle _shared); keep in sync.
+export function escapeHtml(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  return String(v).replace(/[&<>"']/g, (c) =>
+    c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === '"' ? "&quot;" : "&#39;"
+  );
+}
+
 export function greetingLine(name: string): string {
   return `<p style="color:#4a4a4a;font-size:16px;margin:0 0 16px;">Hi ${name},</p>`;
 }
