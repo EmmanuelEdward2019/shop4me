@@ -92,12 +92,31 @@ async function recordAudit(
 }
 // ─── End inlined helpers ──────────────────────────────────────────
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// CORS: if ALLOWED_ORIGINS (comma-separated) is configured, only matching
+// browser origins are echoed back; otherwise we fall back to '*' to preserve
+// the previous behaviour. Set ALLOWED_ORIGINS to lock the API down.
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
+  const allowOrigin =
+    ALLOWED_ORIGINS.length === 0
+      ? '*'
+      : ALLOWED_ORIGINS.includes(origin)
+        ? origin
+        : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Vary': 'Origin',
+  };
+}
 
 serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -181,7 +200,15 @@ serve(async (req) => {
       console.error('Failed to update payment record:', updateError);
     }
 
-    // If payment successful, handle based on payment type
+    // If payment successful, handle based on payment type.
+    // `alreadyProcessed` tells the client whether THIS call actually applied
+    // the credit/paid-transition, or whether it was already done (by the
+    // webhook or a previous verify). The client uses it to avoid showing a
+    // duplicate "Wallet Funded" toast / sending a duplicate email.
+    // `creditedBalance` is the server-authoritative wallet balance so the
+    // client never has to compute `balance + amount` itself.
+    let alreadyProcessed = false;
+    let creditedBalance: number | null = null;
     if (newStatus === 'success' && payment.status !== 'success') {
       // Save card authorization if available
       if (transaction.authorization && transaction.authorization.reusable) {
@@ -348,12 +375,21 @@ serve(async (req) => {
             p_type: 'credit',
             p_description: 'Wallet topup via Paystack',
             p_reference: reference,
+            // Idempotent: the webhook and this client-side verify can both
+            // fire for the same reference. Keyed on the reference, only the
+            // first one actually credits the wallet.
+            p_idempotent: true,
           }
         );
 
         if (walletRpcError) {
           console.error('Failed to credit wallet:', walletRpcError);
+        } else if (walletResult?.already_processed) {
+          alreadyProcessed = true;
+          creditedBalance = walletResult?.new_balance ?? null;
+          console.log(`Wallet topup ${reference} already processed — skipping duplicate credit via verify.`);
         } else {
+          creditedBalance = walletResult?.new_balance ?? null;
           console.log(`Wallet credited via verify, new balance: ${walletResult?.new_balance}`);
           await recordAudit(supabase, req, {
             action: "wallet.topup_verified",
@@ -371,9 +407,10 @@ serve(async (req) => {
         }
 
         // Send emails + in-app notifications — awaited so the Deno isolate
-        // isn't suspended mid-fetch. Only reaches here when the webhook
-        // hasn't already processed this payment.
-        try {
+        // isn't suspended mid-fetch. Skip entirely if the credit was already
+        // applied (by the webhook or a racing verify), so we don't send a
+        // duplicate "wallet funded" email/notification.
+        if (!alreadyProcessed) try {
           const amount = transaction.amount / 100;
           const amountStr = `₦${amount.toLocaleString('en-NG')}`;
           const newBalance = walletResult?.new_balance;
@@ -438,6 +475,7 @@ serve(async (req) => {
         } catch (e) { console.error('Email dispatch error (wallet topup):', e); }
       }
     } else if (newStatus === 'success' && payment.status === 'success') {
+      alreadyProcessed = true;
       console.log('Payment already processed (likely by webhook), skipping');
     }
 
@@ -445,6 +483,13 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         status: newStatus,
+        // True when the credit/paid-transition was already applied before this
+        // call (by the webhook or a prior verify). Clients should suppress the
+        // success toast / confirmation email when this is true.
+        alreadyProcessed,
+        // Server-authoritative wallet balance after a top-up credit (null for
+        // order payments, or when already processed by the webhook path).
+        newBalance: creditedBalance,
         transaction: {
           amount: transaction.amount / 100, // Convert from kobo
           currency: transaction.currency,

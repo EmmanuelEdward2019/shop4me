@@ -125,7 +125,7 @@ const AgentEarnings = () => {
           .eq("agent_id", user.id)
           .order("created_at", { ascending: false }),
         supabase
-          .from("agent_withdrawals" as never)
+          .from("agent_withdrawals")
           .select("*")
           .eq("agent_id", user.id)
           .in("status", ["pending", "transferred"])
@@ -133,7 +133,7 @@ const AgentEarnings = () => {
           .limit(1)
           .maybeSingle(),
         supabase
-          .from("agent_withdrawals" as never)
+          .from("agent_withdrawals")
           .select("*")
           .eq("agent_id", user.id)
           .order("requested_at", { ascending: false })

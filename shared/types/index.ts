@@ -160,6 +160,10 @@ export interface InvoiceResponseMetadata {
     newQuantity?: number;
     substituteRequest?: string;
   }[];
+  // The buyer's edited line items, sent alongside an "edited" response so the
+  // agent's revised-invoice form can prefill them. Optional because an
+  // "approved" response carries no edits.
+  editedItems?: InvoiceItem[];
   approvedTotal?: number;
 }
 

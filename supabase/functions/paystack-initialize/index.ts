@@ -50,10 +50,52 @@ async function recordAudit(
 }
 // ─── End inlined audit helper ─────────────────────────────────────
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// CORS: if ALLOWED_ORIGINS (comma-separated) is configured, only matching
+// browser origins are echoed back; otherwise we fall back to '*' to preserve
+// the previous behaviour. Set ALLOWED_ORIGINS to lock the API down.
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
+  const allowOrigin =
+    ALLOWED_ORIGINS.length === 0
+      ? '*'
+      : ALLOWED_ORIGINS.includes(origin)
+        ? origin
+        : ALLOWED_ORIGINS[0];
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Vary': 'Origin',
+  };
+}
+
+// Resolve how much this order should actually be charged, SERVER-SIDE. Never
+// trust a client-supplied amount: the authoritative price is the agent's
+// invoice total for the order, falling back to the order's own stored totals.
+// Returns null only when no server-side price exists at all.
+async function resolveOrderChargeAmount(
+  supabase: any,
+  order: { id: string; final_total?: number | null; estimated_total?: number | null },
+): Promise<number | null> {
+  const { data: invoice } = await supabase
+    .from('invoices')
+    .select('total')
+    .eq('order_id', order.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const candidates = [invoice?.total, order.final_total, order.estimated_total];
+  for (const c of candidates) {
+    const n = Number(c);
+    if (Number.isFinite(n) && n > 0) return Math.round(n * 100) / 100;
+  }
+  return null;
+}
 
 interface InitializePaymentRequest {
   orderId: string;
@@ -63,6 +105,7 @@ interface InitializePaymentRequest {
 }
 
 serve(async (req) => {
+  const corsHeaders = corsHeadersFor(req);
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -93,18 +136,18 @@ serve(async (req) => {
       throw new Error('Invalid authentication');
     }
 
-    const { orderId, amount, email, callbackUrl } = await req.json() as InitializePaymentRequest;
+    const { orderId, amount: clientAmount, email, callbackUrl } = await req.json() as InitializePaymentRequest;
 
-    if (!orderId || !amount || !email) {
+    if (!orderId || !clientAmount || !email) {
       throw new Error('Missing required fields: orderId, amount, email');
     }
 
-    console.log(`Initializing payment for order ${orderId}, amount: ${amount}, email: ${email}`);
+    console.log(`Initializing payment for order ${orderId}, client amount: ${clientAmount}, email: ${email}`);
 
     // Verify the order belongs to the user
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, user_id, status')
+      .select('id, user_id, status, final_total, estimated_total')
       .eq('id', orderId)
       .eq('user_id', user.id)
       .single();
@@ -112,6 +155,27 @@ serve(async (req) => {
     if (orderError || !order) {
       console.error('Order not found or access denied:', orderError);
       throw new Error('Order not found');
+    }
+
+    // Determine the authoritative charge amount SERVER-SIDE. The client's
+    // amount is only used as a last-resort fallback when the order has no
+    // server-side price at all (which should not happen in the normal
+    // invoice-then-pay flow). This closes the underpayment hole where a
+    // buyer could initialize a large order for ₦1.
+    const serverAmount = await resolveOrderChargeAmount(supabase, order);
+    const amount = serverAmount ?? clientAmount;
+    if (serverAmount != null && Math.abs(serverAmount - clientAmount) > 0.5) {
+      console.warn(
+        `Amount mismatch for order ${orderId}: client=${clientAmount}, server=${serverAmount}. Charging server amount.`,
+      );
+      await recordAudit(supabase, req, {
+        action: 'payment.amount_mismatch',
+        actorId: user.id,
+        actorRole: 'buyer',
+        targetType: 'order',
+        targetId: orderId,
+        metadata: { client_amount: clientAmount, server_amount: serverAmount, method: 'paystack' },
+      });
     }
 
     // Create payment record. Note `payment_method` is explicitly set to

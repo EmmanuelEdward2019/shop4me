@@ -54,7 +54,7 @@ const AdminDashboard = () => {
         supabase.from("payments").select("amount").eq("status", "success"),
         supabase.from("orders").select("id", { count: "exact", head: true }).in("status", ["accepted", "shopping", "in_transit"]),
         supabase.from("orders").select("*, profiles!orders_user_id_fkey(full_name, email)").order("created_at", { ascending: false }).limit(5),
-        supabase.from("rider_withdrawals" as any).select("amount").eq("status", "pending"),
+        supabase.from("rider_withdrawals").select("amount").eq("status", "pending"),
       ]);
 
       const totalRevenue = paymentsResult.data?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;

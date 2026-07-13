@@ -116,8 +116,18 @@ async function verifySignature(secret: string, payload: string, signature: strin
   
   const hashArray = Array.from(new Uint8Array(signatureBuffer));
   const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  
-  return hashHex === signature;
+
+  return timingSafeEqual(hashHex, signature);
+}
+
+// Constant-time string comparison to avoid leaking the signature via timing.
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) {
+    mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return mismatch === 0;
 }
 
 serve(async (req) => {
@@ -263,11 +273,16 @@ serve(async (req) => {
               p_type: 'credit',
               p_description: 'Wallet topup via Paystack',
               p_reference: reference,
+              // Idempotent: a replayed/retried charge.success for the same
+              // Paystack reference must NOT credit the wallet twice.
+              p_idempotent: true,
             }
           );
 
           if (walletError) {
             console.error('Failed to update wallet balance:', walletError);
+          } else if (walletResult?.already_processed) {
+            console.log(`Wallet topup ${reference} already processed — skipping duplicate credit and notifications.`);
           } else {
             console.log(`Wallet credited successfully, new balance: ${walletResult?.new_balance}`);
             // Webhook fires unauthenticated — actor is the service.
@@ -339,6 +354,28 @@ serve(async (req) => {
         // recorded as a `payments` row (visible in admin dashboard) but
         // never touch the wallet balance.
         if (payment?.order_id) {
+          // Defense-in-depth: verify Paystack actually collected at least the
+          // amount we expected for this order. `payment.amount` is set
+          // server-side at initialize and Paystack charges exactly that, so
+          // this normally holds — but never mark an order paid if the gateway
+          // reports less money than expected.
+          const paidKobo = Number(transaction.amount);
+          const expectedKobo = Math.round(Number(payment.amount) * 100);
+          if (Number.isFinite(paidKobo) && paidKobo + 1 < expectedKobo) {
+            console.error(
+              `Underpayment for order ${payment.order_id}: paid ${paidKobo} kobo, expected ${expectedKobo}. Not marking as paid.`,
+            );
+            await recordAudit(supabase, req, {
+              action: 'payment.underpaid',
+              actorId: payment.user_id,
+              actorRole: 'service',
+              targetType: 'order',
+              targetId: payment.order_id,
+              metadata: { paid_kobo: paidKobo, expected_kobo: expectedKobo, reference },
+            });
+            break;
+          }
+
           // Get order details for email
           const { data: order } = await supabase
             .from('orders')
