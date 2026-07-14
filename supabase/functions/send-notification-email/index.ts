@@ -143,8 +143,11 @@ Deno.serve(async (req) => {
     // checks + full server-side recipient derivation land in the follow-up pass.
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    const appSecret = Deno.env.get("APP_SHARED_SECRET");
-    const providedSecret = req.headers.get("x-app-secret");
+    // Trim BOTH sides: the stored APP_SHARED_SECRET may carry a trailing
+    // newline (from how it was set), and callers send it verbatim — a raw
+    // `===` would then 401 in production. Mobile functions trim identically.
+    const appSecret = (Deno.env.get("APP_SHARED_SECRET") ?? "").trim();
+    const providedSecret = (req.headers.get("x-app-secret") ?? "").trim();
     let authorized = false;
     if (token && token === serviceKey) {
       authorized = true; // trusted server-to-server caller
