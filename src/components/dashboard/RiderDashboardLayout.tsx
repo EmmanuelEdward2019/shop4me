@@ -50,7 +50,7 @@ const RiderDashboardLayout = ({ children }: RiderDashboardLayoutProps) => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/");
+    navigate("/auth");
   };
 
   const NavContent = () => (

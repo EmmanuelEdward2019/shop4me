@@ -52,7 +52,7 @@ const AgentDashboardLayout = ({ children }: AgentDashboardLayoutProps) => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/");
+    navigate("/auth");
   };
 
   const NavContent = () => (

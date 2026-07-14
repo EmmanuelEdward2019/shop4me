@@ -69,8 +69,8 @@ const HowItWorks = () => {
                   </span>
 
                   {/* Icon */}
-                  <div className="w-14 h-14 rounded-xl bg-green-900 flex items-center justify-center mb-4">
-                    <step.icon className="w-7 h-7 text-white" />
+                  <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center mb-4 transition-colors group-hover:bg-primary/15">
+                    <step.icon className="w-7 h-7 text-primary" />
                   </div>
 
                   {/* Content */}

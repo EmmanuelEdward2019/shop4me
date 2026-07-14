@@ -24,11 +24,11 @@ const StoreCard = ({ store, compact = false }: { store: StoreType; compact?: boo
       }`}
     >
       <div
-        className={`w-full flex items-center justify-center bg-green-900/10 group-hover:bg-green-900/15 transition-colors ${
+        className={`w-full flex items-center justify-center bg-primary/10 group-hover:bg-primary/15 transition-colors ${
           compact ? "h-20" : "h-28"
         }`}
       >
-        <Store className={`text-green-900 group-hover:scale-110 transition-transform duration-300 ${compact ? "w-8 h-8" : "w-10 h-10"}`} />
+        <Store className={`text-primary group-hover:scale-110 transition-transform duration-300 ${compact ? "w-8 h-8" : "w-10 h-10"}`} />
       </div>
       <div className={compact ? "p-2 pt-1" : "p-3 pt-1"}>
         <h4

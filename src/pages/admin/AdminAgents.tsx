@@ -9,7 +9,8 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Search, TrendingUp, Package, Wallet } from "lucide-react";
+import { Search, TrendingUp, Package, Wallet, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { SERVICE_ZONES } from "@/lib/service-zones";
 
@@ -188,7 +189,29 @@ const AdminAgents = () => {
                     <TableRow>
                       <TableHead>Agent</TableHead>
                       <TableHead>Assigned Stores</TableHead>
-                      <TableHead>Service Zone</TableHead>
+                      <TableHead>
+                        <div className="inline-flex items-center gap-1.5">
+                          Service Zone
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  aria-label="What does service zone control?"
+                                  className="text-muted-foreground hover:text-foreground"
+                                >
+                                  <Info className="h-3.5 w-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs text-xs font-normal leading-relaxed">
+                                Controls order routing. An agent sees their zone's orders when their
+                                GPS is unavailable, and new-order push alerts go to agents in the
+                                matching zone. “No zone (floater)” agents are notified for every zone.
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                      </TableHead>
                       <TableHead>Phone</TableHead>
                       <TableHead>Completed</TableHead>
                       <TableHead>Earnings</TableHead>

@@ -73,7 +73,7 @@ const AdminDashboardLayout = ({ children }: AdminDashboardLayoutProps) => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/");
+    navigate("/auth");
   };
 
   const initials = getInitials();

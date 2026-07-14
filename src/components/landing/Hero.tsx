@@ -13,111 +13,120 @@ const trustPoints = [
 
 const Hero = () => {
   return (
-    <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
-      {/* Background Image */}
-      <div className="absolute inset-0 z-0">
-        <motion.img
-          initial={{ scale: 1.08 }}
-          animate={{ scale: 1 }}
-          transition={{ duration: 1.8, ease: "easeOut" }}
-          src={heroImage}
-          alt="Shop4Me Agent at Nigerian Market"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/95 via-primary/80 to-primary/40" />
-      </div>
+    <section className="relative overflow-hidden pt-28 pb-16 md:pt-32 md:pb-24">
+      {/* Subtle brand glow — minimal, no full-bleed gradient */}
+      <div className="pointer-events-none absolute -top-24 right-0 h-72 w-72 rounded-full bg-secondary/10 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 -left-24 h-64 w-64 rounded-full bg-accent/10 blur-3xl" />
 
-      {/* Content */}
-      <div className="container mx-auto px-4 relative z-10 py-16">
-        <div className="max-w-2xl">
-          {/* Headline */}
-          <motion.h1
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.25 }}
-            className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-white leading-tight mb-5 drop-shadow-sm"
-          >
-            Shop From{" "}
-            <span className="relative inline-block">
-              Any Market
-              <svg
-                className="absolute -bottom-2 left-0 w-full"
-                viewBox="0 0 200 12"
-                fill="none"
-              >
-                <motion.path
-                  initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 1 }}
-                  transition={{ duration: 1, delay: 0.85 }}
-                  d="M2 10C50 4 150 4 198 10"
-                  stroke="hsl(var(--accent))"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </span>
-            <br />
-            Without Leaving Home
-          </motion.h1>
-
-          {/* Subheadline — hidden on mobile */}
-          <motion.p
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.35 }}
-            className="hidden md:block text-base md:text-lg text-white/90 mb-8 max-w-lg leading-relaxed"
-          >
-            Send your shopping list. Our verified agents shop for you in real-time
-            from malls, supermarkets, and local markets across Nigeria — then deliver to your door.
-          </motion.p>
-
-          {/* CTAs */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.45 }}
-            className="flex flex-col sm:flex-row gap-3 mb-8"
-          >
-            <Button asChild variant="hero-outline" size="xl" className="font-semibold">
-              <Link to="/get-started">
-                Start Shopping Now
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="xl"
-              className="text-white hover:bg-white/10 border border-white/30"
+      <div className="container relative z-10 mx-auto px-4">
+        <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          {/* Left — copy */}
+          <div className="max-w-xl">
+            <motion.h1
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.05 }}
+              className="font-display text-4xl font-bold leading-[1.1] tracking-tight text-foreground md:text-5xl lg:text-6xl"
             >
-              <Link to="/agent-application">Become an Agent</Link>
-            </Button>
-          </motion.div>
+              Shop from{" "}
+              <span className="relative inline-block text-primary">
+                any market
+                <svg
+                  className="absolute -bottom-1 left-0 w-full"
+                  viewBox="0 0 200 12"
+                  fill="none"
+                >
+                  <motion.path
+                    initial={{ pathLength: 0 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.9, delay: 0.7 }}
+                    d="M2 10C50 4 150 4 198 10"
+                    stroke="hsl(var(--accent))"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>{" "}
+              without leaving home.
+            </motion.h1>
 
-          {/* App Download Buttons */}
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.55 }}
-            className="mb-8"
-          >
-            <p className="text-sm text-white/60 mb-3">Also available on</p>
-            <AppDownloadButtons variant="light" className="justify-start" />
-          </motion.div>
+            <motion.p
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.15 }}
+              className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground md:text-lg"
+            >
+              Send your shopping list and a verified agent shops for you in real
+              time — from malls, supermarkets, and local markets — then delivers
+              right to your door.
+            </motion.p>
 
-          {/* Trust Indicators */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.25 }}
+              className="mt-8 flex flex-col gap-3 sm:flex-row"
+            >
+              <Button asChild variant="hero" size="xl" className="font-semibold">
+                <Link to="/get-started">
+                  Start Shopping Now
+                  <ArrowRight className="h-5 w-5" />
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="xl">
+                <Link to="/agent-application">Become an Agent</Link>
+              </Button>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.35 }}
+              className="mt-8"
+            >
+              <p className="mb-3 text-sm text-muted-foreground">Also available on</p>
+              <AppDownloadButtons variant="dark" className="justify-start" />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.45 }}
+              className="mt-8 flex flex-wrap gap-x-6 gap-y-3"
+            >
+              {trustPoints.map((point) => (
+                <div
+                  key={point}
+                  className="flex items-center gap-2 text-sm font-medium text-foreground/70"
+                >
+                  <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-secondary" />
+                  {point}
+                </div>
+              ))}
+            </motion.div>
+          </div>
+
+          {/* Right — framed image with a single floating stat */}
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.55, delay: 0.65 }}
-            className="flex flex-wrap gap-5"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.7, delay: 0.2, ease: "easeOut" }}
+            className="relative mx-auto w-full max-w-md lg:max-w-none"
           >
-            {trustPoints.map((point) => (
-              <div key={point} className="flex items-center gap-2 text-white/85">
-                <CheckCircle2 className="w-4 h-4 text-green-400 flex-shrink-0" />
-                <span className="text-sm font-medium">{point}</span>
-              </div>
-            ))}
+            <div className="overflow-hidden rounded-[2rem] border border-border shadow-2xl">
+              <img
+                src={heroImage}
+                alt="A Shop4Me agent shopping at a Nigerian market"
+                className="aspect-[16/10] w-full object-cover"
+              />
+            </div>
+
+            <div className="absolute -bottom-5 -left-4 hidden rounded-2xl border border-border bg-background/95 px-5 py-4 shadow-xl backdrop-blur sm:block">
+              <p className="font-display text-2xl font-bold text-foreground">
+                10,000+
+              </p>
+              <p className="text-xs text-muted-foreground">orders delivered</p>
+            </div>
           </motion.div>
         </div>
       </div>
