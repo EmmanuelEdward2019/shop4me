@@ -193,7 +193,7 @@ const RiderApplication = () => {
         password: formData.password,
         options: {
           emailRedirectTo: "https://shop4meng.com/auth",
-          data: { full_name: formData.full_name, role: "delivery_rider" },
+          data: { full_name: formData.full_name, phone: formData.phone, role: "delivery_rider" },
         },
       });
 

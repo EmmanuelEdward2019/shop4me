@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string, fullName?: string, phone?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
@@ -118,9 +118,9 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     return () => { supabase.removeChannel(channel); };
   }, [user]);
 
-  const signUp = async (email: string, password: string, fullName?: string) => {
+  const signUp = async (email: string, password: string, fullName?: string, phone?: string) => {
     const redirectUrl = "https://shop4meng.com/auth";
-    
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -128,11 +128,15 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
+          // The handle_new_user DB trigger reads `phone` from signup metadata
+          // and writes it to profiles.phone. Keep this key as `phone`.
+          phone: phone,
         },
       },
     });
 
-    // Profile full_name is synced on SIGNED_IN via onAuthStateChange (covers email confirmation flow)
+    // Profile full_name/phone are populated by the handle_new_user trigger from
+    // this metadata (full_name is also re-synced on SIGNED_IN for older accounts).
 
     return { error: error as Error | null };
   };

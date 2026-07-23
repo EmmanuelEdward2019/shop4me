@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Mail, Lock, User, ArrowLeft, Loader2 } from "lucide-react";
+import { Mail, Lock, User, ArrowLeft, Loader2, Phone } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 import {
@@ -26,6 +26,10 @@ const loginSchema = z.object({
 
 const signupSchema = z.object({
   fullName: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z
+    .string()
+    .min(10, "Enter a valid phone number")
+    .regex(/^[+]?[\d\s()-]{10,20}$/, "Enter a valid phone number"),
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string(),
@@ -87,7 +91,7 @@ const AuthPage = () => {
 
   const signupForm = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
-    defaultValues: { fullName: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: { fullName: "", phone: "", email: "", password: "", confirmPassword: "" },
   });
 
   const resetForm = useForm<ResetFormData>({
@@ -146,7 +150,7 @@ const AuthPage = () => {
     if (rateLimitCooldown > 0) return;
     setIsLoading(true);
     recordAuthEvent({ eventType: "signup_attempt", email: data.email });
-    const { error } = await signUp(data.email, data.password, data.fullName);
+    const { error } = await signUp(data.email, data.password, data.fullName, data.phone);
     setIsLoading(false);
 
     if (error) {
@@ -351,6 +355,27 @@ const AuthPage = () => {
                         {signupForm.formState.errors.fullName && (
                           <p className="text-sm text-destructive">
                             {signupForm.formState.errors.fullName.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="signup-phone">Phone Number</Label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="signup-phone"
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            placeholder="0801 234 5678"
+                            className="pl-10"
+                            {...signupForm.register("phone")}
+                          />
+                        </div>
+                        {signupForm.formState.errors.phone && (
+                          <p className="text-sm text-destructive">
+                            {signupForm.formState.errors.phone.message}
                           </p>
                         )}
                       </div>
