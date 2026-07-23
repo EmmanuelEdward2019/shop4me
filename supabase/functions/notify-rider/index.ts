@@ -61,6 +61,19 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Great-circle distance in km between two lat/lng points.
+function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const lat1 = (aLat * Math.PI) / 180;
+  const lat2 = (bLat * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -252,25 +265,78 @@ serve(async (req) => {
       },
     });
 
-    // ── 6. Push notification to all riders ───────────────────────────────────
+    // ── 6–7. Notify riders: NEARBY-FIRST, broadcast fallback ─────────────────
+    // Push/email only riders whose last-known location is within
+    // RIDER_NEARBY_RADIUS_KM of the store (and reported within
+    // RIDER_LOCATION_FRESHNESS_MIN minutes). If no nearby riders are known
+    // (e.g. none online, none reporting location yet), fall back to notifying
+    // ALL riders — exactly the previous behaviour. Note: any rider can still
+    // SEE and accept a pending pickup regardless of these pushes, so no order
+    // is ever hidden.
+    const RADIUS_KM = Number(Deno.env.get("RIDER_NEARBY_RADIUS_KM") ?? "5") || 5;
+    const FRESHNESS_MIN = Number(Deno.env.get("RIDER_LOCATION_FRESHNESS_MIN") ?? "20") || 20;
+
+    const { data: riderRoleRows } = await supabase
+      .from("user_roles")
+      .select("user_id")
+      .eq("role", "rider");
+    const allRiderIds = new Set((riderRoleRows || []).map((r: { user_id: string }) => r.user_id));
+
+    // Store coordinates come from the request (the agent's store location).
+    const sLat = typeof storeLatitude === "number" ? storeLatitude : null;
+    const sLng = typeof storeLongitude === "number" ? storeLongitude : null;
+
+    let nearbyRiderIds: string[] = [];
+    if (sLat != null && sLng != null && allRiderIds.size > 0) {
+      const sinceIso = new Date(Date.now() - FRESHNESS_MIN * 60_000).toISOString();
+      const { data: locs } = await supabase
+        .from("rider_locations")
+        .select("rider_id, latitude, longitude")
+        .gte("updated_at", sinceIso);
+      nearbyRiderIds = (locs || [])
+        .filter(
+          (l: { rider_id: string; latitude: number; longitude: number }) =>
+            allRiderIds.has(l.rider_id) &&
+            haversineKm(sLat, sLng, Number(l.latitude), Number(l.longitude)) <= RADIUS_KM,
+        )
+        .map((l: { rider_id: string }) => l.rider_id);
+    }
+
+    const useNearby = nearbyRiderIds.length > 0;
+    const targetRiderIds = useNearby ? nearbyRiderIds : Array.from(allRiderIds);
+
+    console.log(
+      `notify-rider dispatch: ${useNearby ? "NEARBY" : "BROADCAST"} — ` +
+        `${targetRiderIds.length} rider(s), radius=${RADIUS_KM}km, freshness=${FRESHNESS_MIN}min`,
+    );
+
+    // Push
     fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey },
-      body: JSON.stringify({
-        role: "rider",
-        title: "New Pickup Available!",
-        body: `A new order from ${order.location_name} needs pickup. Accept it now!`,
-        url: "/rider/available-pickups",
-      }),
+      body: JSON.stringify(
+        useNearby
+          ? {
+              userIds: nearbyRiderIds,
+              title: "New Pickup Available Near You!",
+              body: `A new order from ${order.location_name} needs pickup. Accept it now!`,
+              url: "/rider/available-pickups",
+            }
+          : {
+              role: "rider",
+              title: "New Pickup Available!",
+              body: `A new order from ${order.location_name} needs pickup. Accept it now!`,
+              url: "/rider/available-pickups",
+            },
+      ),
     }).catch((err: unknown) => console.error("Push notification error:", err));
 
-    // ── 7. Email notification to all riders ──────────────────────────────────
-    const { data: riderRoles } = await supabase.from("user_roles").select("user_id").eq("role", "rider");
-    for (const riderRow of (riderRoles || [])) {
+    // Email — only the targeted riders.
+    for (const riderId of targetRiderIds) {
       const { data: riderProfile } = await supabase
         .from("profiles")
         .select("full_name, email")
-        .eq("user_id", riderRow.user_id)
+        .eq("user_id", riderId)
         .single();
       if (riderProfile?.email) {
         fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
@@ -290,6 +356,16 @@ serve(async (req) => {
         }).catch(() => {});
       }
     }
+
+    // Record how this alert was dispatched (observability / future escalation).
+    await supabase
+      .from("rider_alerts")
+      .update(
+        useNearby
+          ? { nearby_notified_at: new Date().toISOString() }
+          : { broadcast_at: new Date().toISOString() },
+      )
+      .eq("id", alert?.id);
 
     return new Response(
       JSON.stringify({ success: true, id: alert?.id }),

@@ -789,6 +789,24 @@ export type Database = {
         }
         Relationships: []
       }
+      email_rate_limits: {
+        Row: {
+          count: number
+          key: string
+          window_start: string
+        }
+        Insert: {
+          count?: number
+          key: string
+          window_start?: string
+        }
+        Update: {
+          count?: number
+          key?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       expo_push_tokens: {
         Row: {
           created_at: string
@@ -1286,6 +1304,7 @@ export type Database = {
       rider_alerts: {
         Row: {
           agent_id: string
+          broadcast_at: string | null
           buyer_name: string | null
           buyer_phone: string | null
           created_at: string
@@ -1293,6 +1312,7 @@ export type Database = {
           delivery_latitude: number | null
           delivery_longitude: number | null
           id: string
+          nearby_notified_at: string | null
           order_id: string
           order_packed: boolean
           order_picked_up_at: string | null
@@ -1306,6 +1326,7 @@ export type Database = {
         }
         Insert: {
           agent_id: string
+          broadcast_at?: string | null
           buyer_name?: string | null
           buyer_phone?: string | null
           created_at?: string
@@ -1313,6 +1334,7 @@ export type Database = {
           delivery_latitude?: number | null
           delivery_longitude?: number | null
           id?: string
+          nearby_notified_at?: string | null
           order_id: string
           order_packed?: boolean
           order_picked_up_at?: string | null
@@ -1326,6 +1348,7 @@ export type Database = {
         }
         Update: {
           agent_id?: string
+          broadcast_at?: string | null
           buyer_name?: string | null
           buyer_phone?: string | null
           created_at?: string
@@ -1333,6 +1356,7 @@ export type Database = {
           delivery_latitude?: number | null
           delivery_longitude?: number | null
           id?: string
+          nearby_notified_at?: string | null
           order_id?: string
           order_packed?: boolean
           order_picked_up_at?: string | null
@@ -1407,6 +1431,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rider_locations: {
+        Row: {
+          latitude: number
+          longitude: number
+          rider_id: string
+          updated_at: string
+        }
+        Insert: {
+          latitude: number
+          longitude: number
+          rider_id: string
+          updated_at?: string
+        }
+        Update: {
+          latitude?: number
+          longitude?: number
+          rider_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       rider_withdrawals: {
         Row: {
