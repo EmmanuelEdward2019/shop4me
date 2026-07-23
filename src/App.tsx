@@ -58,6 +58,7 @@ import AdminOrderDetail from "./pages/admin/AdminOrderDetail";
 import AdminAgents from "./pages/admin/AdminAgents";
 import AdminApplications from "./pages/admin/AdminApplications";
 import AdminMessages from "./pages/admin/AdminMessages";
+import AdminReviews from "./pages/admin/AdminReviews";
 import AdminBlog from "./pages/admin/AdminBlog";
 import AdminSettingsPage from "./pages/admin/AdminSettings";
 import AdminSubmissions from "./pages/admin/AdminSubmissions";
@@ -297,6 +298,14 @@ const App = () => (
               element={
                 <AdminProtectedRoute>
                   <AdminMessages />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reviews"
+              element={
+                <AdminProtectedRoute>
+                  <AdminReviews />
                 </AdminProtectedRoute>
               }
             />

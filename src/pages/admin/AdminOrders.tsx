@@ -38,6 +38,7 @@ interface Order {
   buyer_email?: string;
   buyer_name?: string;
   agent_email?: string;
+  agent_name?: string;
   rider_email?: string;
   rider_name?: string;
 }
@@ -89,6 +90,7 @@ const AdminOrders = () => {
           buyer_email: buyer?.email,
           buyer_name: buyer?.full_name,
           agent_email: agent?.email,
+          agent_name: agent?.full_name,
           rider_email: rider?.email,
           rider_name: rider?.full_name,
         };
@@ -237,9 +239,10 @@ const AdminOrders = () => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {order.agent_email ? (
+                          {order.agent_name || order.agent_email ? (
                             <div>
-                              <p className="text-sm">{order.agent_email}</p>
+                              <p className="text-sm">{order.agent_name || "—"}</p>
+                              <p className="text-xs text-muted-foreground">{order.agent_email}</p>
                             </div>
                           ) : (
                             <span className="text-muted-foreground">Unassigned</span>
