@@ -1,5 +1,6 @@
 import { Apple, Play } from "lucide-react";
 import { Link } from "react-router-dom";
+import { isIOS, openA2HSHelper } from "@/lib/pwa";
 
 interface AppDownloadButtonsProps {
   variant?: "light" | "dark";
@@ -11,9 +12,16 @@ const AppDownloadButtons = ({ variant = "dark", className = "" }: AppDownloadBut
 
   return (
     <div className={`flex flex-wrap gap-3 ${className}`}>
-      {/* Apple – iPhone install options (TestFlight beta + web app) */}
+      {/* Apple – on iPhone, pop the "Add to Home Screen" guide right here;
+          on other devices, go to the /ios page (TestFlight + instructions). */}
       <Link
         to="/ios"
+        onClick={(e) => {
+          if (isIOS()) {
+            e.preventDefault();
+            openA2HSHelper();
+          }
+        }}
         className={`inline-flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-200 hover:scale-105 ${
           isDark
             ? "bg-foreground text-background border-foreground hover:bg-foreground/90"
