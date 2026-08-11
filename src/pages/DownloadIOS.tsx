@@ -53,19 +53,49 @@ const DownloadIOS = () => {
             </p>
           </div>
 
-          {/* Option 1 — TestFlight */}
+          {/* Option 1 — Add to Home Screen (fastest, no install) */}
           <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-6 shadow-soft">
             <div className="mb-3 flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground">
-                <Sparkles className="h-3 w-3" /> Recommended · Full app
+                <Sparkles className="h-3 w-3" /> Fastest · No install
               </span>
             </div>
             <h2 className="font-display text-xl font-bold text-foreground">
-              1. Get the app via TestFlight
+              1. Add to Home Screen (Web App)
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Install through Apple's official <strong>TestFlight</strong> app — this is the
-              complete Shop4Me app, with live tracking, notifications and everything else.
+              The quickest way to start — add Shop4Me to your home screen and it opens
+              full-screen, just like the app. Nothing to install.
+            </p>
+
+            <StepList
+              steps={[
+                <>Open <strong>shop4meng.com</strong> in <strong>Safari</strong> (this must be Safari, not Chrome).</>,
+                <>Tap the <strong>Share</strong> icon <Share className="mx-0.5 inline h-3.5 w-3.5 align-text-bottom" /> at the bottom of the screen.</>,
+                <>Scroll down and tap <strong>Add to Home Screen</strong> <Plus className="mx-0.5 inline h-3.5 w-3.5 align-text-bottom" />.</>,
+                <>Tap <strong>Add</strong> — the Shop4Me icon appears on your home screen. Open it from there.</>,
+              ]}
+            />
+
+            <div className="mt-6">
+              <Button asChild variant="hero" size="lg" className="w-full sm:w-auto">
+                <Link to="/auth">Open the Web App</Link>
+              </Button>
+            </div>
+          </div>
+
+          {/* Option 2 — TestFlight (full native app) */}
+          <div className="mt-6 rounded-2xl border border-border bg-card p-6">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+              Full app · via TestFlight
+            </span>
+            <h2 className="mt-3 font-display text-xl font-bold text-foreground">
+              2. Get the app via TestFlight
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Prefer the complete native app? Install through Apple's official{" "}
+              <strong>TestFlight</strong> app — with live tracking, notifications and
+              everything else.
             </p>
 
             <StepList
@@ -79,7 +109,7 @@ const DownloadIOS = () => {
 
             <div className="mt-6">
               {testflightReady ? (
-                <Button asChild variant="hero" size="lg" className="w-full sm:w-auto">
+                <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
                   <a href={TESTFLIGHT_URL} target="_blank" rel="noopener noreferrer">
                     Open TestFlight beta
                     <ArrowRight className="h-4 w-4" />
@@ -88,41 +118,12 @@ const DownloadIOS = () => {
               ) : (
                 <div className="rounded-lg border border-dashed border-primary/40 bg-background/60 px-4 py-3 text-sm text-muted-foreground">
                   🛠️ Beta access is opening shortly — please check back soon, or use the
-                  Web App below in the meantime.
+                  Web App above in the meantime.
                 </div>
               )}
               <p className="mt-3 text-xs text-muted-foreground">
                 TestFlight is Apple's official beta platform. It's free and safe.
               </p>
-            </div>
-          </div>
-
-          {/* Option 2 — Add to Home Screen */}
-          <div className="mt-6 rounded-2xl border border-border bg-card p-6">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
-              No install · Instant
-            </span>
-            <h2 className="mt-3 font-display text-xl font-bold text-foreground">
-              2. Use the Web App (Add to Home Screen)
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Prefer not to install anything? Add Shop4Me to your home screen — it opens
-              full-screen and behaves just like the app.
-            </p>
-
-            <StepList
-              steps={[
-                <>Open <strong>shop4meng.com</strong> in <strong>Safari</strong> (this must be Safari, not Chrome).</>,
-                <>Tap the <strong>Share</strong> icon <Share className="mx-0.5 inline h-3.5 w-3.5 align-text-bottom" /> at the bottom of the screen.</>,
-                <>Scroll down and tap <strong>Add to Home Screen</strong> <Plus className="mx-0.5 inline h-3.5 w-3.5 align-text-bottom" />.</>,
-                <>Tap <strong>Add</strong> — the Shop4Me icon appears on your home screen. Open it from there.</>,
-              ]}
-            />
-
-            <div className="mt-6">
-              <Button asChild variant="outline" size="lg" className="w-full sm:w-auto">
-                <Link to="/auth">Open the Web App</Link>
-              </Button>
             </div>
           </div>
 
