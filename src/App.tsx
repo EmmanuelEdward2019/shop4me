@@ -31,6 +31,7 @@ import CookiePolicy from "./pages/CookiePolicy";
 import DeleteAccount from "./pages/DeleteAccount";
 import Newsletter from "./pages/Newsletter";
 import RoleSelect from "./pages/RoleSelect";
+import DownloadIOS from "./pages/DownloadIOS";
 // Protected pages (Buyer)
 import Dashboard from "./pages/Dashboard";
 import OrdersPage from "./pages/Orders";
@@ -119,6 +120,7 @@ const App = () => (
             <Route path="/delete-account" element={<DeleteAccount />} />
             <Route path="/newsletter" element={<Newsletter />} />
             <Route path="/get-started" element={<RoleSelect />} />
+            <Route path="/ios" element={<DownloadIOS />} />
 
             {/* Protected routes */}
             <Route
