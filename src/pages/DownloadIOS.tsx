@@ -4,16 +4,11 @@ import { Button } from "@/components/ui/button";
 import Header from "@/components/landing/Header";
 import Footer from "@/components/landing/Footer";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TODO(Shop4Me): paste the PUBLIC TestFlight link here once external testing is
-// enabled (App Store Connect → TestFlight → External group → Enable Public Link).
-// It looks like: https://testflight.apple.com/join/XXXXXXXX
-// You can also override it without editing code via VITE_TESTFLIGHT_URL.
-// Until a real link is set, the page shows a graceful "opening shortly" state.
-// ─────────────────────────────────────────────────────────────────────────────
+// Public TestFlight link (App Store Connect → TestFlight → External group).
+// Override without editing code via VITE_TESTFLIGHT_URL if it ever changes.
 const TESTFLIGHT_URL =
   (import.meta.env.VITE_TESTFLIGHT_URL as string | undefined) ||
-  "https://testflight.apple.com/join/XXXXXXXX";
+  "https://testflight.apple.com/join/u5YAu2zj";
 
 const testflightReady = !TESTFLIGHT_URL.includes("XXXX");
 
