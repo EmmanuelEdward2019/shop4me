@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,9 @@ import {
 } from "@/components/ui/select";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Mail, MessageSquare, Eye, Users, Inbox } from "lucide-react";
+import { Mail, MessageSquare, Eye, Users, Inbox, ChevronLeft, ChevronRight } from "lucide-react";
+
+const PAGE_SIZE = 25;
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface ContactSubmission {
@@ -61,32 +63,62 @@ const AdminSubmissions = () => {
   const [selectedContact, setSelectedContact] = useState<ContactSubmission | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [newStatus, setNewStatus] = useState("");
+  const [contactsPage, setContactsPage] = useState(0);
+  const [subsPage, setSubsPage] = useState(0);
 
-  // Fetch contact submissions
-  const { data: contacts, isLoading: contactsLoading } = useQuery({
-    queryKey: ["admin-contacts"],
+  // Fetch a page of contact submissions (+ total count).
+  const { data: contactsData, isLoading: contactsLoading } = useQuery({
+    queryKey: ["admin-contacts", contactsPage],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, count, error } = await supabase
         .from("contact_submissions")
-        .select("*")
-        .order("created_at", { ascending: false });
-
+        .select("*", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .range(contactsPage * PAGE_SIZE, contactsPage * PAGE_SIZE + PAGE_SIZE - 1);
       if (error) throw error;
-      return data as ContactSubmission[];
+      return { rows: (data ?? []) as ContactSubmission[], count: count ?? 0 };
+    },
+    placeholderData: keepPreviousData,
+  });
+  const contacts = contactsData?.rows;
+  const contactsTotal = contactsData?.count ?? 0;
+
+  // Fetch a page of newsletter subscriptions (+ total count).
+  const { data: subsData, isLoading: subscribersLoading } = useQuery({
+    queryKey: ["admin-newsletter", subsPage],
+    queryFn: async () => {
+      const { data, count, error } = await supabase
+        .from("newsletter_subscriptions")
+        .select("*", { count: "exact" })
+        .order("subscribed_at", { ascending: false })
+        .range(subsPage * PAGE_SIZE, subsPage * PAGE_SIZE + PAGE_SIZE - 1);
+      if (error) throw error;
+      return { rows: (data ?? []) as NewsletterSubscription[], count: count ?? 0 };
+    },
+    placeholderData: keepPreviousData,
+  });
+  const subscribers = subsData?.rows;
+  const subscribersTotal = subsData?.count ?? 0;
+
+  // Aggregate stat tiles (counts are page-independent).
+  const { data: newContactsCount = 0 } = useQuery({
+    queryKey: ["admin-contacts-new-count"],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("contact_submissions")
+        .select("*", { count: "exact", head: true })
+        .eq("status", "new");
+      return count ?? 0;
     },
   });
-
-  // Fetch newsletter subscriptions
-  const { data: subscribers, isLoading: subscribersLoading } = useQuery({
-    queryKey: ["admin-newsletter"],
+  const { data: activeSubscribersCount = 0 } = useQuery({
+    queryKey: ["admin-newsletter-active-count"],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { count } = await supabase
         .from("newsletter_subscriptions")
-        .select("*")
-        .order("subscribed_at", { ascending: false });
-
-      if (error) throw error;
-      return data as NewsletterSubscription[];
+        .select("*", { count: "exact", head: true })
+        .eq("is_active", true);
+      return count ?? 0;
     },
   });
 
@@ -119,6 +151,7 @@ const AdminSubmissions = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-contacts"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-contacts-new-count"] });
       toast.success("Contact submission updated");
       setSelectedContact(null);
     },
@@ -158,8 +191,8 @@ const AdminSubmissions = () => {
     );
   };
 
-  const newContactsCount = contacts?.filter((c) => c.status === "new").length || 0;
-  const activeSubscribersCount = subscribers?.filter((s) => s.is_active).length || 0;
+  const contactsHasNext = (contactsPage + 1) * PAGE_SIZE < contactsTotal;
+  const subsHasNext = (subsPage + 1) * PAGE_SIZE < subscribersTotal;
 
   return (
     <AdminDashboardLayout>
@@ -181,7 +214,7 @@ const AdminSubmissions = () => {
                 <Inbox className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{contacts?.length || 0}</p>
+                <p className="text-2xl font-bold">{contactsTotal}</p>
                 <p className="text-sm text-muted-foreground">Total Contacts</p>
               </div>
             </div>
@@ -203,7 +236,7 @@ const AdminSubmissions = () => {
                 <Mail className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{subscribers?.length || 0}</p>
+                <p className="text-2xl font-bold">{subscribersTotal}</p>
                 <p className="text-sm text-muted-foreground">Total Subscribers</p>
               </div>
             </div>
@@ -293,6 +326,21 @@ const AdminSubmissions = () => {
                 </TableBody>
               </Table>
             </div>
+            {contactsTotal > 0 && (
+              <div className="mt-4 flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {contactsPage * PAGE_SIZE + 1}–{Math.min((contactsPage + 1) * PAGE_SIZE, contactsTotal)} of {contactsTotal}
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={contactsPage === 0 || contactsLoading} onClick={() => setContactsPage((p) => Math.max(0, p - 1))}>
+                    <ChevronLeft className="h-4 w-4" /> Prev
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={!contactsHasNext || contactsLoading} onClick={() => setContactsPage((p) => p + 1)}>
+                    Next <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="newsletter">
@@ -343,6 +391,21 @@ const AdminSubmissions = () => {
                 </TableBody>
               </Table>
             </div>
+            {subscribersTotal > 0 && (
+              <div className="mt-4 flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {subsPage * PAGE_SIZE + 1}–{Math.min((subsPage + 1) * PAGE_SIZE, subscribersTotal)} of {subscribersTotal}
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" disabled={subsPage === 0 || subscribersLoading} onClick={() => setSubsPage((p) => Math.max(0, p - 1))}>
+                    <ChevronLeft className="h-4 w-4" /> Prev
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={!subsHasNext || subscribersLoading} onClick={() => setSubsPage((p) => p + 1)}>
+                    Next <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
