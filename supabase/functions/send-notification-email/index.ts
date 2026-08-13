@@ -149,18 +149,31 @@ Deno.serve(async (req) => {
     const appSecret = (Deno.env.get("APP_SHARED_SECRET") ?? "").trim();
     const providedSecret = (req.headers.get("x-app-secret") ?? "").trim();
     let authorized = false;
+    let trustedCaller = false; // service key / app secret / service_role → full access
+    let callerUid: string | null = null;
+    let callerEmail: string | null = null;
     if (token && token === serviceKey) {
-      authorized = true; // trusted server-to-server caller
+      authorized = true;
+      trustedCaller = true; // trusted server-to-server caller
     } else if (appSecret && providedSecret && providedSecret === appSecret) {
-      authorized = true; // trusted app caller (logged-out flows)
+      authorized = true;
+      trustedCaller = true; // trusted app caller (logged-out flows)
     } else if (token) {
       const authClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_ANON_KEY")!,
       );
       const { data: claimsData } = await authClient.auth.getClaims(token);
-      const role = (claimsData?.claims as Record<string, any> | undefined)?.role;
-      if (role === "authenticated" || role === "service_role") authorized = true;
+      const claims = claimsData?.claims as Record<string, any> | undefined;
+      const role = claims?.role;
+      if (role === "service_role") {
+        authorized = true;
+        trustedCaller = true;
+      } else if (role === "authenticated") {
+        authorized = true;
+        callerUid = (claims?.sub as string | undefined) ?? null;
+        callerEmail = (claims?.email as string | undefined) ?? null;
+      }
     }
     if (!authorized) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -174,6 +187,61 @@ Deno.serve(async (req) => {
     // so all `${…}` interpolations below are safe by default. DB-derived values
     // fetched inside individual cases are escaped explicitly at their source.
     const data = escData(rawData || {});
+
+    // ── Per-type authorization for logged-in USER callers ─────────────────────
+    // Trusted server/app/service callers pass through (they derive their data
+    // from the DB). A regular signed-in user may only trigger their own
+    // self-service notifications, and the recipient is ALWAYS derived
+    // server-side — never from a client-supplied `email` — so this function
+    // can't be used to send Shop4Me-branded mail to arbitrary addresses.
+    if (!trustedCaller && callerUid) {
+      const { data: adminRow } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", callerUid)
+        .eq("role", "admin")
+        .maybeSingle();
+      const isAdmin = !!adminRow;
+
+      if (!isAdmin) {
+        const USER_ALLOWED = new Set<string>([
+          "welcome",
+          "invoice_created",
+          "order_shipped",
+          "withdrawal_requested",
+          "withdrawal_confirmed",
+        ]);
+        if (!USER_ALLOWED.has(type)) {
+          return new Response(
+            JSON.stringify({ error: "Not permitted for this account" }),
+            { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        if (type === "welcome") {
+          // A user can only welcome themselves.
+          if (!callerEmail) {
+            return new Response(JSON.stringify({ error: "No email on account" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          (rawData as Record<string, unknown>).email = callerEmail;
+          (data as Record<string, unknown>).email = callerEmail;
+        } else if (type === "invoice_created" || type === "order_shipped") {
+          // Force server-side recipient derivation from the referenced id.
+          delete (rawData as Record<string, unknown>).email;
+          delete (data as Record<string, unknown>).email;
+        } else if (type === "withdrawal_requested" || type === "withdrawal_confirmed") {
+          // A rider can only trigger their own withdrawal notifications.
+          if ((rawData as Record<string, unknown>)?.riderId !== callerUid) {
+            return new Response(JSON.stringify({ error: "Not permitted for this account" }), {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+        }
+      }
+    }
 
     let to: string | string[] = "";
     let subject = "";

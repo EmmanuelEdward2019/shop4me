@@ -331,30 +331,34 @@ serve(async (req) => {
       ),
     }).catch((err: unknown) => console.error("Push notification error:", err));
 
-    // Email — only the targeted riders.
-    for (const riderId of targetRiderIds) {
-      const { data: riderProfile } = await supabase
+    // Email — only the targeted riders. Fetch all profiles in ONE query
+    // (avoids an N+1 round-trip per rider) and fan the emails out concurrently.
+    if (targetRiderIds.length > 0) {
+      const { data: riderProfiles } = await supabase
         .from("profiles")
         .select("full_name, email")
-        .eq("user_id", riderId)
-        .single();
-      if (riderProfile?.email) {
-        fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey },
-          body: JSON.stringify({
-            type: "rider_notified",
-            data: {
-              email: riderProfile.email,
-              name: riderProfile.full_name,
-              orderId: order.id,
-              storeName: order.location_name,
-              deliveryAddress: deliveryAddress || null,
-              buyerName: buyerName || null,
-            },
-          }),
-        }).catch(() => {});
-      }
+        .in("user_id", targetRiderIds);
+      await Promise.allSettled(
+        (riderProfiles ?? [])
+          .filter((p: { email: string | null }) => !!p.email)
+          .map((p: { full_name: string | null; email: string | null }) =>
+            fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey },
+              body: JSON.stringify({
+                type: "rider_notified",
+                data: {
+                  email: p.email,
+                  name: p.full_name,
+                  orderId: order.id,
+                  storeName: order.location_name,
+                  deliveryAddress: deliveryAddress || null,
+                  buyerName: buyerName || null,
+                },
+              }),
+            }).catch(() => {}),
+          ),
+      );
     }
 
     // Record how this alert was dispatched (observability / future escalation).
