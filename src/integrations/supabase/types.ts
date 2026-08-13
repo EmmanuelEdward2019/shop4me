@@ -1836,6 +1836,24 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_list_users: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_role?: string
+          p_search?: string
+        }
+        Returns: {
+          created_at: string
+          email: string
+          full_name: string
+          is_suspended: boolean
+          phone: string
+          role: string
+          total_count: number
+          user_id: string
+        }[]
+      }
       admin_release_earnings: {
         Args: { p_earning_ids?: string[]; p_role: string; p_user_id?: string }
         Returns: number

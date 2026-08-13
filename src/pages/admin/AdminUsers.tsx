@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +18,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserCog, Ban, ShieldCheck, Trash2, Loader2 } from "lucide-react";
+import { Search, UserCog, Ban, ShieldCheck, Trash2, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -35,11 +35,16 @@ interface UserWithRole {
   is_suspended: boolean;
 }
 
+const PAGE_SIZE = 25;
+
 const AdminUsers = () => {
   const [users, setUsers] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
 
   // Role change dialog
   const [selectedUser, setSelectedUser] = useState<UserWithRole | null>(null);
@@ -56,40 +61,55 @@ const AdminUsers = () => {
 
   const { toast } = useToast();
 
-  useEffect(() => { fetchUsers(); }, []);
+  // Debounce the search box, resetting to the first page on a new query.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(0);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
     try {
-      const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (profilesError) throw profilesError;
-
-      const { data: roles, error: rolesError } = await supabase
-        .from("user_roles")
-        .select("*");
-
-      if (rolesError) throw rolesError;
-
-      const usersWithRoles: UserWithRole[] = (profiles || []).map((profile) => {
-        const userRole = roles?.find((r) => r.user_id === profile.user_id);
-        return {
-          ...profile,
-          role: userRole?.role || "buyer",
-          is_suspended: (profile as any).is_suspended ?? false,
-        };
+      const { data, error } = await supabase.rpc("admin_list_users", {
+        p_search: debouncedSearch || null,
+        p_role: roleFilter,
+        p_limit: PAGE_SIZE,
+        p_offset: page * PAGE_SIZE,
       });
-
-      setUsers(usersWithRoles);
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as Array<{
+        user_id: string; full_name: string | null; email: string; phone: string | null;
+        is_suspended: boolean; created_at: string; role: AppRole; total_count: number;
+      }>;
+      setUsers(
+        rows.map((r) => ({
+          id: r.user_id,
+          user_id: r.user_id,
+          email: r.email,
+          full_name: r.full_name,
+          phone: r.phone,
+          created_at: r.created_at,
+          role: (r.role as AppRole) ?? "buyer",
+          is_suspended: !!r.is_suspended,
+        })),
+      );
+      setTotal(rows.length > 0 ? Number(rows[0].total_count) : 0);
     } catch (error) {
       console.error("Error fetching users:", error);
       toast({ title: "Error", description: "Failed to fetch users", variant: "destructive" });
+      setUsers([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, roleFilter, page, toast]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   const handleRoleChange = async () => {
     if (!selectedUser) return;
@@ -106,11 +126,9 @@ const AdminUsers = () => {
         .insert({ user_id: selectedUser.user_id, role: newRole });
       if (error) throw error;
 
-      setUsers((prev) =>
-        prev.map((u) => u.user_id === selectedUser.user_id ? { ...u, role: newRole } : u)
-      );
       toast({ title: "Success", description: `Role updated to ${newRole}` });
       setIsRoleDialogOpen(false);
+      await fetchUsers();
     } catch (error) {
       console.error("Error updating role:", error);
       toast({ title: "Error", description: "Failed to update role", variant: "destructive" });
@@ -128,9 +146,7 @@ const AdminUsers = () => {
       });
       if (error) throw error;
 
-      setUsers((prev) =>
-        prev.map((u) => u.user_id === user.user_id ? { ...u, is_suspended: !u.is_suspended } : u)
-      );
+      await fetchUsers();
       toast({
         title: user.is_suspended ? "User unsuspended" : "User suspended",
         description: user.is_suspended
@@ -155,9 +171,9 @@ const AdminUsers = () => {
       });
       if (error) throw error;
 
-      setUsers((prev) => prev.filter((u) => u.user_id !== userToDelete.user_id));
       toast({ title: "User deleted", description: `${userToDelete.full_name || userToDelete.email} has been permanently deleted.` });
       setUserToDelete(null);
+      await fetchUsers();
     } catch (error: any) {
       toast({ title: "Error", description: error.message || "Failed to delete user", variant: "destructive" });
     } finally {
@@ -171,14 +187,9 @@ const AdminUsers = () => {
     setIsRoleDialogOpen(true);
   };
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.phone?.includes(searchQuery);
-    const matchesRole = roleFilter === "all" || user.role === roleFilter;
-    return matchesSearch && matchesRole;
-  });
+  const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const to = Math.min((page + 1) * PAGE_SIZE, total);
+  const hasNext = (page + 1) * PAGE_SIZE < total;
 
   const getRoleBadgeColor = (role: AppRole) => {
     switch (role) {
@@ -201,7 +212,7 @@ const AdminUsers = () => {
           <CardHeader>
             <CardTitle>All Users</CardTitle>
             <CardDescription>
-              {filteredUsers.length} user{filteredUsers.length !== 1 ? "s" : ""} found
+              {total} user{total !== 1 ? "s" : ""} found
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -215,7 +226,13 @@ const AdminUsers = () => {
                   className="pl-10"
                 />
               </div>
-              <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <Select
+                value={roleFilter}
+                onValueChange={(v) => {
+                  setRoleFilter(v);
+                  setPage(0);
+                }}
+              >
                 <SelectTrigger className="w-full sm:w-40">
                   <SelectValue placeholder="Filter by role" />
                 </SelectTrigger>
@@ -235,7 +252,7 @@ const AdminUsers = () => {
                   <div key={i} className="h-16 bg-muted animate-pulse rounded" />
                 ))}
               </div>
-            ) : filteredUsers.length === 0 ? (
+            ) : users.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">No users found</p>
             ) : (
               <div className="overflow-x-auto">
@@ -251,7 +268,7 @@ const AdminUsers = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredUsers.map((user) => (
+                    {users.map((user) => (
                       <TableRow key={user.id} className={user.is_suspended ? "opacity-60" : ""}>
                         <TableCell>
                           <div>
@@ -317,6 +334,35 @@ const AdminUsers = () => {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {total > 0 && (
+              <div className="mt-4 flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {from}–{to} of {total}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page === 0 || loading}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Prev
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!hasNext || loading}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
