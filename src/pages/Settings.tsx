@@ -118,20 +118,28 @@ const SettingsPage = () => {
 
     setIsDeleting(true);
     try {
-      // Call the delete_user_account database function
-      const { data, error } = await supabase.rpc("delete_user_account", {
-        p_user_id: user.id,
+      // Refresh the access token — GoTrue rejects an expired token even when
+      // cached-session DB reads still work.
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      const token =
+        refreshed.session?.access_token ??
+        (await supabase.auth.getSession()).data.session?.access_token ??
+        null;
+      if (!token) throw new Error("Your session expired — please sign in again to continue.");
+
+      // Fully delete the account (auth record + data) via the edge function.
+      const { data, error } = await supabase.functions.invoke("delete-my-account", {
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (error) throw error;
-
-      const result = data as { success: boolean; error?: string } | null;
-      if (result && !result.success) {
-        throw new Error(result.error || "Failed to delete account");
+      if (error || !data?.success) {
+        const fnError =
+          (data as { error?: string } | null)?.error ||
+          (error as { message?: string } | undefined)?.message;
+        throw new Error(fnError || "Failed to delete account");
       }
 
-      toast.success("Account deletion initiated. You will be signed out.");
-      
+      toast.success("Your account has been permanently deleted.");
+
       // Sign out the user
       await signOut();
     } catch (error) {

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import RiderDashboardLayout from "@/components/dashboard/RiderDashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import DeleteAccountSection from "@/components/settings/DeleteAccountSection";
 import { useToast } from "@/hooks/use-toast";
 import PhotoUploadSection from "@/components/agent/PhotoUploadSection";
 import ProfileInfoSection from "@/components/agent/ProfileInfoSection";
@@ -276,6 +277,16 @@ const RiderSettings = () => {
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-destructive/30">
+          <CardHeader>
+            <CardTitle className="text-destructive">Danger Zone</CardTitle>
+            <CardDescription>Irreversible account actions.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DeleteAccountSection />
           </CardContent>
         </Card>
       </div>

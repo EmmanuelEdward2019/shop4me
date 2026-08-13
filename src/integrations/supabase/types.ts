@@ -1044,7 +1044,7 @@ export type Database = {
           surge_applied: number | null
           timer_started_at: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           agent_id?: string | null
@@ -1068,7 +1068,7 @@ export type Database = {
           surge_applied?: number | null
           timer_started_at?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           agent_id?: string | null
@@ -1092,7 +1092,7 @@ export type Database = {
           surge_applied?: number | null
           timer_started_at?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -1867,7 +1867,7 @@ export type Database = {
           surge_applied: number | null
           timer_started_at: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }[]
         SetofOptions: {
           from: "*"

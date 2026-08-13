@@ -18,6 +18,9 @@ verify_jwt = false
 [functions.pay-with-wallet]
 verify_jwt = false
 
+[functions.delete-my-account]
+verify_jwt = false
+
 [functions.send-push-notification]
 verify_jwt = false
 
