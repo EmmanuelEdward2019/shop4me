@@ -1809,6 +1809,33 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_list_orders: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: string
+        }
+        Returns: {
+          agent_email: string
+          agent_id: string
+          agent_name: string
+          buyer_email: string
+          buyer_name: string
+          created_at: string
+          estimated_total: number
+          final_total: number
+          id: string
+          location_name: string
+          location_type: string
+          rider_email: string
+          rider_id: string
+          rider_name: string
+          status: string
+          total_count: number
+          user_id: string
+        }[]
+      }
       admin_release_earnings: {
         Args: { p_earning_ids?: string[]; p_role: string; p_user_id?: string }
         Returns: number

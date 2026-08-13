@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
@@ -20,16 +20,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, ExternalLink } from "lucide-react";
+import { Search, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
+
+const PAGE_SIZE = 25;
 
 interface Order {
   id: string;
   location_name: string;
   location_type: string;
-  status: OrderStatus;
+  status: string;
   estimated_total: number | null;
   final_total: number | null;
   created_at: string;
@@ -47,62 +49,45 @@ const AdminOrders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
 
+  // Debounce the search box, and jump back to the first page on a new query.
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(0);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
 
-  const fetchOrders = async () => {
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
     try {
-      const { data: ordersData, error: ordersError } = await supabase
-        .from("orders")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (ordersError) throw ordersError;
-
-      // Fetch rider_alerts to resolve rider per order (accepted alerts only)
-      const orderIds = (ordersData || []).map((o) => o.id);
-      const { data: riderAlerts } = orderIds.length > 0
-        ? await supabase
-            .from("rider_alerts")
-            .select("order_id, rider_id")
-            .in("order_id", orderIds)
-            .not("rider_id", "is", null)
-        : { data: [] };
-
-      const riderIdByOrderId: Record<string, string> = {};
-      (riderAlerts || []).forEach((ra: any) => {
-        if (ra.rider_id) riderIdByOrderId[ra.order_id] = ra.rider_id;
+      const { data, error } = await supabase.rpc("admin_list_orders", {
+        p_search: debouncedSearch || null,
+        p_status: statusFilter,
+        p_limit: PAGE_SIZE,
+        p_offset: page * PAGE_SIZE,
       });
-
-      // Fetch all profiles to map user info
-      const { data: profiles } = await supabase.from("profiles").select("*");
-
-      const ordersWithUsers = (ordersData || []).map((order) => {
-        const buyer = profiles?.find((p) => p.user_id === order.user_id);
-        const agent = order.agent_id ? profiles?.find((p) => p.user_id === order.agent_id) : null;
-        const riderId = riderIdByOrderId[order.id];
-        const rider = riderId ? profiles?.find((p) => p.user_id === riderId) : null;
-        return {
-          ...order,
-          buyer_email: buyer?.email,
-          buyer_name: buyer?.full_name,
-          agent_email: agent?.email,
-          agent_name: agent?.full_name,
-          rider_email: rider?.email,
-          rider_name: rider?.full_name,
-        };
-      });
-
-      setOrders(ordersWithUsers);
+      if (error) throw error;
+      const rows = (data ?? []) as unknown as (Order & { total_count: number })[];
+      setOrders(rows.map(({ total_count, ...o }) => o));
+      setTotal(rows.length > 0 ? Number(rows[0].total_count) : 0);
     } catch (error) {
       console.error("Error fetching orders:", error);
+      setOrders([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
-  };
+  }, [debouncedSearch, statusFilter, page]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const formatCurrency = (amount: number | null) => {
     if (amount === null) return "-";
@@ -112,7 +97,7 @@ const AdminOrders = () => {
     }).format(amount);
   };
 
-  const getStatusBadgeColor = (status: OrderStatus) => {
+  const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case "delivered":
         return "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200";
@@ -127,18 +112,6 @@ const AdminOrders = () => {
     }
   };
 
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch =
-      order.location_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.buyer_email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.buyer_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.id.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus = statusFilter === "all" || order.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
-  });
-
   const statusOptions: OrderStatus[] = [
     "pending",
     "accepted",
@@ -150,6 +123,10 @@ const AdminOrders = () => {
     "delivered",
     "cancelled",
   ];
+
+  const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const to = Math.min((page + 1) * PAGE_SIZE, total);
+  const hasNext = (page + 1) * PAGE_SIZE < total;
 
   return (
     <AdminDashboardLayout>
@@ -163,7 +140,7 @@ const AdminOrders = () => {
           <CardHeader>
             <CardTitle>All Orders</CardTitle>
             <CardDescription>
-              {filteredOrders.length} order{filteredOrders.length !== 1 ? "s" : ""} found
+              {total} order{total !== 1 ? "s" : ""} found
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -178,7 +155,13 @@ const AdminOrders = () => {
                   className="pl-10"
                 />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select
+                value={statusFilter}
+                onValueChange={(v) => {
+                  setStatusFilter(v);
+                  setPage(0);
+                }}
+              >
                 <SelectTrigger className="w-full sm:w-48">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
@@ -200,7 +183,7 @@ const AdminOrders = () => {
                   <div key={i} className="h-16 bg-muted animate-pulse rounded" />
                 ))}
               </div>
-            ) : filteredOrders.length === 0 ? (
+            ) : orders.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">No orders found</p>
             ) : (
               <div className="overflow-x-auto">
@@ -219,7 +202,7 @@ const AdminOrders = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredOrders.map((order) => (
+                    {orders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-mono text-xs">
                           {order.id.slice(0, 8)}...
@@ -285,6 +268,35 @@ const AdminOrders = () => {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+
+            {/* Pagination */}
+            {total > 0 && (
+              <div className="mt-4 flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {from}–{to} of {total}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page === 0 || loading}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Prev
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!hasNext || loading}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
