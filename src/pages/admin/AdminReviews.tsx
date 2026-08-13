@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -10,7 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Star, MessageSquareText } from "lucide-react";
+import { Star, MessageSquareText, ChevronLeft, ChevronRight } from "lucide-react";
+
+const PAGE_SIZE = 25;
 
 interface ReviewRow {
   id: string;
@@ -45,14 +48,28 @@ const Stars = ({ rating }: { rating: number }) => (
 const AdminReviews = () => {
   const [reviews, setReviews] = useState<ReviewRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [avg, setAvg] = useState<number | null>(null);
 
-  const fetchReviews = async () => {
+  // Summary (total + average) — page-independent, one lightweight column.
+  const fetchSummary = useCallback(async () => {
+    const { data, count } = await supabase
+      .from("agent_reviews")
+      .select("rating", { count: "exact" });
+    const ratings = (data ?? []).map((r) => Number(r.rating)).filter((n) => !Number.isNaN(n));
+    setTotal(count ?? ratings.length);
+    setAvg(ratings.length ? ratings.reduce((a, b) => a + b, 0) / ratings.length : null);
+  }, []);
+
+  const fetchReviews = useCallback(async () => {
     setLoading(true);
     try {
       const { data: rows, error } = await supabase
         .from("agent_reviews")
         .select("*")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1);
       if (error) throw error;
 
       const list = (rows ?? []) as ReviewRow[];
@@ -95,10 +112,11 @@ const AdminReviews = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page]);
 
   useEffect(() => {
     fetchReviews();
+    fetchSummary();
 
     // Live updates — new reviews land as customers complete orders.
     const channel = supabase
@@ -106,19 +124,22 @@ const AdminReviews = () => {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "agent_reviews" },
-        () => fetchReviews(),
+        () => {
+          fetchReviews();
+          fetchSummary();
+        },
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [fetchReviews, fetchSummary]);
 
-  const avgRating =
-    reviews.length > 0
-      ? (reviews.reduce((sum, r) => sum + Number(r.rating || 0), 0) / reviews.length).toFixed(1)
-      : "—";
+  const avgRating = avg !== null ? avg.toFixed(1) : "—";
+  const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const to = Math.min((page + 1) * PAGE_SIZE, total);
+  const hasNext = (page + 1) * PAGE_SIZE < total;
 
   return (
     <AdminDashboardLayout>
@@ -134,7 +155,7 @@ const AdminReviews = () => {
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Reviews</CardDescription>
-              <CardTitle className="text-3xl">{reviews.length}</CardTitle>
+              <CardTitle className="text-3xl">{total}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
@@ -214,6 +235,34 @@ const AdminReviews = () => {
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+            )}
+
+            {total > 0 && (
+              <div className="mt-4 flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Showing {from}–{to} of {total}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={page === 0 || loading}
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Prev
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!hasNext || loading}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
