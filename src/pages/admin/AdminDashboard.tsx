@@ -53,7 +53,12 @@ const AdminDashboard = () => {
         supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", "pending"),
         supabase.from("payments").select("amount").eq("status", "success"),
         supabase.from("orders").select("id", { count: "exact", head: true }).in("status", ["accepted", "shopping", "in_transit"]),
-        supabase.from("orders").select("*, profiles!orders_user_id_fkey(full_name, email)").order("created_at", { ascending: false }).limit(5),
+        // Recent orders via the admin RPC. A direct PostgREST embed
+        // (profiles!orders_user_id_fkey) fails — there is no FK between orders
+        // and profiles (both reference auth.users) — and a direct orders query
+        // is RLS-restricted for admins anyway. The SECURITY DEFINER RPC returns
+        // the buyer name/email via a manual join and bypasses RLS.
+        supabase.rpc("admin_list_orders", { p_search: null, p_status: null, p_limit: 5, p_offset: 0 }),
         supabase.from("rider_withdrawals").select("amount").eq("status", "pending"),
       ]);
 
@@ -72,7 +77,14 @@ const AdminDashboard = () => {
         pendingWithdrawalAmount,
       });
 
-      setRecentOrders(recentOrdersResult.data || []);
+      // Map the RPC's flat buyer_name/buyer_email into the { profiles: {...} }
+      // shape the list below already renders.
+      setRecentOrders(
+        (recentOrdersResult.data ?? []).map((o: any) => ({
+          ...o,
+          profiles: { full_name: o.buyer_name, email: o.buyer_email },
+        }))
+      );
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
     } finally {
