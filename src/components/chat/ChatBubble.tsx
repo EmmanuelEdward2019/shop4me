@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import ChatImage from "@/components/chat/ChatImage";
 import { format } from "date-fns";
 import { Check, CheckCheck, Loader2, AlertCircle, Receipt } from "lucide-react";
 import type { ChatMessage } from "@/types/chat";
@@ -32,11 +33,11 @@ export const ChatBubble = ({ message, isOwn, onInvoiceAction }: ChatBubbleProps)
         return (
           <div className="space-y-2">
             {message.photo_url && (
-              <img
+              <ChatImage
                 src={message.photo_url}
                 alt="Shared photo"
                 className="rounded-lg max-w-[280px] cursor-pointer hover:opacity-90"
-                onClick={() => window.open(message.photo_url!, "_blank")}
+                onOpen={(u) => window.open(u, "_blank")}
               />
             )}
             {message.content && <p>{message.content}</p>}

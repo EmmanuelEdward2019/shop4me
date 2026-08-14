@@ -7,14 +7,19 @@ const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
   .map((o) => o.trim())
   .filter(Boolean);
 
+function isAllowedOrigin(origin: string): boolean {
+  if (!origin) return false;
+  if (ALLOWED_ORIGINS.length > 0) return ALLOWED_ORIGINS.includes(origin);
+  return (
+    /^https:\/\/(www\.)?shop4meng\.com$/.test(origin) ||
+    /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin) ||
+    /^http:\/\/localhost(:\d+)?$/.test(origin)
+  );
+}
+
 function corsHeadersFor(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin") ?? "";
-  const allowOrigin =
-    ALLOWED_ORIGINS.length === 0
-      ? "*"
-      : ALLOWED_ORIGINS.includes(origin)
-        ? origin
-        : ALLOWED_ORIGINS[0];
+  const allowOrigin = isAllowedOrigin(origin) ? origin : "https://shop4meng.com";
   return {
     "Access-Control-Allow-Origin": allowOrigin,
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",

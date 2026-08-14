@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import ChatImage from "@/components/chat/ChatImage";
 import { Receipt, Check, Edit, Minus, Plus, Trash2, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -237,11 +238,11 @@ export const InvoiceMessage = ({ metadata: rawMetadata, isOwn, onAction }: Invoi
               </div>
             )}
             {item.photoUrl && (
-              <img
+              <ChatImage
                 src={item.photoUrl}
                 alt={item.name}
                 className="w-16 h-16 object-cover rounded cursor-pointer"
-                onClick={() => window.open(item.photoUrl, "_blank")}
+                onOpen={(u) => window.open(u, "_blank")}
               />
             )}
             {isEditing && item.status === "not_found" && (

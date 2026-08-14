@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ChatImage from "@/components/chat/ChatImage";
 import { Receipt, Camera, Send, Check, X, PackageOpen, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -269,7 +270,7 @@ export const AgentInvoiceForm = ({
                   <Label className="text-xs">Photo (optional)</Label>
                   <div className="flex gap-2">
                     {item.photoUrl ? (
-                      <img
+                      <ChatImage
                         src={item.photoUrl}
                         alt={item.name}
                         className="w-10 h-10 object-cover rounded"
