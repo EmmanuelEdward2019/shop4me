@@ -128,6 +128,36 @@ const AdminPayments = () => {
   const totalWalletCredits = walletTxns.filter((t: any) => t.type === "credit").reduce((s: number, t: any) => s + Number(t.amount), 0);
   const totalWalletDebits = walletTxns.filter((t: any) => t.type === "debit").reduce((s: number, t: any) => s + Number(t.amount), 0);
 
+  // Accurate all-time summary (the lists/charts only load the most recent 500
+  // rows, so the tiles are computed in the DB instead).
+  const { data: summary } = useQuery({
+    queryKey: ["admin-payment-summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("admin_payment_summary");
+      if (error) throw error;
+      return (Array.isArray(data) ? data[0] : data) as {
+        paystack_revenue: number;
+        wallet_credits: number;
+        wallet_debits: number;
+        paystack_success_count: number;
+        wallet_credit_count: number;
+        wallet_debit_count: number;
+      } | null;
+    },
+  });
+  const paystackRevenue = Number(summary?.paystack_revenue ?? totalPaystackRevenue);
+  const walletCredits = Number(summary?.wallet_credits ?? totalWalletCredits);
+  const walletDebits = Number(summary?.wallet_debits ?? totalWalletDebits);
+  const paystackSuccessCount = Number(
+    summary?.paystack_success_count ?? payments.filter((p: any) => p.status === "success").length,
+  );
+  const walletCreditCount = Number(
+    summary?.wallet_credit_count ?? walletTxns.filter((t: any) => t.type === "credit").length,
+  );
+  const walletDebitCount = Number(
+    summary?.wallet_debit_count ?? walletTxns.filter((t: any) => t.type === "debit").length,
+  );
+
   // Filter payments
   const filteredPayments = payments.filter((p: any) => {
     const matchesSearch = !searchTerm || 
@@ -216,8 +246,8 @@ const AdminPayments = () => {
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{formatNaira(totalPaystackRevenue)}</div>
-              <p className="text-xs text-muted-foreground">{payments.filter((p: any) => p.status === "success").length} successful payments</p>
+              <div className="text-2xl font-bold text-foreground">{formatNaira(paystackRevenue)}</div>
+              <p className="text-xs text-muted-foreground">{paystackSuccessCount} successful payments</p>
             </CardContent>
           </Card>
           <Card>
@@ -226,8 +256,8 @@ const AdminPayments = () => {
               <ArrowDownCircle className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{formatNaira(totalWalletCredits)}</div>
-              <p className="text-xs text-muted-foreground">{walletTxns.filter((t: any) => t.type === "credit").length} credits</p>
+              <div className="text-2xl font-bold text-foreground">{formatNaira(walletCredits)}</div>
+              <p className="text-xs text-muted-foreground">{walletCreditCount} credits</p>
             </CardContent>
           </Card>
           <Card>
@@ -236,8 +266,8 @@ const AdminPayments = () => {
               <ArrowUpCircle className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-foreground">{formatNaira(totalWalletDebits)}</div>
-              <p className="text-xs text-muted-foreground">{walletTxns.filter((t: any) => t.type === "debit").length} debits</p>
+              <div className="text-2xl font-bold text-foreground">{formatNaira(walletDebits)}</div>
+              <p className="text-xs text-muted-foreground">{walletDebitCount} debits</p>
             </CardContent>
           </Card>
         </div>

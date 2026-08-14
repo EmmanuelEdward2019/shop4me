@@ -136,6 +136,8 @@ const getSeverityBadge = (severity: string) => {
 };
 
 // ── Main Component ─────────────────────────────────────
+const COMPLIANCE_WINDOW_DAYS = 90;
+
 const AdminCompliance = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -160,6 +162,11 @@ const AdminCompliance = () => {
 
   const fetchComplianceData = async () => {
     try {
+      // Compliance is measured over a rolling window (recent performance),
+      // which also bounds how many orders/alerts we scan.
+      const windowStart = new Date(
+        Date.now() - COMPLIANCE_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+      ).toISOString();
       const [
         agentRolesRes,
         riderRolesRes,
@@ -171,8 +178,8 @@ const AdminCompliance = () => {
       ] = await Promise.all([
         supabase.from("user_roles").select("user_id").eq("role", "agent"),
         supabase.from("user_roles").select("user_id").eq("role", "rider"),
-        supabase.from("orders").select("*").order("created_at", { ascending: false }),
-        supabase.from("rider_alerts").select("*").order("created_at", { ascending: false }),
+        supabase.from("orders").select("*").gte("created_at", windowStart).order("created_at", { ascending: false }),
+        supabase.from("rider_alerts").select("*").gte("created_at", windowStart).order("created_at", { ascending: false }),
         supabase.from("profiles").select("user_id, full_name, email"),
         supabase.from("compliance_actions").select("*").order("created_at", { ascending: false }).limit(50),
         supabase.from("agent_applications").select("user_id, status"),
@@ -641,6 +648,7 @@ const AdminCompliance = () => {
           </h1>
           <p className="text-muted-foreground">
             Track efficiency, enforce compliance, warn or suspend underperforming users.
+            <span className="ml-1 text-xs">(Performance over the last {COMPLIANCE_WINDOW_DAYS} days.)</span>
           </p>
         </div>
 

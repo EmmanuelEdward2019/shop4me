@@ -1854,6 +1854,17 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_payment_summary: {
+        Args: never
+        Returns: {
+          paystack_revenue: number
+          paystack_success_count: number
+          wallet_credit_count: number
+          wallet_credits: number
+          wallet_debit_count: number
+          wallet_debits: number
+        }[]
+      }
       admin_release_earnings: {
         Args: { p_earning_ids?: string[]; p_role: string; p_user_id?: string }
         Returns: number
