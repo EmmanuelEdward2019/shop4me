@@ -20,6 +20,12 @@ interface OrderItemData {
 
 interface PostDeliveryInvoiceFormProps {
   orderItems: OrderItemData[];
+  /**
+   * Identifies the buyer to the fee calculator. The agent is the caller here,
+   * so without it the first-order delivery waiver is evaluated against the
+   * agent's own history and the buyer is charged full delivery.
+   */
+  orderId?: string | null;
   /** GPS context for tiered delivery fee calc */
   storeLat?: number | null;
   storeLng?: number | null;
@@ -38,12 +44,15 @@ interface PostDeliveryInvoiceFormProps {
     total: number;
     notes?: string;
     isHeavyOrder: boolean;
+    /** Waiver applied by the server, to persist onto the order row. */
+    firstOrderWaiver: boolean;
   }) => void;
   disabled?: boolean;
 }
 
 export const PostDeliveryInvoiceForm = ({
   orderItems,
+  orderId,
   storeLat,
   storeLng,
   deliveryLat,
@@ -96,6 +105,7 @@ export const PostDeliveryInvoiceForm = ({
         buyer_zone: buyerZone ?? null,
         store_zone: storeZone ?? null,
         is_heavy_order: isHeavyOrder,
+        order_id: orderId ?? null,
       });
       onSubmit({
         items,
@@ -107,6 +117,7 @@ export const PostDeliveryInvoiceForm = ({
         total: quote.total,
         notes: notes || undefined,
         isHeavyOrder,
+        firstOrderWaiver: quote.first_order_free_delivery === true,
       });
     } finally {
       setSubmitting(false);

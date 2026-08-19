@@ -261,7 +261,11 @@ const AgentOrderDetail = () => {
     })) || [];
   };
 
-  const handleSendInvoice = async (invoice: InvoiceMetadata) => {
+  const handleSendInvoice = async (
+    invoice: InvoiceMetadata,
+    _isHeavyOrder?: boolean,
+    firstOrderWaiver = false,
+  ) => {
     await sendMessage(
       `Invoice for ${order?.location_name}`,
       "invoice",
@@ -288,6 +292,7 @@ const AgentOrderDetail = () => {
         service_fee: invoice.serviceFee,
         delivery_fee: invoice.deliveryFee,
         final_total: invoice.finalTotal,
+        first_order_waiver: firstOrderWaiver,
       })
       .eq("id", id);
     
@@ -481,6 +486,7 @@ const AgentOrderDetail = () => {
             {showInvoiceForm ? (
               <AgentInvoiceForm
                 shoppingList={getShoppingListFromOrder()}
+                orderId={order.id}
                 initialItems={buyerEditedItems}
                 deliveryLat={order.delivery_latitude ?? null}
                 deliveryLng={order.delivery_longitude ?? null}
@@ -543,6 +549,7 @@ const AgentOrderDetail = () => {
               />
             ) : (
               <PostDeliveryInvoiceForm
+                orderId={order.id}
                 orderItems={order.order_items.map(item => ({
                   id: item.id,
                   name: item.name,
@@ -555,13 +562,18 @@ const AgentOrderDetail = () => {
                 buyerZone={order.service_zone ?? null}
                 initialIsHeavy={(order as any).is_heavy_order ?? false}
                 onSubmit={async (data) => {
-                  // Persist heavy flag for audit
-                  if (data.isHeavyOrder !== ((order as any).is_heavy_order ?? false)) {
-                    await supabase
-                      .from("orders")
-                      .update({ is_heavy_order: data.isHeavyOrder } as any)
-                      .eq("id", id);
-                  }
+                  // Mirror the invoice onto the order row. Rider earnings are an
+                  // 85/15 split of orders.delivery_fee, so leaving it stale would
+                  // pay a rider for delivery the buyer was never charged.
+                  await supabase
+                    .from("orders")
+                    .update({
+                      is_heavy_order: data.isHeavyOrder,
+                      service_fee: data.serviceFee,
+                      delivery_fee: data.deliveryFee,
+                      first_order_waiver: data.firstOrderWaiver,
+                    } as any)
+                    .eq("id", id);
                   const newInvoice = await createInvoice({
                     buyerId: order.user_id,
                     items: data.items,

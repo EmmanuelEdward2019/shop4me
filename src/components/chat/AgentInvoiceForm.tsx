@@ -15,6 +15,12 @@ import type { InvoiceItem, InvoiceMetadata, ShoppingListItem } from "@/types/cha
 
 interface AgentInvoiceFormProps {
   shoppingList: ShoppingListItem[];
+  /**
+   * Identifies the buyer to the fee calculator. The agent is the caller here,
+   * so without it the first-order delivery waiver is evaluated against the
+   * agent's own history and the buyer is charged full delivery.
+   */
+  orderId?: string | null;
   /** Pre-filled items from buyer's invoice_response — overrides shoppingList derivation. */
   initialItems?: InvoiceItem[];
   /** Optional GPS context — passed to the canonical fee calculator. */
@@ -25,13 +31,19 @@ interface AgentInvoiceFormProps {
   buyerZone?: string | null;
   storeZone?: string | null;
   initialIsHeavy?: boolean;
-  onSubmit: (invoice: InvoiceMetadata, isHeavyOrder: boolean) => void;
+  onSubmit: (
+    invoice: InvoiceMetadata,
+    isHeavyOrder: boolean,
+    /** Waiver applied by the server, to persist onto the order row. */
+    firstOrderWaiver: boolean,
+  ) => void;
   onUploadPhoto: (file: File) => Promise<string | null>;
   disabled?: boolean;
 }
 
 export const AgentInvoiceForm = ({
   shoppingList,
+  orderId,
   initialItems,
   storeLat,
   storeLng,
@@ -157,6 +169,7 @@ export const AgentInvoiceForm = ({
         buyer_zone: buyerZone ?? null,
         store_zone: storeZone ?? null,
         is_heavy_order: isHeavyOrder,
+        order_id: orderId ?? null,
       });
       const invoice: InvoiceMetadata = {
         items,
@@ -166,7 +179,7 @@ export const AgentInvoiceForm = ({
         finalTotal: quote.total,
         notes: notes || undefined,
       };
-      onSubmit(invoice, isHeavyOrder);
+      onSubmit(invoice, isHeavyOrder, quote.first_order_free_delivery === true);
     } finally {
       setSubmitting(false);
     }
