@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation, Link } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { X, Share, Plus, ArrowDown, Compass } from "lucide-react";
 import {
   isIOS,
@@ -9,6 +9,7 @@ import {
   setA2HSDismissed,
   A2HS_EVENT,
 } from "@/lib/pwa";
+import { APP_STORE_URL } from "@/lib/appStores";
 
 // Pages where the guide appears automatically.
 const AUTO_OPEN_PATHS = ["/", "/ios"];
@@ -101,13 +102,15 @@ export const InstallPrompt = () => {
         )}
 
         <div className="mt-3 text-center">
-          <Link
-            to="/ios"
+          <a
+            href={APP_STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={() => setOpen(false)}
             className="text-xs font-medium text-muted-foreground underline-offset-2 hover:text-primary hover:underline"
           >
-            Prefer the app? Get the iOS beta →
-          </Link>
+            Prefer the app? Get it on the App Store →
+          </a>
         </div>
       </div>
     </div>
