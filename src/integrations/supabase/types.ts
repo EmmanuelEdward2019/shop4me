@@ -1967,6 +1967,13 @@ export type Database = {
         Args: { p_suspended: boolean; p_user_id: string }
         Returns: undefined
       }
+      agent_customer_names: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          full_name: string
+          user_id: string
+        }[]
+      }
       approve_application: {
         Args: { p_admin_notes?: string; p_application_id: string }
         Returns: undefined
@@ -2035,7 +2042,7 @@ export type Database = {
         Returns: boolean
       }
       is_first_order_delivery_free: {
-        Args: { p_buyer_id: string; p_order_id?: string }
+        Args: { p_buyer_id: string; p_order_id?: string; p_subtotal?: number }
         Returns: boolean
       }
       mark_all_notifications_read: { Args: never; Returns: number }

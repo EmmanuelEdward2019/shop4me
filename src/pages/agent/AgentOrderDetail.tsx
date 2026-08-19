@@ -155,14 +155,15 @@ const AgentOrderDetail = () => {
       
       // Fetch customer profile separately
       if (data?.user_id) {
-        const { data: profileData } = await supabase
-          .from("profiles")
-          .select("full_name, phone")
-          .eq("user_id", data.user_id)
-          .single();
-        
+        // Name only. Agents must never receive a customer's phone or email --
+        // the RPC is the only route to a customer profile now that the broad
+        // row policy is gone (migration 20260819030000).
+        const { data: names } = await supabase
+          .rpc("agent_customer_names", { p_user_ids: [data.user_id] });
+
+        const profileData = names?.[0];
         if (profileData) {
-          setCustomerProfile(profileData);
+          setCustomerProfile({ full_name: profileData.full_name, phone: null });
         }
       }
     } catch (error) {
@@ -755,14 +756,6 @@ const AgentOrderDetail = () => {
                   <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-muted-foreground" />
                     <span>{customerProfile.full_name}</span>
-                  </div>
-                )}
-                {customerProfile?.phone && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <a href={`tel:${customerProfile.phone}`} className="text-primary hover:underline">
-                      {customerProfile.phone}
-                    </a>
                   </div>
                 )}
                 {order.delivery_addresses && (

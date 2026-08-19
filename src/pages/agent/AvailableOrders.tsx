@@ -107,12 +107,12 @@ const AvailableOrders = () => {
       // Fetch buyer names for each order
       const ordersWithBuyers = await Promise.all(
         (data || []).map(async (order: any) => {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("full_name")
-            .eq("user_id", order.user_id)
-            .single();
-          return { ...order, buyer_name: profile?.full_name || null } as AvailableOrder;
+          // Unassigned orders are not this agent's yet, so the RPC returns
+          // nothing for them -- same as the old policy, which also scoped to
+          // orders the agent already held.
+          const { data: names } = await supabase
+            .rpc("agent_customer_names", { p_user_ids: [order.user_id] });
+          return { ...order, buyer_name: names?.[0]?.full_name || null } as AvailableOrder;
         })
       );
 

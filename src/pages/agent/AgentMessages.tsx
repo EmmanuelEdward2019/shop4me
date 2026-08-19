@@ -17,7 +17,7 @@ interface OrderWithMessages {
   last_message: string | null;
   last_message_at: string | null;
   unread_count: number;
-  buyer_email?: string;
+  buyer_name?: string;
 }
 
 const AgentMessagesPage = () => {
@@ -55,11 +55,11 @@ const AgentMessagesPage = () => {
             .eq("is_read", false)
             .neq("sender_id", user.id);
 
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("email, full_name")
-            .eq("user_id", order.user_id)
-            .single();
+          // Name only -- an agent has no business holding the customer's email
+          // any more than their phone number.
+          const { data: names } = await supabase
+            .rpc("agent_customer_names", { p_user_ids: [order.user_id] });
+          const profile = names?.[0];
 
           const lastMessage = messages?.[0];
 
@@ -68,7 +68,7 @@ const AgentMessagesPage = () => {
             last_message: lastMessage?.content || null,
             last_message_at: lastMessage?.created_at || null,
             unread_count: unreadCount || 0,
-            buyer_email: profile?.full_name || profile?.email || "Customer",
+            buyer_name: profile?.full_name || "Customer",
           };
         })
       );
@@ -193,7 +193,7 @@ const AgentMessagesPage = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-medium text-foreground truncate">
-                            {order.buyer_email}
+                            {order.buyer_name}
                           </h3>
                           {order.unread_count > 0 && (
                             <Badge variant="default" className="text-xs">
