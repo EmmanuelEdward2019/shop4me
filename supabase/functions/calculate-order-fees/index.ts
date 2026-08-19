@@ -77,6 +77,7 @@ Deno.serve(async (req) => {
       deliveryTiersRes,
       settingsRes,
       centroidsRes,
+      promoRes,
     ] = await Promise.all([
       supabase
         .from("service_fee_tiers")
@@ -98,33 +99,74 @@ Deno.serve(async (req) => {
           "minimum_delivery_fee",
         ]),
       supabase.from("zone_centroids").select("zone_slug, latitude, longitude"),
+      supabase
+        .from("bonuses")
+        .select("id")
+        .eq("type", "first_order_free_delivery")
+        .eq("is_active", true)
+        .limit(1),
     ]);
 
     // ---------- WHO IS THE BUYER? ----------
-    // Never taken from the request body. The agent — not the buyer — creates
-    // the invoice, so an agent-side call must say WHICH order it is pricing and
-    // the buyer is read from that row. A buyer pricing their own basket has no
-    // order row yet, so they resolve from their own JWT. A client that could
-    // simply name a buyer_id could claim a fresh account's waiver at will.
+    // Never taken from the request body: a client that could simply name a
+    // buyer_id could claim a fresh account's waiver at will.
+    //
+    // Two callers price an order, and they are not the same person:
+    //   * the buyer, pricing their own basket — no order row exists yet, so
+    //     they are resolved from their own JWT;
+    //   * the AGENT, pricing the invoice that sets the final charge — the JWT
+    //     is the agent's, so the call must name the order and the buyer is
+    //     read from that row.
+    //
+    // The role check is what makes the JWT fallback safe. Without it, an agent
+    // whose client does not send order_id resolves to themselves; agents rarely
+    // shop as buyers, so they stay "first-order eligible" indefinitely and every
+    // invoice they write would be waived — and rider earnings, which are an
+    // 85/15 split of orders.delivery_fee, would be zeroed along with it.
+    // Shipped app builds do exactly that, so this is not a theoretical case.
+    //
+    // The whole block is defensive: a failure here must never break pricing,
+    // so it degrades to "no waiver" rather than propagating.
     let buyerId: string | null = null;
-    if (body.order_id) {
-      const { data: orderRow } = await supabase
-        .from("orders")
-        .select("user_id")
-        .eq("id", body.order_id)
-        .maybeSingle();
-      buyerId = orderRow?.user_id ?? null;
-    } else {
-      const authHeader = req.headers.get("Authorization") ?? "";
-      const token = authHeader.replace(/^Bearer\s+/i, "");
-      if (token) {
-        const { data: userData } = await supabase.auth.getUser(token);
-        buyerId = userData?.user?.id ?? null;
+    const promoLive = (promoRes.data?.length ?? 0) > 0;
+
+    if (promoLive) {
+      try {
+        if (body.order_id) {
+          const { data: orderRow } = await supabase
+            .from("orders")
+            .select("user_id")
+            .eq("id", body.order_id)
+            .maybeSingle();
+          buyerId = orderRow?.user_id ?? null;
+        } else {
+          const authHeader = req.headers.get("Authorization") ?? "";
+          const token = authHeader.replace(/^Bearer\s+/i, "");
+          if (token) {
+            const { data: userData } = await supabase.auth.getUser(token);
+            const callerId = userData?.user?.id ?? null;
+            if (callerId) {
+              const { data: roleRows } = await supabase
+                .from("user_roles")
+                .select("role")
+                .eq("user_id", callerId);
+              const isStaff = (roleRows ?? []).some((r: { role: string }) =>
+                r.role === "agent" || r.role === "rider" || r.role === "admin"
+              );
+              // Only someone acting purely as a buyer may claim the waiver
+              // from their own token.
+              buyerId = isStaff ? null : callerId;
+            }
+          }
+        }
+      } catch (err) {
+        console.error("buyer resolution failed, skipping waiver:", err);
+        buyerId = null;
       }
     }
 
     let firstOrderFreeDelivery = false;
-    if (buyerId) {
+    if (promoLive && buyerId) {
       const { data: eligible, error: eligibleErr } = await supabase.rpc(
         "is_first_order_delivery_free",
         { p_buyer_id: buyerId, p_order_id: body.order_id ?? null },
