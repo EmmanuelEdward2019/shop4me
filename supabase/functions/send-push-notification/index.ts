@@ -168,13 +168,15 @@ serve(async (req) => {
     // ── Legacy client invoke shape ──
     const payload: PushPayload = rawBody;
     const { userId, role, title, body, url, data } = payload;
+    const priority: "default" | "high" =
+      (rawBody as any)?.priority === "high" ? "high" : "default";
     const explicitUserIds: string[] | undefined = (rawBody as any).userIds;
 
     let userIds: string[] = [];
 
     // Direct userIds array — highest priority (used by paystack-webhook etc.)
     if (explicitUserIds && explicitUserIds.length > 0) {
-      const results = await sendPushToUsers(supabase, explicitUserIds, title, body, url, data);
+      const results = await sendPushToUsers(supabase, explicitUserIds, title, body, url, data, priority);
       return new Response(
         JSON.stringify({ success: true, results }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -213,7 +215,7 @@ serve(async (req) => {
       );
     }
 
-    const results = await sendPushToUsers(supabase, userIds, title, body, url, data);
+    const results = await sendPushToUsers(supabase, userIds, title, body, url, data, priority);
 
     return new Response(
       JSON.stringify({ success: true, results }),
@@ -274,7 +276,8 @@ async function sendPushToUsers(
   title: string,
   body: string,
   url?: string,
-  data?: Record<string, string>
+  data?: Record<string, string>,
+  priority?: "default" | "high",
 ) {
   // ── 1. Web Push ──
   const { data: webSubs, error: webSubError } = await supabase
@@ -341,6 +344,10 @@ async function sendPushToUsers(
       body,
       data: { url, ...data },
       channelId: "orders",
+      // 'high' wakes the device immediately instead of letting Android batch the
+      // notification in Doze. Used by the "Ring customer" nudge, which is
+      // pointless if it arrives ten minutes late.
+      priority: priority === "high" ? "high" : "default",
     }));
 
     const chunks: (typeof expoMessages)[] = [];
