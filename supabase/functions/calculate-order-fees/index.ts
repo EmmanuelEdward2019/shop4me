@@ -169,7 +169,12 @@ Deno.serve(async (req) => {
     if (promoLive && buyerId) {
       const { data: eligible, error: eligibleErr } = await supabase.rpc(
         "is_first_order_delivery_free",
-        { p_buyer_id: buyerId, p_order_id: body.order_id ?? null },
+        {
+          p_buyer_id: buyerId,
+          p_order_id: body.order_id ?? null,
+          // Lets a promo carrying a minimum-order threshold be honoured.
+          p_subtotal: subtotal,
+        },
       );
       if (eligibleErr) {
         // Never block checkout on the promo lookup — just don't waive.
