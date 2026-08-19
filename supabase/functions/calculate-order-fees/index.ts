@@ -8,7 +8,8 @@
 //   "delivery_lat":   4.8156, "delivery_lng": 7.0498,// optional
 //   "buyer_zone":     "choba",                // optional fallback
 //   "store_zone":     "rumuola",              // optional fallback
-//   "is_heavy_order": false                   // optional
+//   "is_heavy_order": false,                  // optional
+//   "order_id":       "uuid"                  // optional — identifies the buyer
 // }
 //
 // Returns:
@@ -16,7 +17,8 @@
 //   subtotal, service_fee, service_fee_percentage,
 //   delivery_fee, base_delivery_fee, distance_km,
 //   surge_multiplier, surge_active, heavy_surcharge,
-//   minimum_delivery_fee, total, breakdown
+//   minimum_delivery_fee, total, breakdown,
+//   first_order_free_delivery        // true when the waiver was applied
 // }
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -97,6 +99,43 @@ Deno.serve(async (req) => {
         ]),
       supabase.from("zone_centroids").select("zone_slug, latitude, longitude"),
     ]);
+
+    // ---------- WHO IS THE BUYER? ----------
+    // Never taken from the request body. The agent — not the buyer — creates
+    // the invoice, so an agent-side call must say WHICH order it is pricing and
+    // the buyer is read from that row. A buyer pricing their own basket has no
+    // order row yet, so they resolve from their own JWT. A client that could
+    // simply name a buyer_id could claim a fresh account's waiver at will.
+    let buyerId: string | null = null;
+    if (body.order_id) {
+      const { data: orderRow } = await supabase
+        .from("orders")
+        .select("user_id")
+        .eq("id", body.order_id)
+        .maybeSingle();
+      buyerId = orderRow?.user_id ?? null;
+    } else {
+      const authHeader = req.headers.get("Authorization") ?? "";
+      const token = authHeader.replace(/^Bearer\s+/i, "");
+      if (token) {
+        const { data: userData } = await supabase.auth.getUser(token);
+        buyerId = userData?.user?.id ?? null;
+      }
+    }
+
+    let firstOrderFreeDelivery = false;
+    if (buyerId) {
+      const { data: eligible, error: eligibleErr } = await supabase.rpc(
+        "is_first_order_delivery_free",
+        { p_buyer_id: buyerId, p_order_id: body.order_id ?? null },
+      );
+      if (eligibleErr) {
+        // Never block checkout on the promo lookup — just don't waive.
+        console.error("is_first_order_delivery_free failed:", eligibleErr);
+      } else {
+        firstOrderFreeDelivery = eligible === true;
+      }
+    }
 
     const serviceTiers = serviceTiersRes.data ?? [];
     const deliveryTiers = deliveryTiersRes.data ?? [];
@@ -182,9 +221,17 @@ Deno.serve(async (req) => {
     }
 
     let deliveryFee = baseDeliveryFee;
-    if (surgeActive) deliveryFee = Math.round(deliveryFee * surgeMultiplier);
-    if (body.is_heavy_order) deliveryFee += heavySurcharge;
-    if (deliveryFee < minDeliveryFee) deliveryFee = minDeliveryFee;
+    if (firstOrderFreeDelivery) {
+      // Only the BASE fee is waived. Surge multiplies the base, so it falls out
+      // to zero with it; a heavy-order surcharge is still charged. The minimum
+      // delivery fee is deliberately skipped — applying it would floor the
+      // "free" delivery straight back up to a charge.
+      deliveryFee = body.is_heavy_order ? heavySurcharge : 0;
+    } else {
+      if (surgeActive) deliveryFee = Math.round(deliveryFee * surgeMultiplier);
+      if (body.is_heavy_order) deliveryFee += heavySurcharge;
+      if (deliveryFee < minDeliveryFee) deliveryFee = minDeliveryFee;
+    }
 
     const total = subtotal + serviceFee + deliveryFee;
 
@@ -199,6 +246,7 @@ Deno.serve(async (req) => {
       surge_multiplier: surgeActive ? surgeMultiplier : 1,
       heavy_surcharge: body.is_heavy_order ? heavySurcharge : 0,
       minimum_delivery_fee: minDeliveryFee,
+      first_order_free_delivery: firstOrderFreeDelivery,
       total,
       breakdown: {
         service_tier_used: { percentage },
@@ -206,6 +254,7 @@ Deno.serve(async (req) => {
           distanceKm != null
             ? { distance_km: distanceKm, base_fee: baseDeliveryFee }
             : null,
+        first_order_waiver_applied: firstOrderFreeDelivery,
       },
     });
   } catch (err) {

@@ -48,6 +48,10 @@ interface Bonus {
 }
 
 const BONUS_TYPES = [
+  // Enforced server-side by calculate-order-fees: waives the base delivery fee
+  // on a buyer's first successfully-paid order. Activating a bonus of this type
+  // switches the promotion on; deactivating it switches the promotion off.
+  { value: "first_order_free_delivery", label: "First Order — Free Delivery", icon: Truck },
   { value: "first_purchase", label: "First Purchase Discount", icon: Tag },
   { value: "free_delivery", label: "Free Delivery", icon: Truck },
   { value: "percentage_off", label: "Percentage Off", icon: Percent },
@@ -59,6 +63,7 @@ const getBonusTypeLabel = (type: string) => BONUS_TYPES.find(t => t.value === ty
 
 const getBonusValueDisplay = (bonus: Bonus) => {
   switch (bonus.type) {
+    case "first_order_free_delivery": return "Free delivery (1st order)";
     case "free_delivery": return "Free";
     case "percentage_off": return `${bonus.discount_value}% off`;
     case "fixed_off": return `₦${bonus.discount_value.toLocaleString()} off`;
@@ -91,7 +96,7 @@ const AdminBonuses = () => {
 
   const fetchBonuses = async () => {
     setLoading(true);
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("bonuses")
       .select("*")
       .order("created_at", { ascending: false });
@@ -137,11 +142,11 @@ const AdminBonuses = () => {
     };
     try {
       if (editing) {
-        const { error } = await (supabase as any).from("bonuses").update(payload).eq("id", editing.id);
+        const { error } = await supabase.from("bonuses").update(payload).eq("id", editing.id);
         if (error) throw error;
         toast.success("Bonus updated");
       } else {
-        const { error } = await (supabase as any).from("bonuses").insert(payload);
+        const { error } = await supabase.from("bonuses").insert(payload);
         if (error) throw error;
         toast.success("Bonus created");
       }
@@ -155,13 +160,13 @@ const AdminBonuses = () => {
   };
 
   const toggleActive = async (bonus: Bonus) => {
-    await (supabase as any).from("bonuses").update({ is_active: !bonus.is_active }).eq("id", bonus.id);
+    await supabase.from("bonuses").update({ is_active: !bonus.is_active }).eq("id", bonus.id);
     fetchBonuses();
   };
 
   const deleteBonus = async (id: string) => {
     if (!confirm("Delete this bonus?")) return;
-    await (supabase as any).from("bonuses").delete().eq("id", id);
+    await supabase.from("bonuses").delete().eq("id", id);
     fetchBonuses();
     toast.success("Bonus deleted");
   };

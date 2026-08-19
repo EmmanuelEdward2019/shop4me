@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       admin_announcements: {
@@ -342,6 +367,30 @@ export type Database = {
         }
         Relationships: []
       }
+      app_versions: {
+        Row: {
+          latest_version: string
+          min_version: string | null
+          platform: string
+          store_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          latest_version: string
+          min_version?: string | null
+          platform: string
+          store_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          latest_version?: string
+          min_version?: string | null
+          platform?: string
+          store_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action: string
@@ -455,6 +504,48 @@ export type Database = {
           published_at?: string | null
           slug?: string
           title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bonuses: {
+        Row: {
+          created_at: string
+          description: string | null
+          discount_value: number
+          end_date: string | null
+          id: string
+          is_active: boolean
+          min_order_value: number | null
+          start_date: string | null
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          discount_value?: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          min_order_value?: number | null
+          start_date?: string | null
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          discount_value?: number
+          end_date?: string | null
+          id?: string
+          is_active?: boolean
+          min_order_value?: number | null
+          start_date?: string | null
+          title?: string
+          type?: string
           updated_at?: string
         }
         Relationships: []
@@ -1032,6 +1123,7 @@ export type Database = {
           estimated_minutes: number | null
           estimated_total: number | null
           final_total: number | null
+          first_order_waiver: boolean
           id: string
           is_heavy_order: boolean
           location_name: string
@@ -1056,6 +1148,7 @@ export type Database = {
           estimated_minutes?: number | null
           estimated_total?: number | null
           final_total?: number | null
+          first_order_waiver?: boolean
           id?: string
           is_heavy_order?: boolean
           location_name: string
@@ -1080,6 +1173,7 @@ export type Database = {
           estimated_minutes?: number | null
           estimated_total?: number | null
           final_total?: number | null
+          first_order_waiver?: boolean
           id?: string
           is_heavy_order?: boolean
           location_name?: string
@@ -1911,6 +2005,7 @@ export type Database = {
           estimated_minutes: number | null
           estimated_total: number | null
           final_total: number | null
+          first_order_waiver: boolean
           id: string
           is_heavy_order: boolean
           location_name: string
@@ -1937,6 +2032,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_first_order_delivery_free: {
+        Args: { p_buyer_id: string; p_order_id?: string }
         Returns: boolean
       }
       mark_all_notifications_read: { Args: never; Returns: number }
@@ -2165,6 +2264,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       app_role: ["buyer", "agent", "admin", "rider"],

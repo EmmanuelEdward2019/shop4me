@@ -9,6 +9,12 @@ export interface FeeCalculationInput {
   buyer_zone?: string | null;
   store_zone?: string | null;
   is_heavy_order?: boolean;
+  /**
+   * Identifies the buyer for the first-order delivery waiver. Required when the
+   * caller is not the buyer (an agent pricing an invoice); a buyer pricing their
+   * own basket resolves from their JWT.
+   */
+  order_id?: string | null;
 }
 
 export interface FeeCalculationResult {
@@ -22,6 +28,8 @@ export interface FeeCalculationResult {
   surge_multiplier: number;
   heavy_surcharge: number;
   minimum_delivery_fee: number;
+  /** True when the buyer's first-order delivery waiver was applied. */
+  first_order_free_delivery: boolean;
   total: number;
 }
 
@@ -57,6 +65,8 @@ export async function calculateOrderFees(
       surge_multiplier: 1,
       heavy_surcharge: 0,
       minimum_delivery_fee: 1000,
+      // The fallback runs without the server, so it cannot know eligibility.
+      first_order_free_delivery: false,
       total: subtotal + serviceFee + deliveryFee,
     };
   }
