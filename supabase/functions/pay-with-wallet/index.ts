@@ -334,12 +334,14 @@ serve(async (req) => {
       },
     });
 
-    // Create agent earnings if agent is assigned
+    // Create agent earnings if agent is assigned.
+    // Agent earns 20% of the order's service fee; Shop4Me keeps the other 80%.
     if (order.agent_id && order.service_fee) {
+      const agentEarning = Math.round(Number(order.service_fee) * 0.20 * 100) / 100;
       const { error: earningsError } = await supabase.from("agent_earnings").insert({
         agent_id: order.agent_id,
         order_id: orderId,
-        amount: order.service_fee,
+        amount: agentEarning,
         type: "service_fee",
         status: "pending",
       });
