@@ -94,6 +94,22 @@ const AdminAgentPayouts = () => {
         .eq("id", id);
       if (error) throw error;
       toast({ title: "Marked as Transferred", description: "The agent will now see a confirmation prompt." });
+      // Notify the agent (email + in-app bell) that their payout was sent.
+      const w = withdrawals.find((x) => x.id === id);
+      if (w) {
+        supabase.functions.invoke("send-notification-email", {
+          body: {
+            type: "withdrawal_transferred",
+            data: {
+              agentId: w.agent_id,
+              role: "agent",
+              amount: w.amount,
+              bankName: w.bank_name,
+              accountNumber: w.account_number,
+            },
+          },
+        }).catch(() => {});
+      }
       fetchWithdrawals();
     } catch (err: any) {
       toast({ title: "Error", description: err.message ?? "Failed to update", variant: "destructive" });

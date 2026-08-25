@@ -89,7 +89,7 @@ function escapeHtml(v: unknown): string {
 // Keys that must NOT be HTML-escaped: recipient addresses, URLs, and UUIDs
 // interpolated inside hrefs. Every other string field is escaped so a malicious
 // `name`, `notes`, `locationName`, etc. can't inject markup into the email.
-const NO_ESCAPE_KEYS = new Set(["email", "resetLink", "orderId", "riderId", "withdrawalId", "invoiceId"]);
+const NO_ESCAPE_KEYS = new Set(["email", "resetLink", "orderId", "riderId", "agentId", "withdrawalId", "invoiceId"]);
 function escData(raw: Record<string, any>): Record<string, any> {
   const out: Record<string, any> = {};
   for (const [k, v] of Object.entries(raw ?? {})) {
@@ -657,20 +657,24 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // ─── Rider: Withdrawal Transferred → Rider ────────────
+      // ─── Rider/Agent: Withdrawal Transferred → recipient ──
       case "withdrawal_transferred": {
-        const { riderId, amount, bankName, accountNumber } = data;
+        const { riderId, agentId, role, amount, bankName, accountNumber } = data;
+        const targetId = agentId || riderId;
+        const isAgent = role === "agent" || (!!agentId && !riderId);
+        const roleLabel = isAgent ? "Agent" : "Rider";
+        const earningsPath = isAgent ? "/agent/earnings" : "/rider/earnings";
 
-        const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("user_id", riderId).single();
+        const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("user_id", targetId).single();
 
-        // In-app notification for the rider — fires regardless of email
-        // configuration so the rider always sees the bell update.
+        // In-app notification — fires regardless of email configuration so the
+        // recipient always sees the bell update.
         await supabase.from("notifications").insert({
-          user_id: riderId,
+          user_id: targetId,
           type: "withdrawal_transferred",
           title: `Payout of ${formatNGN(amount)} sent`,
           body: `Check your bank (${bankName || "—"} ${accountNumber || ""}) and confirm receipt in the app.`,
-          link: "/rider/earnings",
+          link: earningsPath,
           data: { amount, bankName, accountNumber },
         });
 
@@ -679,7 +683,7 @@ Deno.serve(async (req) => {
         subject = `Your Withdrawal of ${formatNGN(amount)} Has Been Sent`;
         body = emailLayout(
           subject,
-          greetingLine(escapeHtml(profile.full_name) || "Rider") +
+          greetingLine(escapeHtml(profile.full_name) || roleLabel) +
             `<p style="color:#4a4a4a;font-size:16px;">Great news! We have transferred your earnings to your bank account. Please check and confirm receipt in the app.</p>` +
             infoBox(
               `<p style="margin:0;"><strong>Amount Transferred:</strong> ${formatNGN(amount)}</p>
@@ -687,7 +691,7 @@ Deno.serve(async (req) => {
                <p style="margin:4px 0 0;"><strong>Account:</strong> ${accountNumber || "—"}</p>`
             ) +
             `<p style="color:#4a4a4a;font-size:16px;">Once you see the money in your account, please open the app and tap <strong>"I Have Received Payment"</strong> to complete the transaction.</p>` +
-            ctaButton("Confirm Receipt", "https://shop4meng.com/rider/earnings")
+            ctaButton("Confirm Receipt", `https://shop4meng.com${earningsPath}`)
         );
         break;
       }
