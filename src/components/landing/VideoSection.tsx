@@ -2,8 +2,10 @@ import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Play, Pause, Volume2, VolumeX, Smartphone } from "lucide-react";
 import { ScrollAnimation } from "@/components/ui/scroll-animation";
-import howItWorksVideo from "@/assets/how-it-works.mp4";
 import logo from "@/assets/logo.png";
+
+// Served statically from /public (large file — kept out of the JS bundle).
+const howItWorksVideo = "/shop4me-how-it-works.mp4";
 
 const VideoSection = () => {
   const [isPlaying, setIsPlaying] = useState(true);
