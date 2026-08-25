@@ -10,32 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
-  }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
+    PostgrestVersion: "14.17"
   }
   public: {
     Tables: {
@@ -1135,6 +1110,7 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"]
           surge_applied: number | null
           timer_started_at: string | null
+          timer_stopped_at: string | null
           updated_at: string
           user_id: string | null
         }
@@ -1160,6 +1136,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           surge_applied?: number | null
           timer_started_at?: string | null
+          timer_stopped_at?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1185,6 +1162,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           surge_applied?: number | null
           timer_started_at?: string | null
+          timer_stopped_at?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -1333,8 +1311,11 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          is_marketer: boolean
           is_suspended: boolean
           phone: string | null
+          referral_code: string | null
+          referred_by: string | null
           service_zone: string | null
           updated_at: string
           user_id: string
@@ -1345,8 +1326,11 @@ export type Database = {
           email: string
           full_name?: string | null
           id?: string
+          is_marketer?: boolean
           is_suspended?: boolean
           phone?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           service_zone?: string | null
           updated_at?: string
           user_id: string
@@ -1357,8 +1341,11 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          is_marketer?: boolean
           is_suspended?: boolean
           phone?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
           service_zone?: string | null
           updated_at?: string
           user_id?: string
@@ -1394,6 +1381,71 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      referral_settings: {
+        Row: {
+          enabled: boolean
+          id: number
+          reward_amount: number
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          id?: number
+          reward_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          id?: number
+          reward_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          earned_at: string | null
+          id: string
+          paid_at: string | null
+          qualifying_order_id: string | null
+          referred_user_id: string
+          referrer_id: string
+          reward_amount: number | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          earned_at?: string | null
+          id?: string
+          paid_at?: string | null
+          qualifying_order_id?: string | null
+          referred_user_id: string
+          referrer_id: string
+          reward_amount?: number | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          earned_at?: string | null
+          id?: string
+          paid_at?: string | null
+          qualifying_order_id?: string | null
+          referred_user_id?: string
+          referrer_id?: string
+          reward_amount?: number | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_qualifying_order_id_fkey"
+            columns: ["qualifying_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rider_alerts: {
         Row: {
@@ -1930,6 +1982,22 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_list_referrals: {
+        Args: { p_marketers?: boolean }
+        Returns: {
+          earned_amount: number
+          earned_count: number
+          email: string
+          full_name: string
+          is_marketer: boolean
+          paid_amount: number
+          paid_count: number
+          pending_count: number
+          referral_code: string
+          referrer_id: string
+          total_referred: number
+        }[]
+      }
       admin_list_users: {
         Args: {
           p_limit?: number
@@ -1963,6 +2031,15 @@ export type Database = {
         Args: { p_earning_ids?: string[]; p_role: string; p_user_id?: string }
         Returns: number
       }
+      admin_run_referral_payout: { Args: never; Returns: Json }
+      admin_set_marketer: {
+        Args: { p_is_marketer: boolean; p_user_id: string }
+        Returns: Json
+      }
+      admin_set_referral_settings: {
+        Args: { p_enabled: boolean; p_reward_amount?: number }
+        Returns: Json
+      }
       admin_set_user_suspended: {
         Args: { p_suspended: boolean; p_user_id: string }
         Returns: undefined
@@ -1974,6 +2051,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      apply_referral_code: { Args: { p_code: string }; Returns: Json }
       approve_application: {
         Args: { p_admin_notes?: string; p_application_id: string }
         Returns: undefined
@@ -2000,6 +2078,7 @@ export type Database = {
       }
       delete_user_account: { Args: { p_user_id: string }; Returns: Json }
       generate_invoice_number: { Args: never; Returns: string }
+      generate_referral_code: { Args: never; Returns: string }
       get_available_orders_nearby: {
         Args: { p_agent_id: string }
         Returns: {
@@ -2024,6 +2103,7 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"]
           surge_applied: number | null
           timer_started_at: string | null
+          timer_stopped_at: string | null
           updated_at: string
           user_id: string | null
         }[]
@@ -2034,6 +2114,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_my_referral_summary: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2076,6 +2157,7 @@ export type Database = {
       }
       request_agent_withdrawal: { Args: never; Returns: string }
       request_rider_withdrawal: { Args: never; Returns: string }
+      run_referral_payout: { Args: never; Returns: Json }
       submit_agent_application: {
         Args: {
           p_account_name?: string
@@ -2271,9 +2353,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       app_role: ["buyer", "agent", "admin", "rider"],

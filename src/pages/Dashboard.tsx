@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import ReferEarnCard from "@/components/dashboard/ReferEarnCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Package, Clock, CheckCircle, Plus, Wallet, ArrowRight } from "lucide-react";
@@ -133,6 +134,8 @@ const Dashboard = () => {
             </Link>
           </Button>
         </div>
+
+        <ReferEarnCard />
 
         {/* Stats Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -28,6 +28,7 @@ import {
   Star,
   FileText,
   Inbox,
+  Share2,
   Home,
   Receipt,
   Bike,
@@ -62,6 +63,7 @@ const navItems = [
   { label: "Payments", href: "/admin/payments", icon: DollarSign },
   { label: "Stores", href: "/admin/stores", icon: Store },
   { label: "Bonuses", href: "/admin/bonuses", icon: Gift },
+  { label: "Referrals", href: "/admin/referrals", icon: Share2 },
   { label: "Submissions", href: "/admin/submissions", icon: Inbox },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];

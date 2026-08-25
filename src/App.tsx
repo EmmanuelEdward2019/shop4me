@@ -57,6 +57,7 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminOrders from "./pages/admin/AdminOrders";
 import AdminOrderDetail from "./pages/admin/AdminOrderDetail";
 import AdminAgents from "./pages/admin/AdminAgents";
+import AdminReferrals from "./pages/admin/AdminReferrals";
 import AdminApplications from "./pages/admin/AdminApplications";
 import AdminMessages from "./pages/admin/AdminMessages";
 import AdminReviews from "./pages/admin/AdminReviews";
@@ -260,6 +261,14 @@ const App = () => (
               element={
                 <AdminProtectedRoute>
                   <AdminUsers />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/referrals"
+              element={
+                <AdminProtectedRoute>
+                  <AdminReferrals />
                 </AdminProtectedRoute>
               }
             />

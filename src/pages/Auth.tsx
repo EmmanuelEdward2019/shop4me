@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Mail, Lock, User, ArrowLeft, Loader2, Phone } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
+import { REF_CODE_KEY } from "@/components/dashboard/ReferEarnCard";
 import {
   checkLoginLockout,
   formatLockoutMessage,
@@ -69,6 +70,17 @@ const AuthPage = () => {
     const timer = setTimeout(() => setRateLimitCooldown((s) => s - 1), 1000);
     return () => clearTimeout(timer);
   }, [rateLimitCooldown]);
+
+  // Capture a referral code from an invite link (?ref=CODE) and open Sign Up.
+  // It's applied to the new account once authenticated (after email verify) —
+  // see ReferEarnCard, which reads REF_CODE_KEY on the buyer dashboard.
+  useEffect(() => {
+    const ref = new URLSearchParams(location.search).get("ref");
+    if (ref) {
+      try { localStorage.setItem(REF_CODE_KEY, ref.trim().toUpperCase()); } catch { /* ignore */ }
+      setActiveTab("signup");
+    }
+  }, [location.search]);
 
   const getRoleDashboard = () => {
     if (from) return from;
