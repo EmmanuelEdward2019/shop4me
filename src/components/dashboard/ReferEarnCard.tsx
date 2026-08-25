@@ -61,45 +61,66 @@ export const ReferEarnCard = () => {
     }
   };
   const share = async () => {
-    if (typeof navigator !== "undefined" && (navigator as any).share) {
-      try { await (navigator as any).share({ title: "Shop4Me", text: shareText, url: link }); } catch { /* cancelled */ }
-    } else {
-      copy();
+    const nav = typeof navigator !== "undefined" ? (navigator as any) : null;
+    if (nav?.share) {
+      try {
+        await nav.share({ title: "Shop4Me", text: shareText, url: link });
+        return;
+      } catch (err: any) {
+        if (err?.name === "AbortError") return; // user dismissed the share sheet
+        // any other failure (desktop / unsupported) → fall through to copying
+      }
     }
+    copy();
   };
 
   return (
     <Card className="border-primary/30 bg-primary/5">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Gift className="w-5 h-5 text-primary" /> Refer &amp; Earn {fmt(summary.reward_amount)}
+          <Gift className="w-5 h-5 text-primary" />
+          {summary.is_marketer ? <>Refer Friends</> : <>Refer &amp; Earn {fmt(summary.reward_amount)}</>}
           {summary.is_marketer && <Badge className="ml-1">Marketer</Badge>}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Invite friends to Shop4Me. When someone you refer completes their first order, you earn{" "}
-          {fmt(summary.reward_amount)} — credited to your wallet.
+          {summary.is_marketer
+            ? "Invite people to Shop4Me. Your qualifying referrals are tracked here and rewarded offline by the Shop4Me team."
+            : `Invite friends to Shop4Me. When someone you refer completes their first order, you earn ${fmt(summary.reward_amount)} — credited to your wallet.`}
         </p>
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="secondary" className="text-base px-3 py-1">{summary.referral_code}</Badge>
           <Button size="sm" variant="outline" onClick={copy}><Copy className="w-4 h-4 mr-1" /> Copy link</Button>
           <Button size="sm" onClick={share}><Share2 className="w-4 h-4 mr-1" /> Share</Button>
         </div>
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <div>
-            <div className="text-xs text-muted-foreground">Pending</div>
-            <div className="font-bold">{summary.pending_count}</div>
+        {summary.is_marketer ? (
+          <div className="grid grid-cols-2 gap-3 text-center">
+            <div>
+              <div className="text-xs text-muted-foreground">Pending</div>
+              <div className="font-bold">{summary.pending_count}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Successful referrals</div>
+              <div className="font-bold">{summary.earned_count + summary.paid_count}</div>
+            </div>
           </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Earned</div>
-            <div className="font-bold">{fmt(summary.earned_amount)}</div>
+        ) : (
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <div className="text-xs text-muted-foreground">Pending</div>
+              <div className="font-bold">{summary.pending_count}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Earned</div>
+              <div className="font-bold">{fmt(summary.earned_amount)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Paid out</div>
+              <div className="font-bold">{fmt(summary.paid_amount)}</div>
+            </div>
           </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Paid out</div>
-            <div className="font-bold">{fmt(summary.paid_amount)}</div>
-          </div>
-        </div>
+        )}
       </CardContent>
     </Card>
   );

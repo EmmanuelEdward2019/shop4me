@@ -10,7 +10,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Wallet, Star, StarOff } from "lucide-react";
+import { Loader2, Wallet, Star, StarOff, Search, UserPlus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ReferralRow {
@@ -39,6 +39,9 @@ const AdminReferrals = () => {
   const [tab, setTab] = useState<"general" | "marketers">("general");
   const [rows, setRows] = useState<ReferralRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [markSearch, setMarkSearch] = useState("");
+  const [markResults, setMarkResults] = useState<Array<{ user_id: string; full_name: string | null; email: string }>>([]);
+  const [searching, setSearching] = useState(false);
 
   const loadSettings = useCallback(async () => {
     const { data } = await supabase
@@ -119,6 +122,35 @@ const AdminReferrals = () => {
         title: "Updated",
         description: `${row.full_name || row.email} ${!row.is_marketer ? "tagged as Marketer" : "moved to General"}.`,
       });
+      loadRows(tab === "marketers");
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    }
+  };
+
+  const searchToTag = async () => {
+    if (!markSearch.trim()) return;
+    setSearching(true);
+    try {
+      const { data, error } = await supabase.rpc("admin_list_users", {
+        p_search: markSearch.trim(), p_role: null, p_limit: 8, p_offset: 0,
+      });
+      if (error) throw error;
+      setMarkResults((data ?? []) as any);
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const tagAsMarketer = async (userId: string, name: string) => {
+    try {
+      const { error } = await supabase.rpc("admin_set_marketer", { p_user_id: userId, p_is_marketer: true });
+      if (error) throw error;
+      toast({ title: "Tagged", description: `${name} is now a Marketer.` });
+      setMarkResults([]);
+      setMarkSearch("");
       loadRows(tab === "marketers");
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
@@ -227,6 +259,46 @@ const AdminReferrals = () => {
             <p className="text-xs text-muted-foreground">
               Payout also runs automatically every Friday. It credits each referrer's Shop4Me wallet with their earned (unpaid) rewards.
             </p>
+          </CardContent>
+        </Card>
+
+        {/* Tag a marketer by name/email */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Tag a Marketer</CardTitle>
+            <CardDescription>
+              Find a customer and mark them as a Shop4Me marketer. Marketers use the same Refer &amp; Earn
+              feature, but their qualifying referrals are rewarded <strong>offline</strong> — they do not get the
+              ₦ wallet reward or appear in the weekly payout.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Search by name or email…"
+                value={markSearch}
+                onChange={(e) => setMarkSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") searchToTag(); }}
+              />
+              <Button onClick={searchToTag} disabled={searching}>
+                {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+              </Button>
+            </div>
+            {markResults.length > 0 && (
+              <div className="space-y-2">
+                {markResults.map((u) => (
+                  <div key={u.user_id} className="flex items-center justify-between rounded-md border p-2">
+                    <div>
+                      <div className="font-medium text-sm">{u.full_name || "—"}</div>
+                      <div className="text-xs text-muted-foreground">{u.email}</div>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => tagAsMarketer(u.user_id, u.full_name || u.email)}>
+                      <UserPlus className="w-3.5 h-3.5 mr-1" /> Tag as Marketer
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
