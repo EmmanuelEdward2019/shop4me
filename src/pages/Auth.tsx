@@ -14,6 +14,7 @@ import { Mail, Lock, User, ArrowLeft, Loader2, Phone } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 import { REF_CODE_KEY } from "@/components/dashboard/ReferEarnCard";
+import { ReferralLanding } from "@/components/ReferralLanding";
 import {
   checkLoginLockout,
   formatLockoutMessage,
@@ -207,6 +208,14 @@ const AuthPage = () => {
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+
+  // A referral link opened on a phone → send them to the app store (not the web
+  // sign-up), with the code shown so they can enter it at sign-up in the app.
+  const refParam = new URLSearchParams(location.search).get("ref");
+  const onMobile = typeof navigator !== "undefined" && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (refParam && onMobile) {
+    return <ReferralLanding code={refParam.trim().toUpperCase()} />;
   }
 
   return (
