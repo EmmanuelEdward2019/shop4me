@@ -89,7 +89,7 @@ function escapeHtml(v: unknown): string {
 // Keys that must NOT be HTML-escaped: recipient addresses, URLs, and UUIDs
 // interpolated inside hrefs. Every other string field is escaped so a malicious
 // `name`, `notes`, `locationName`, etc. can't inject markup into the email.
-const NO_ESCAPE_KEYS = new Set(["email", "resetLink", "orderId", "riderId", "agentId", "withdrawalId", "invoiceId"]);
+const NO_ESCAPE_KEYS = new Set(["email", "resetLink", "orderId", "riderId", "agentId", "buyerId", "withdrawalId", "invoiceId"]);
 function escData(raw: Record<string, any>): Record<string, any> {
   const out: Record<string, any> = {};
   for (const [k, v] of Object.entries(raw ?? {})) {
@@ -657,13 +657,14 @@ Deno.serve(async (req) => {
         return new Response(JSON.stringify({ success: true }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // ─── Rider/Agent: Withdrawal Transferred → recipient ──
+      // ─── Rider/Agent/Customer: Withdrawal Transferred → recipient ──
       case "withdrawal_transferred": {
-        const { riderId, agentId, role, amount, bankName, accountNumber } = data;
-        const targetId = agentId || riderId;
-        const isAgent = role === "agent" || (!!agentId && !riderId);
-        const roleLabel = isAgent ? "Agent" : "Rider";
-        const earningsPath = isAgent ? "/agent/earnings" : "/rider/earnings";
+        const { riderId, agentId, buyerId, role, amount, bankName, accountNumber } = data;
+        const targetId = agentId || buyerId || riderId;
+        const isBuyer = role === "buyer" || (!!buyerId && !agentId && !riderId);
+        const isAgent = role === "agent" || (!!agentId && !riderId && !buyerId);
+        const roleLabel = isBuyer ? "Customer" : isAgent ? "Agent" : "Rider";
+        const earningsPath = isBuyer ? "/dashboard" : isAgent ? "/agent/earnings" : "/rider/earnings";
 
         const { data: profile } = await supabase.from("profiles").select("full_name, email").eq("user_id", targetId).single();
 

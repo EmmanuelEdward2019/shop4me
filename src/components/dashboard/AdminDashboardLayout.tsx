@@ -54,6 +54,7 @@ const navItems = [
   { label: "Invoices", href: "/admin/invoices", icon: Receipt },
   { label: "Agents", href: "/admin/agents", icon: UserCheck },
   { label: "Agent Payouts", href: "/admin/agent-payouts", icon: Wallet },
+  { label: "Customer Payouts", href: "/admin/customer-payouts", icon: Wallet },
   { label: "Riders", href: "/admin/riders", icon: Bike },
   { label: "Rider Payouts", href: "/admin/riders?tab=withdrawals", icon: Wallet },
   { label: "Compliance", href: "/admin/compliance", icon: ShieldCheck },

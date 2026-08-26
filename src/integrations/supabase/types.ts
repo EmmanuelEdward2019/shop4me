@@ -215,6 +215,30 @@ export type Database = {
           },
         ]
       }
+      agent_live_locations: {
+        Row: {
+          agent_id: string
+          is_available: boolean
+          latitude: number | null
+          longitude: number | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          is_available?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          is_available?: boolean
+          latitude?: number | null
+          longitude?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agent_locations: {
         Row: {
           accuracy: number | null
@@ -522,6 +546,45 @@ export type Database = {
           title?: string
           type?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      buyer_withdrawals: {
+        Row: {
+          account_name: string | null
+          account_number: string | null
+          amount: number
+          bank_name: string | null
+          buyer_id: string
+          confirmed_at: string | null
+          id: string
+          requested_at: string
+          status: string
+          transferred_at: string | null
+        }
+        Insert: {
+          account_name?: string | null
+          account_number?: string | null
+          amount: number
+          bank_name?: string | null
+          buyer_id: string
+          confirmed_at?: string | null
+          id?: string
+          requested_at?: string
+          status?: string
+          transferred_at?: string | null
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string | null
+          amount?: number
+          bank_name?: string | null
+          buyer_id?: string
+          confirmed_at?: string | null
+          id?: string
+          requested_at?: string
+          status?: string
+          transferred_at?: string | null
         }
         Relationships: []
       }
@@ -1080,6 +1143,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_offers: {
+        Row: {
+          agent_id: string
+          distance_km: number | null
+          expires_at: string
+          id: string
+          offered_at: string
+          order_id: string
+          responded_at: string | null
+          status: string
+        }
+        Insert: {
+          agent_id: string
+          distance_km?: number | null
+          expires_at: string
+          id?: string
+          offered_at?: string
+          order_id: string
+          responded_at?: string | null
+          status?: string
+        }
+        Update: {
+          agent_id?: string
+          distance_km?: number | null
+          expires_at?: string
+          id?: string
+          offered_at?: string
+          order_id?: string
+          responded_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_offers_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
@@ -1955,6 +2059,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_order_offer: { Args: { p_offer_id: string }; Returns: Json }
+      admin_cancel_buyer_withdrawal: {
+        Args: { p_withdrawal_id: string }
+        Returns: Json
+      }
       admin_list_orders: {
         Args: {
           p_limit?: number
@@ -2061,6 +2170,10 @@ export type Database = {
         Args: { p_withdrawal_id: string }
         Returns: undefined
       }
+      confirm_buyer_withdrawal_receipt: {
+        Args: { p_withdrawal_id: string }
+        Returns: Json
+      }
       confirm_withdrawal_receipt: {
         Args: { p_withdrawal_id: string }
         Returns: undefined
@@ -2076,7 +2189,9 @@ export type Database = {
         }
         Returns: string
       }
+      decline_order_offer: { Args: { p_offer_id: string }; Returns: Json }
       delete_user_account: { Args: { p_user_id: string }; Returns: Json }
+      dispatch_next_agent: { Args: { p_order_id: string }; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_referral_code: { Args: never; Returns: string }
       get_available_orders_nearby: {
@@ -2114,6 +2229,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      get_my_active_offer: { Args: never; Returns: Json }
       get_my_referral_summary: { Args: never; Returns: Json }
       has_role: {
         Args: {
@@ -2131,6 +2247,7 @@ export type Database = {
       mark_order_packed: { Args: { p_alert_id: string }; Returns: Json }
       mark_rider_arrived: { Args: { p_alert_id: string }; Returns: Json }
       mark_rider_picked_up: { Args: { p_alert_id: string }; Returns: Json }
+      process_expired_offers: { Args: never; Returns: number }
       record_audit: {
         Args: {
           p_action: string
@@ -2155,9 +2272,27 @@ export type Database = {
         }
         Returns: undefined
       }
+      report_agent_location: {
+        Args: { p_available?: boolean; p_lat: number; p_lng: number }
+        Returns: undefined
+      }
       request_agent_withdrawal: { Args: never; Returns: string }
+      request_buyer_withdrawal: {
+        Args: {
+          p_account_name: string
+          p_account_number: string
+          p_amount: number
+          p_bank_name: string
+        }
+        Returns: Json
+      }
+      request_referral_payout: { Args: never; Returns: Json }
       request_rider_withdrawal: { Args: never; Returns: string }
       run_referral_payout: { Args: never; Returns: Json }
+      set_agent_availability: {
+        Args: { p_available: boolean }
+        Returns: undefined
+      }
       submit_agent_application: {
         Args: {
           p_account_name?: string

@@ -59,6 +59,7 @@ import AdminOrderDetail from "./pages/admin/AdminOrderDetail";
 import AdminAgents from "./pages/admin/AdminAgents";
 import AdminReferrals from "./pages/admin/AdminReferrals";
 import AdminAgentPayouts from "./pages/admin/AdminAgentPayouts";
+import AdminCustomerPayouts from "./pages/admin/AdminCustomerPayouts";
 import AdminApplications from "./pages/admin/AdminApplications";
 import AdminMessages from "./pages/admin/AdminMessages";
 import AdminReviews from "./pages/admin/AdminReviews";
@@ -278,6 +279,14 @@ const App = () => (
               element={
                 <AdminProtectedRoute>
                   <AdminAgentPayouts />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/customer-payouts"
+              element={
+                <AdminProtectedRoute>
+                  <AdminCustomerPayouts />
                 </AdminProtectedRoute>
               }
             />
