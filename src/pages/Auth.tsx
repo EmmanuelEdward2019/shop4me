@@ -27,13 +27,28 @@ const loginSchema = z.object({
 });
 
 const signupSchema = z.object({
-  fullName: z.string().min(2, "Name must be at least 2 characters"),
+  fullName: z
+    .string()
+    .trim()
+    .min(2, "Name must be at least 2 characters")
+    .max(100, "Name is too long")
+    .regex(/^[\p{L}][\p{L}\s'.-]*$/u, "Enter a valid name"),
   phone: z
     .string()
+    .trim()
     .min(10, "Enter a valid phone number")
     .regex(/^[+]?[\d\s()-]{10,20}$/, "Enter a valid phone number"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z
+    .string()
+    .trim()
+    .email("Please enter a valid email address")
+    .max(254, "Email is too long"),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(72, "Password is too long")
+    .regex(/[A-Za-z]/, "Include at least one letter")
+    .regex(/[0-9]/, "Include at least one number"),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -167,8 +182,17 @@ const AuthPage = () => {
     setIsLoading(false);
 
     if (error) {
-      if (error.message.includes("User already registered")) {
-        toast.error("This email is already registered. Try logging in instead.");
+      if (
+        error.message === "EMAIL_ALREADY_REGISTERED" ||
+        error.message.includes("User already registered")
+      ) {
+        // The email belongs to a confirmed account — send them to log in and
+        // prefill it there so they don't have to retype it.
+        toast.error("This email is already registered. Please log in instead.");
+        loginForm.setValue("email", data.email.trim().toLowerCase());
+        setActiveTab("login");
+      } else if (error.message === "INVALID_EMAIL") {
+        toast.error("Please enter a valid email address.");
       } else if (isRateLimitError(error.message)) {
         setRateLimitCooldown(60);
         toast.error("Too many sign-up attempts. Please wait 1 minute before trying again.");
@@ -177,7 +201,7 @@ const AuthPage = () => {
       }
     } else {
       recordAuthEvent({ eventType: "signup_success", email: data.email });
-      toast.success("Account created! Please check your email to verify your account.");
+      toast.success("Almost there! Check your email to confirm your account before logging in.");
       setActiveTab("login");
     }
   };

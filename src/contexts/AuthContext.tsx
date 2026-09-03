@@ -120,9 +120,36 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const signUp = async (email: string, password: string, fullName?: string, phone?: string) => {
     const redirectUrl = "https://shop4meng.com/auth";
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Pre-check the email before signing up. Supabase's email-enumeration
+    // protection returns a SILENT success (and sends no email) when the address
+    // already belongs to a confirmed account — so without this the user waits
+    // forever for a confirmation that never comes. `check_email_status` lets us
+    // tell them plainly to log in instead. Fail-OPEN: if the RPC errors for any
+    // reason we fall through to signUp, so an audit-layer glitch can never block
+    // a legitimate signup.
+    try {
+      const { data: status, error: checkError } = await supabase.rpc(
+        "check_email_status" as any,
+        { p_email: normalizedEmail }
+      );
+      if (!checkError) {
+        if (status === "confirmed") {
+          return { error: new Error("EMAIL_ALREADY_REGISTERED") };
+        }
+        if (status === "invalid") {
+          return { error: new Error("INVALID_EMAIL") };
+        }
+        // "unconfirmed" → fall through: auth.signUp re-sends the confirmation.
+        // "none"        → normal first-time signup.
+      }
+    } catch {
+      /* network/RPC failure — proceed with signUp rather than block the user */
+    }
 
     const { error } = await supabase.auth.signUp({
-      email,
+      email: normalizedEmail,
       password,
       options: {
         emailRedirectTo: redirectUrl,
