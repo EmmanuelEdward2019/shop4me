@@ -20,7 +20,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Search, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Search, ExternalLink, ChevronLeft, ChevronRight, UserCog } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type OrderStatus = Database["public"]["Enums"]["order_status"];
@@ -88,6 +97,49 @@ const AdminOrders = () => {
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  // ── Re-assign an order to another agent ──────────────────────────────────
+  // For when the store/zone agent never picks the order up. Status is left as
+  // is: a pending order stays pending so the new agent still accepts it.
+  const [agents, setAgents] = useState<
+    { user_id: string; full_name: string | null; email: string | null }[]
+  >([]);
+  const [agentsLoading, setAgentsLoading] = useState(false);
+  const [reassignTarget, setReassignTarget] = useState<Order | null>(null);
+  const [selectedAgentId, setSelectedAgentId] = useState<string>("");
+  const [reassigning, setReassigning] = useState(false);
+
+  const openReassign = async (order: Order) => {
+    setReassignTarget(order);
+    setSelectedAgentId("");
+    if (agents.length > 0) return;
+    setAgentsLoading(true);
+    const { data, error } = await supabase.rpc("admin_list_agents" as any);
+    setAgentsLoading(false);
+    if (error) {
+      toast.error("Could not load the agent list");
+      return;
+    }
+    setAgents((data ?? []) as unknown as typeof agents);
+  };
+
+  const confirmReassign = async () => {
+    if (!reassignTarget || !selectedAgentId) return;
+    setReassigning(true);
+    const { data, error } = await supabase.rpc("admin_reassign_order" as any, {
+      p_order_id: reassignTarget.id,
+      p_agent_id: selectedAgentId,
+    });
+    setReassigning(false);
+    const res = data as { success?: boolean; error?: string } | null;
+    if (error || !res?.success) {
+      toast.error(res?.error || error?.message || "Could not reassign this order");
+      return;
+    }
+    toast.success("Order reassigned");
+    setReassignTarget(null);
+    fetchOrders();
+  };
 
   const formatCurrency = (amount: number | null) => {
     if (amount === null) return "-";
@@ -257,12 +309,24 @@ const AdminOrders = () => {
                           {new Date(order.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link to={`/admin/orders/${order.id}`}>
-                              <ExternalLink className="h-4 w-4 mr-1" />
-                              View
-                            </Link>
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            {order.status !== "delivered" && order.status !== "cancelled" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => openReassign(order)}
+                              >
+                                <UserCog className="h-4 w-4 mr-1" />
+                                Reassign
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link to={`/admin/orders/${order.id}`}>
+                                <ExternalLink className="h-4 w-4 mr-1" />
+                                View
+                              </Link>
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -302,6 +366,63 @@ const AdminOrders = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog
+        open={!!reassignTarget}
+        onOpenChange={(open) => !open && setReassignTarget(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reassign order</DialogTitle>
+            <DialogDescription>
+              {reassignTarget && (
+                <>
+                  Order {reassignTarget.id.slice(0, 8)} &middot;{" "}
+                  {reassignTarget.location_name}
+                  <br />
+                  Currently:{" "}
+                  {reassignTarget.agent_name ||
+                    reassignTarget.agent_email ||
+                    "Unassigned"}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2">
+            <Select value={selectedAgentId} onValueChange={setSelectedAgentId}>
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={agentsLoading ? "Loading agents…" : "Choose an agent"}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                {agents
+                  .filter((a) => a.user_id !== reassignTarget?.agent_id)
+                  .map((a) => (
+                    <SelectItem key={a.user_id} value={a.user_id}>
+                      {a.full_name || a.email || a.user_id.slice(0, 8)}
+                      {a.full_name && a.email ? ` — ${a.email}` : ""}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-2 text-xs text-muted-foreground">
+              A pending order stays pending, so the new agent still has to accept it.
+              Any live auto-dispatch offer for this order is cancelled.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReassignTarget(null)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmReassign} disabled={!selectedAgentId || reassigning}>
+              {reassigning ? "Reassigning…" : "Reassign"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminDashboardLayout>
   );
 };
