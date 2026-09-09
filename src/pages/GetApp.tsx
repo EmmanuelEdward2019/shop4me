@@ -49,6 +49,53 @@ const Stat = ({ value, label }: { value: string; label: string }) => (
   </div>
 );
 
+/* Real customer reviews, supplied by Shop4Me. Lightly copy-edited for typos only. */
+const testimonials = [
+  {
+    name: "Nella Obinwa",
+    featured: true,
+    quote:
+      "Shop4Me is a really amazing shopping app. The platform is convenient, reliable, and makes ordering products so much easier — the process is really smooth, right from placing an order to getting it delivered. The team has really done a great job, and I'm impressed with the level of service and attention given to customers. I highly recommend Shop4Me to anyone looking for a stress-free and convenient way to shop. Definitely a 5-star experience!",
+  },
+  {
+    name: "Joy Gift Onye",
+    quote:
+      "Shop4Me is tested and trusted. They are reliable and prompt with delivering fresh foodstuff and whatever you need. Think Shop4Me and experience stress-free shopping.",
+  },
+  {
+    name: "Abolo Burabari",
+    quote: "Shop4Me is more than just a shopping app, it's a lifeline. A platform that I can trust.",
+  },
+  {
+    name: "Ataisi Gift",
+    quote: "Very reliable, excellent app and stress free. Their customer service is top notch \u263A\uFE0F",
+  },
+  {
+    name: "Roselyn Sylvanus",
+    quote:
+      "A really convenient way to shop from your favourite stores without the stress. Definitely worth checking out!",
+  },
+  {
+    name: "Precious Bassey",
+    quote: "Excellent experience — this app made it super easy.",
+  },
+  {
+    name: "Blessing Dominic",
+    quote: "Fast and reliable shopping and delivery.",
+  },
+];
+
+const initials = (name: string) =>
+  name.split(" ").filter(Boolean).slice(0, 2).map((n) => n[0]).join("").toUpperCase();
+
+const Stars = ({ className = "" }: { className?: string }) => (
+  <div className={`flex items-center gap-0.5 text-accent ${className}`} aria-label="5 out of 5 stars">
+    {Array.from({ length: 5 }).map((_, i) => (
+      <Star key={i} className="h-4 w-4 fill-current" />
+    ))}
+  </div>
+);
+
 const faqs = [
   {
     q: "How much does it cost?",
@@ -371,6 +418,49 @@ const GetApp = () => {
             <Stat value="10,000+" label="Orders delivered" />
             <Stat value="Same day" label="Typical delivery" />
             <Stat value="100%" label="Agents ID-verified" />
+          </div>
+        </section>
+
+        {/* ── TESTIMONIALS ─────────────────────────────────────────────── */}
+        <section className="py-16 md:py-24">
+          <div className="container mx-auto max-w-6xl px-4">
+            <motion.div {...reveal} className="mx-auto max-w-2xl text-center">
+              <Stars className="justify-center" />
+              <h2 className="mt-4 font-display text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+                Loved by shoppers like you
+              </h2>
+              <p className="mt-3 text-muted-foreground">
+                Real words from real Shop4Me customers.
+              </p>
+            </motion.div>
+
+            <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {testimonials.map((t, i) => (
+                <motion.figure
+                  key={t.name}
+                  {...reveal}
+                  transition={{ duration: 0.5, delay: (i % 3) * 0.08 }}
+                  className={`flex flex-col rounded-2xl border border-border bg-card p-6 shadow-sm transition hover:shadow-lg ${
+                    t.featured ? "md:col-span-2 lg:col-span-1 lg:row-span-2 bg-primary/5 border-primary/20" : ""
+                  }`}
+                >
+                  <Stars />
+                  <blockquote className="mt-4 flex-1 text-sm leading-relaxed text-foreground/85">
+                    &ldquo;{t.quote}&rdquo;
+                  </blockquote>
+                  <figcaption className="mt-5 flex items-center gap-3">
+                    <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-primary/15 text-xs font-bold text-primary">
+                      {initials(t.name)}
+                    </span>
+                    <span className="text-sm font-semibold text-foreground">{t.name}</span>
+                  </figcaption>
+                </motion.figure>
+              ))}
+            </div>
+
+            <div className="mt-12 flex justify-center">
+              <GetAppButtons size="lg" />
+            </div>
           </div>
         </section>
 
