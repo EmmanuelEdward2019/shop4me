@@ -32,6 +32,7 @@ import DeleteAccount from "./pages/DeleteAccount";
 import Newsletter from "./pages/Newsletter";
 import RoleSelect from "./pages/RoleSelect";
 import DownloadIOS from "./pages/DownloadIOS";
+import GetApp from "./pages/GetApp";
 // Protected pages (Buyer)
 import Dashboard from "./pages/Dashboard";
 import OrdersPage from "./pages/Orders";
@@ -124,6 +125,9 @@ const App = () => (
             <Route path="/newsletter" element={<Newsletter />} />
             <Route path="/get-started" element={<RoleSelect />} />
             <Route path="/ios" element={<DownloadIOS />} />
+            {/* Ad landing page (Facebook/Meta campaigns) — single goal: app downloads */}
+            <Route path="/download" element={<GetApp />} />
+            <Route path="/get-app" element={<GetApp />} />
 
             {/* Protected routes */}
             <Route
