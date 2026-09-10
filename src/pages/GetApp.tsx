@@ -206,10 +206,6 @@ const GetApp = () => {
                   />
                 </div>
 
-                <div className="absolute -bottom-8 -right-2 hidden sm:block">
-                  <PhoneFrame src={shotShopping} alt="Shopping with your agent in the Shop4Me app" className="w-[150px] sm:w-[165px]" />
-                </div>
-
                 <div className="absolute -left-3 bottom-6 rounded-2xl border border-border bg-background/95 px-4 py-3 shadow-xl backdrop-blur">
                   <div className="flex items-center gap-1 text-accent">
                     {Array.from({ length: 5 }).map((_, i) => (
