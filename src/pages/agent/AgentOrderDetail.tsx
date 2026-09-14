@@ -237,6 +237,9 @@ const AgentOrderDetail = () => {
           title: "📦 Order Packed & Ready!",
           body: `Order from ${order.location_name} is packed and ready for pickup!`,
           url: "/rider/available-pickups",
+          // Required by the hardened push function: proves this agent owns the
+          // order before it may broadcast to riders (once per order).
+          data: { orderId: order.id },
         },
       }).catch((err) => console.error("Push notification error:", err));
     } catch (error) {

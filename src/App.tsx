@@ -33,6 +33,9 @@ import Newsletter from "./pages/Newsletter";
 import RoleSelect from "./pages/RoleSelect";
 import DownloadIOS from "./pages/DownloadIOS";
 import GetApp from "./pages/GetApp";
+import Unsubscribe from "./pages/Unsubscribe";
+import AdminEmail from "./pages/admin/AdminEmail";
+import AdminPush from "./pages/admin/AdminPush";
 // Protected pages (Buyer)
 import Dashboard from "./pages/Dashboard";
 import OrdersPage from "./pages/Orders";
@@ -128,6 +131,7 @@ const App = () => (
             {/* Ad landing page (Facebook/Meta campaigns) — single goal: app downloads */}
             <Route path="/download" element={<GetApp />} />
             <Route path="/get-app" element={<GetApp />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
 
             {/* Protected routes */}
             <Route
@@ -275,6 +279,22 @@ const App = () => (
               element={
                 <AdminProtectedRoute>
                   <AdminReferrals />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/email"
+              element={
+                <AdminProtectedRoute>
+                  <AdminEmail />
+                </AdminProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/push"
+              element={
+                <AdminProtectedRoute>
+                  <AdminPush />
                 </AdminProtectedRoute>
               }
             />

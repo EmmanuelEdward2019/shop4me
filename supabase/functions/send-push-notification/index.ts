@@ -36,10 +36,65 @@ serve(async (req) => {
 
     const rawBody = await req.json();
 
+    // ── Caller authentication (security hardening) ───────────────────────────
+    // This function sends with the service role, so it must not be an open relay.
+    //   • Server callers (paystack, pay-with-wallet, notify-rider) present the
+    //     service-role key → trusted, unchanged behaviour.
+    //   • App users present their session JWT → scoped further below.
+    //   • Anonymous callers may only use the order-INSERT shape, which is
+    //     re-verified against the database and announced once.
+    const authToken = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+    let trustedCaller = false;
+    let callerUid: string | null = null;
+    let callerIsAdmin = false;
+    if (authToken && authToken === supabaseServiceKey) {
+      trustedCaller = true;
+    } else if (authToken) {
+      try {
+        const verifier = createClient(supabaseUrl, Deno.env.get("SUPABASE_ANON_KEY")!);
+        const { data: claimsData } = await verifier.auth.getClaims(authToken);
+        const claims = claimsData?.claims as Record<string, unknown> | undefined;
+        if (claims?.role === "service_role") {
+          trustedCaller = true;
+        } else if (claims?.role === "authenticated" && typeof claims.sub === "string") {
+          callerUid = claims.sub;
+          const { data: adminRow } = await supabase.from("user_roles").select("role")
+            .eq("user_id", callerUid).eq("role", "admin").maybeSingle();
+          callerIsAdmin = !!adminRow;
+        }
+      } catch (e) {
+        console.warn("push auth: token verification failed", e);
+      }
+    }
+    const jsonHeaders = { ...corsHeaders, "Content-Type": "application/json" };
+    const deny = (status: number, error: string) =>
+      new Response(JSON.stringify({ success: false, error }), { status, headers: jsonHeaders });
+
     // ── Detect Database Webhook shape ──
     if (rawBody.type === "INSERT" && rawBody.table === "orders" && rawBody.record) {
       const webhook = rawBody as WebhookPayload;
-      const order = webhook.record;
+      // Never trust the posted record: re-read the order, so a caller can't
+      // fabricate one or change its store/zone/agent to spam other agents.
+      const claimedId = String((webhook.record as Record<string, unknown>)?.id ?? "");
+      if (!/^[0-9a-f-]{36}$/i.test(claimedId)) return deny(400, "Invalid order id");
+      const { data: dbOrder } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("id", claimedId)
+        .maybeSingle();
+      if (!dbOrder) return deny(404, "Order not found");
+      if (!trustedCaller && Date.now() - new Date(String(dbOrder.created_at)).getTime() > 15 * 60 * 1000) {
+        return deny(403, "Only newly created orders can be announced");
+      }
+      // Announce each order once — the DB webhook and the web client may both fire.
+      const { error: dedupeErr } = await supabase.from("push_dedupe").insert({ key: `new_order:${claimedId}` });
+      if (dedupeErr) {
+        if (dedupeErr.code === "23505") {
+          return new Response(JSON.stringify({ success: true, message: "Order already announced" }), { headers: jsonHeaders });
+        }
+        console.error("push_dedupe insert failed (continuing):", dedupeErr);
+      }
+      const order = dbOrder as Record<string, unknown>;
 
       if (order.status !== "pending") {
         return new Response(
@@ -167,10 +222,50 @@ serve(async (req) => {
 
     // ── Legacy client invoke shape ──
     const payload: PushPayload = rawBody;
-    const { userId, role, title, body, url, data } = payload;
-    const priority: "default" | "high" =
+    let { userId, role, title, body, url, data } = payload;
+    let priority: "default" | "high" =
       (rawBody as any)?.priority === "high" ? "high" : "default";
-    const explicitUserIds: string[] | undefined = (rawBody as any).userIds;
+    let explicitUserIds: string[] | undefined = (rawBody as any).userIds;
+
+    // ── Scope what a signed-in, non-admin app user may send ──────────────────
+    if (!trustedCaller && !callerIsAdmin) {
+      if (!callerUid) return deny(401, "Unauthorized");
+      const scopedOrderId =
+        typeof data?.orderId === "string" && /^[0-9a-f-]{36}$/i.test(data.orderId) ? data.orderId : null;
+
+      if (role) {
+        // The only legitimate user broadcast is "order packed" → riders, and only
+        // for an order this agent is actually handling, once per order.
+        if (role !== "rider" || !scopedOrderId) return deny(403, "Broadcasts are not permitted");
+        const [{ data: owned }, { data: alerts }] = await Promise.all([
+          supabase.from("orders").select("id").eq("id", scopedOrderId).eq("agent_id", callerUid).maybeSingle(),
+          supabase.from("rider_alerts").select("id").eq("order_id", scopedOrderId).eq("agent_id", callerUid).limit(1),
+        ]);
+        if (!owned && !(alerts && alerts.length)) return deny(403, "Not your order");
+        const { error: dupErr } = await supabase.from("push_dedupe").insert({ key: `rider_broadcast:${scopedOrderId}` });
+        if (dupErr && dupErr.code === "23505") {
+          return new Response(JSON.stringify({ success: true, message: "Riders already notified for this order" }), { headers: jsonHeaders });
+        }
+      } else {
+        const requested = [...new Set([...(explicitUserIds ?? []), ...(userId ? [userId] : [])])]
+          .filter((id) => typeof id === "string" && /^[0-9a-f-]{36}$/i.test(id))
+          .slice(0, 10);
+        if (requested.length === 0) return deny(400, "userId or userIds required");
+        const { data: permitted, error: permErr } = await supabase.rpc("push_permitted_targets", {
+          p_caller: callerUid, p_targets: requested, p_order_id: scopedOrderId,
+        });
+        if (permErr) {
+          console.error("push_permitted_targets failed:", permErr);
+          return deny(500, "Could not verify recipients");
+        }
+        const allowed = (permitted as string[] | null) ?? [];
+        if (allowed.length === 0) return deny(403, "You can only notify people on your own orders or chats");
+        explicitUserIds = allowed;
+        userId = undefined;
+      }
+      // Loud, high-priority delivery is reserved for the "ring customer" nudge.
+      if (priority === "high" && data?.type !== "nudge") priority = "default";
+    }
 
     let userIds: string[] = [];
 

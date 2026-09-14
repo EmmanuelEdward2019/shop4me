@@ -213,6 +213,7 @@ Deno.serve(async (req) => {
           "welcome",
           "invoice_created",
           "order_shipped",
+          "order_delivered",
           "withdrawal_requested",
           "withdrawal_confirmed",
         ]);
@@ -232,10 +233,40 @@ Deno.serve(async (req) => {
           }
           (rawData as Record<string, unknown>).email = callerEmail;
           (data as Record<string, unknown>).email = callerEmail;
-        } else if (type === "invoice_created" || type === "order_shipped") {
+        } else if (type === "invoice_created" || type === "order_shipped" || type === "order_delivered") {
           // Force server-side recipient derivation from the referenced id.
           delete (rawData as Record<string, unknown>).email;
           delete (data as Record<string, unknown>).email;
+          // …and only for an order the caller is actually working on (its agent or
+          // rider), so these templates can't be fired at other people's customers.
+          let orderIdForCheck = (rawData as Record<string, unknown>)?.orderId as string | undefined;
+          if (!orderIdForCheck && type === "invoice_created") {
+            const invId = (rawData as Record<string, unknown>)?.invoiceId as string | undefined;
+            if (invId) {
+              const { data: inv } = await supabase.from("invoices").select("order_id").eq("id", invId).maybeSingle();
+              orderIdForCheck = (inv?.order_id as string | undefined) ?? undefined;
+            }
+          }
+          if (!orderIdForCheck) {
+            return new Response(JSON.stringify({ error: "orderId or invoiceId is required" }), {
+              status: 400,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
+          const [{ data: ord }, { data: alerts }] = await Promise.all([
+            supabase.from("orders").select("agent_id").eq("id", orderIdForCheck).maybeSingle(),
+            supabase.from("rider_alerts").select("rider_id, agent_id").eq("order_id", orderIdForCheck),
+          ]);
+          const onOrder =
+            ord?.agent_id === callerUid ||
+            (alerts ?? []).some((a: { rider_id: string | null; agent_id: string | null }) =>
+              a.rider_id === callerUid || a.agent_id === callerUid);
+          if (!onOrder) {
+            return new Response(JSON.stringify({ error: "Not permitted for this order" }), {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
         } else if (type === "withdrawal_requested" || type === "withdrawal_confirmed") {
           // A rider can only trigger their own withdrawal notifications.
           if ((rawData as Record<string, unknown>)?.riderId !== callerUid) {

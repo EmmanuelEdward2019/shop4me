@@ -36,6 +36,8 @@ import {
   Store,
   Gift,
   Wallet,
+  Mail,
+  BellRing,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
 import AdminViewSwitcher from "./AdminViewSwitcher";
@@ -66,6 +68,8 @@ const navItems = [
   { label: "Stores", href: "/admin/stores", icon: Store },
   { label: "Bonuses", href: "/admin/bonuses", icon: Gift },
   { label: "Referrals", href: "/admin/referrals", icon: Share2 },
+  { label: "Email Campaigns", href: "/admin/email", icon: Mail },
+  { label: "Push Notifications", href: "/admin/push", icon: BellRing },
   { label: "Submissions", href: "/admin/submissions", icon: Inbox },
   { label: "Settings", href: "/admin/settings", icon: Settings },
 ];

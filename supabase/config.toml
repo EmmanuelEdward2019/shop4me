@@ -35,3 +35,9 @@ verify_jwt = false
 
 [functions.resend-webhook]
 verify_jwt = false
+
+[functions.email-unsubscribe]
+verify_jwt = false
+
+[functions.engagement-nudges]
+verify_jwt = false
