@@ -119,6 +119,7 @@ serve(async (req) => {
           undefined,
           { ...pushData, type: "order_assigned" }
         );
+        await emailNewOrder(supabase, order, [String(order.agent_id)]);
         console.log(`Webhook push (pre-assigned): agent=${order.agent_id}, store="${locationName}"`);
         return new Response(
           JSON.stringify({ success: true, results }),
@@ -153,6 +154,7 @@ serve(async (req) => {
 
       if (agentUserIds.length === 0) {
         console.log(`No agents found for store "${locationName}" / zone "${serviceZone}"`);
+        await emailNewOrder(supabase, order, []);
         return new Response(
           JSON.stringify({ success: true, message: "No matching agents" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -166,52 +168,7 @@ serve(async (req) => {
         undefined, { ...pushData, type: "new_order" }
       );
 
-      // Also email each agent and all admins about the new order
-      const buyerProfile = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("user_id", String(order.user_id || ""))
-        .maybeSingle();
-      const buyerName = buyerProfile.data?.full_name || undefined;
-
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-      for (const agentId of agentUserIds) {
-        const agentProfile = await supabase
-          .from("profiles")
-          .select("full_name, email")
-          .eq("user_id", agentId)
-          .maybeSingle();
-        if (agentProfile.data?.email) {
-          fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey },
-            body: JSON.stringify({
-              type: "new_order_agent",
-              data: { email: agentProfile.data.email, name: agentProfile.data.full_name, orderId, locationName, buyerName, estimatedTotal: order.estimated_total },
-            }),
-          }).catch(() => {});
-        }
-      }
-
-      const { data: adminRoles } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
-      for (const admin of (adminRoles || [])) {
-        const adminProfile = await supabase.from("profiles").select("email").eq("user_id", admin.user_id).maybeSingle();
-        if (adminProfile.data?.email) {
-          const assignedAgent = agentUserIds.length === 1
-            ? (await supabase.from("profiles").select("full_name").eq("user_id", agentUserIds[0]).maybeSingle()).data?.full_name
-            : undefined;
-          fetch(`${supabaseUrl}/functions/v1/send-notification-email`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey },
-            body: JSON.stringify({
-              type: "new_order_admin",
-              data: { email: adminProfile.data.email, orderId, locationName, buyerName, agentName: assignedAgent, estimatedTotal: order.estimated_total },
-            }),
-          }).catch(() => {});
-        }
-      }
+      await emailNewOrder(supabase, order, agentUserIds);
 
       console.log(`Webhook push: store="${locationName}", zone="${serviceZone}", agents=${agentUserIds.length}`);
       return new Response(
@@ -513,4 +470,57 @@ function alertKind(url?: string, data?: Record<string, string>): "ring" | "messa
   if (url && url.startsWith("/rider/available-pickups")) return "ring";
   if (type === "chat" || (data && "messageType" in data)) return "message";
   return "normal";
+}
+
+// Email the targeted agent(s) and every admin about a new order. Email is the
+// fallback for agents without a registered phone, and lets admins chase orders
+// nobody picks up — including stores that have no agent at all.
+// deno-lint-ignore no-explicit-any
+async function emailNewOrder(supabase: any, order: Record<string, unknown>, agentIds: string[]) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const headers = { "Content-Type": "application/json", "Authorization": `Bearer ${serviceKey}`, "apikey": serviceKey };
+  const orderId = String(order.id);
+  const locationName = String(order.location_name || "a store");
+  const jobs: Promise<unknown>[] = [];
+  const send = (type: string, data: Record<string, unknown>) =>
+    jobs.push(
+      fetch(`${supabaseUrl}/functions/v1/send-notification-email`, { method: "POST", headers, body: JSON.stringify({ type, data }) })
+        .catch((e) => console.error(`${type} email failed:`, e)),
+    );
+  try {
+    const { data: buyer } = await supabase.from("profiles").select("full_name")
+      .eq("user_id", String(order.user_id || "")).maybeSingle();
+    const buyerName = buyer?.full_name || undefined;
+
+    const { data: agents } = agentIds.length
+      ? await supabase.from("profiles").select("user_id, full_name, email").in("user_id", agentIds)
+      : { data: [] as { user_id: string; full_name: string | null; email: string | null }[] };
+    for (const a of agents ?? []) {
+      if (a.email) {
+        send("new_order_agent", {
+          email: a.email, name: a.full_name, orderId, locationName, buyerName, estimatedTotal: order.estimated_total,
+        });
+      }
+    }
+
+    const { data: adminRoles } = await supabase.from("user_roles").select("user_id").eq("role", "admin");
+    const adminIds = (adminRoles ?? []).map((r: { user_id: string }) => r.user_id);
+    if (adminIds.length) {
+      const { data: admins } = await supabase.from("profiles").select("email").in("user_id", adminIds);
+      const agentName = agentIds.length === 0
+        ? "No agent covers this store — please assign one"
+        : agentIds.length === 1 ? (agents?.[0]?.full_name ?? undefined) : undefined;
+      for (const ad of admins ?? []) {
+        if (ad.email) {
+          send("new_order_admin", {
+            email: ad.email, orderId, locationName, buyerName, agentName, estimatedTotal: order.estimated_total,
+          });
+        }
+      }
+    }
+    await Promise.allSettled(jobs);
+  } catch (e) {
+    console.error("new order emails failed:", e);
+  }
 }
