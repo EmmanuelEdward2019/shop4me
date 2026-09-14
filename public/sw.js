@@ -22,13 +22,20 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  // Orders, rider requests and nudges must not be missed: keep them on screen
+  // until the user acts, with a longer vibration. (Browsers don't allow a
+  // custom notification sound.)
+  const urgentTypes = ['new_order', 'order_assigned', 'assigned_order', 'rider_request', 'order_packed', 'nudge'];
+  const urgent = urgentTypes.includes(data.type) || String(data.url || '').startsWith('/rider/available-pickups');
+
   const options = {
     body: data.body,
     icon: '/logo.png',
     badge: '/favicon.png',
     silent: false,
-    vibrate: [200, 100, 200],
-    tag: data.url || 'shop4me',
+    vibrate: urgent ? [600, 200, 600, 200, 600, 200, 600] : [200, 100, 200],
+    requireInteraction: urgent,
+    tag: data.orderId ? `${data.type || 'order'}:${data.orderId}` : (data.url || 'shop4me'),
     renotify: true,
     data: {
       url: data.url || '/dashboard/messages',

@@ -321,12 +321,14 @@ serve(async (req) => {
               title: "New Pickup Available Near You!",
               body: `A new order from ${order.location_name} needs pickup. Accept it now!`,
               url: "/rider/available-pickups",
+              data: { type: "rider_request", orderId: String(orderId) },
             }
           : {
               role: "rider",
               title: "New Pickup Available!",
               body: `A new order from ${order.location_name} needs pickup. Accept it now!`,
               url: "/rider/available-pickups",
+              data: { type: "rider_request", orderId: String(orderId) },
             },
       ),
     }).catch((err: unknown) => console.error("Push notification error:", err));

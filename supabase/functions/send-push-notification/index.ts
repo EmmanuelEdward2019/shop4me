@@ -117,7 +117,7 @@ serve(async (req) => {
           "🛒 New Order Assigned to You!",
           `A new order from ${locationName} is waiting for you.`,
           undefined,
-          pushData
+          { ...pushData, type: "order_assigned" }
         );
         console.log(`Webhook push (pre-assigned): agent=${order.agent_id}, store="${locationName}"`);
         return new Response(
@@ -163,7 +163,7 @@ serve(async (req) => {
         supabase, agentUserIds,
         "🛒 New Order Available!",
         `New order from ${locationName}. Accept it now!`,
-        undefined, pushData
+        undefined, { ...pushData, type: "new_order" }
       );
 
       // Also email each agent and all admins about the new order
@@ -263,8 +263,7 @@ serve(async (req) => {
         explicitUserIds = allowed;
         userId = undefined;
       }
-      // Loud, high-priority delivery is reserved for the "ring customer" nudge.
-      if (priority === "high" && data?.type !== "nudge") priority = "default";
+      // Delivery priority/sound is decided per alert kind in sendPushToUsers.
     }
 
     let userIds: string[] = [];
@@ -432,18 +431,30 @@ async function sendPushToUsers(
   let expoResults: PromiseSettledResult<unknown>[] = [];
 
   if (expoTokens && expoTokens.length > 0) {
-    const expoMessages = expoTokens.map((t: { token: string }) => ({
-      to: t.token,
-      sound: "default",
-      title,
-      body,
-      data: { url, ...data },
-      channelId: "orders",
-      // 'high' wakes the device immediately instead of letting Android batch the
-      // notification in Doze. Used by the "Ring customer" nudge, which is
-      // pointless if it arrives ten minutes late.
-      priority: priority === "high" ? "high" : "default",
-    }));
+    // Orders, rider requests and nudges RING; chat messages get a loud message
+    // alert. `sound_version >= 2` marks app builds that bundle the custom sounds
+    // and the v2 Android channels (a channel's sound can't change once created,
+    // so older installs keep the original channel IDs).
+    const kind = alertKind(url, data);
+    void priority; // every event push is sent high priority now
+    const expoMessages = expoTokens.map((t: { token: string; sound_version?: number | null }) => {
+      const ringReady = (t.sound_version ?? 1) >= 2;
+      const isRing = kind === "ring";
+      const isMessage = kind === "message";
+      return {
+        to: t.token,
+        title,
+        body,
+        data: { url, ...data },
+        sound: ringReady && isRing ? "order_ring.wav" : ringReady && isMessage ? "message_ring.wav" : "default",
+        channelId: ringReady && isRing ? "orders_ring_v2" : ringReady && isMessage ? "chat_ring_v2" : "orders",
+        // 'high' = delivered immediately (APNs priority 10 / FCM high) instead of
+        // being held back by iOS power management or Android Doze.
+        priority: "high",
+        // Breaks through iOS Focus modes (needs the time-sensitive entitlement).
+        ...(isRing || isMessage ? { interruptionLevel: "time-sensitive" } : {}),
+      };
+    });
 
     const chunks: (typeof expoMessages)[] = [];
     for (let i = 0; i < expoMessages.length; i += 100) {
@@ -466,6 +477,9 @@ async function sendPushToUsers(
 
         if (result.data) {
           for (let i = 0; i < result.data.length; i++) {
+            if (result.data[i].status === "error") {
+              console.error("Expo push ticket error:", result.data[i].details?.error, result.data[i].message);
+            }
             if (
               result.data[i].status === "error" &&
               result.data[i].details?.error === "DeviceNotRegistered"
@@ -489,4 +503,14 @@ async function sendPushToUsers(
     `Push sent: ${webSubs?.length || 0} web, ${expoTokens?.length || 0} expo tokens`
   );
   return allResults;
+}
+
+const RING_TYPES = new Set(["new_order", "order_assigned", "assigned_order", "rider_request", "order_packed", "nudge"]);
+
+function alertKind(url?: string, data?: Record<string, string>): "ring" | "message" | "normal" {
+  const type = data?.type;
+  if (type && RING_TYPES.has(type)) return "ring";
+  if (url && url.startsWith("/rider/available-pickups")) return "ring";
+  if (type === "chat" || (data && "messageType" in data)) return "message";
+  return "normal";
 }
