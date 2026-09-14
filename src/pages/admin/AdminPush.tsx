@@ -72,7 +72,33 @@ interface PushCampaign {
   web_sent: number;
   expo_sent: number;
   failed: number;
+  error_summary: Record<string, number> | null;
   created_at: string;
+}
+
+type SendResult = { webSent: number; expoSent: number; failed: number; removed?: number; reasons?: Record<string, number> };
+
+const REASON_LABELS: Record<string, string> = {
+  web_gone: "browser subscription expired",
+  web_key_mismatch: "old browser subscription (made before a key change)",
+  web_rejected: "rejected by the browser's push service",
+  web_network: "browser push service unreachable",
+  expo_DeviceNotRegistered: "app uninstalled or notifications turned off",
+  expo_InvalidCredentials: "app push credentials problem",
+  expo_MessageTooBig: "message too long",
+  expo_MessageRateExceeded: "sending too fast to one device",
+  expo_network: "Expo push service unreachable",
+};
+
+/** "2 old browser subscriptions (made before a key change) — removed" */
+function describeFailures(reasons: Record<string, number> | null | undefined, removed?: number): string {
+  if (!reasons) return "";
+  const parts = Object.entries(reasons)
+    .filter(([k, n]) => k !== "removed" && n > 0)
+    .map(([k, n]) => `${n} × ${REASON_LABELS[k] ?? k.replace(/^(web|expo)_/, "")}`);
+  if (!parts.length) return "";
+  const gone = removed ?? reasons.removed ?? 0;
+  return parts.join(" · ") + (gone ? ` — ${gone} dead device${gone === 1 ? "" : "s"} removed` : "");
 }
 
 const AdminPush = () => {
@@ -144,9 +170,16 @@ const AdminPush = () => {
   const sendTest = async () => {
     setBusy("test");
     try {
-      const r = await callAdminFunction<{ webSent: number; expoSent: number }>("admin-push-campaign", { action: "test", ...message() });
-      if (r.webSent + r.expoSent === 0) toast.message("Sent, but your account has no registered devices — open the app or allow browser notifications first.");
-      else toast.success(`Test delivered to ${r.webSent + r.expoSent} of your device(s)`);
+      const r = await callAdminFunction<SendResult>("admin-push-campaign", { action: "test", ...message() });
+      const delivered = r.webSent + r.expoSent;
+      const why = describeFailures(r.reasons, r.removed);
+      if (delivered + r.failed === 0) {
+        toast.message("Your account has no registered devices — open the Shop4Me app or allow browser notifications first.");
+      } else if (delivered === 0) {
+        toast.error("None of your devices accepted the test", { description: why });
+      } else {
+        toast.success(`Test delivered to ${delivered} of your device${delivered === 1 ? "" : "s"}`, why ? { description: `Not delivered: ${why}` } : undefined);
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Test failed");
     } finally {
@@ -158,10 +191,14 @@ const AdminPush = () => {
     setConfirmOpen(false);
     setBusy("send");
     try {
-      const r = await callAdminFunction<{ targetUsers: number; webSent: number; expoSent: number; failed: number }>(
+      const r = await callAdminFunction<SendResult & { targetUsers: number }>(
         "admin-push-campaign", { action: "send", ...message(), ...audiencePayload() },
       );
-      toast.success(`Delivered to ${(r.webSent + r.expoSent).toLocaleString()} device(s) · ${r.targetUsers.toLocaleString()} users also see it in their notifications`);
+      const why = describeFailures(r.reasons, r.removed);
+      toast.success(
+        `Delivered to ${(r.webSent + r.expoSent).toLocaleString()} device(s) · ${r.targetUsers.toLocaleString()} users also see it in their notifications`,
+        why ? { description: `Not delivered: ${why}` } : undefined,
+      );
       setTitle("");
       setBody("");
       void loadHistory();
@@ -408,7 +445,11 @@ const AdminPush = () => {
                     </div>
                     <div className="text-right text-xs text-muted-foreground">
                       <p><span className="font-semibold text-foreground">{(c.web_sent + c.expo_sent).toLocaleString()}</span> devices · {c.target_users.toLocaleString()} users</p>
-                      {c.failed > 0 && <p className="text-red-600">{c.failed} failed</p>}
+                      {c.failed > 0 && (
+                        <p className={c.web_sent + c.expo_sent > 0 ? "max-w-[260px] text-amber-700" : "max-w-[260px] text-red-600"}>
+                          {c.failed} not delivered{describeFailures(c.error_summary) ? `: ${describeFailures(c.error_summary)}` : ""}
+                        </p>
+                      )}
                     </div>
                     <Badge variant="secondary">{c.source === "nudge" ? "Automation" : "Manual"}</Badge>
                   </div>

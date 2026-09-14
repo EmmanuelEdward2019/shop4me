@@ -365,7 +365,7 @@ async function sendPushToUsers(
             return { success: true, type: "web", endpoint: sub.endpoint };
           } catch (err: any) {
             console.error("Web push error:", sub.endpoint, err.statusCode, err.body);
-            if (err.statusCode === 410) {
+            if (err.statusCode === 404 || err.statusCode === 410) {
               await supabase.from("push_subscriptions").delete().eq("id", sub.id);
             }
             return { success: false, type: "web", endpoint: sub.endpoint, error: err.message };

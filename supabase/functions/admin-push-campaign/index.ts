@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import webpush from "https://esm.sh/web-push@3.6.7";
+import { sendPush } from "../_shared/push.ts";
 
 // Admin push campaigns. Actions (POST, admin JWT): count | test | send
 // Delivers to web push + Expo (mobile) and mirrors into the in-app bell.
@@ -101,80 +101,6 @@ async function reachability(supabase: Sb, ids: string[]) {
   return { reachableUsers: users.size, webDevices: web, mobileDevices: expo };
 }
 
-async function sendPush(
-  supabase: Sb, userIds: string[],
-  msg: { title: string; body: string; webUrl: string; appUrl: string; data?: Record<string, string> },
-) {
-  let webSent = 0;
-  let expoSent = 0;
-  let failed = 0;
-  const vapidPub = Deno.env.get("VAPID_PUBLIC_KEY");
-  const vapidPriv = Deno.env.get("VAPID_PRIVATE_KEY");
-  const webEnabled = !!(vapidPub && vapidPriv);
-  if (webEnabled) webpush.setVapidDetails("mailto:support@shop4meng.com", vapidPub!, vapidPriv!);
-
-  for (let i = 0; i < userIds.length; i += 500) {
-    const chunk = userIds.slice(i, i + 500);
-
-    if (webEnabled) {
-      const { data: subs } = await supabase.from("push_subscriptions")
-        .select("id, endpoint, p256dh, auth").in("user_id", chunk);
-      const results = await Promise.allSettled(
-        (subs ?? []).map(async (s: { id: string; endpoint: string; p256dh: string; auth: string }) => {
-          try {
-            await webpush.sendNotification(
-              { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-              JSON.stringify({ title: msg.title, body: msg.body, url: msg.webUrl, ...(msg.data ?? {}) }),
-            );
-          } catch (err) {
-            const code = (err as { statusCode?: number })?.statusCode;
-            if (code === 404 || code === 410) await supabase.from("push_subscriptions").delete().eq("id", s.id);
-            throw err;
-          }
-        }),
-      );
-      for (const r of results) {
-        if (r.status === "fulfilled") webSent++;
-        else failed++;
-      }
-    }
-
-    const { data: tokens } = await supabase.from("expo_push_tokens").select("token").in("user_id", chunk);
-    const messages = (tokens ?? []).map((t: { token: string }) => ({
-      to: t.token, sound: "default", title: msg.title, body: msg.body,
-      channelId: "default", priority: "default",
-      data: { url: msg.appUrl, ...(msg.data ?? {}) },
-    }));
-    for (let j = 0; j < messages.length; j += 100) {
-      const batch = messages.slice(j, j + 100);
-      try {
-        const res = await fetch("https://exp.host/--/api/v2/push/send", {
-          method: "POST",
-          headers: { Accept: "application/json", "Accept-Encoding": "gzip, deflate", "Content-Type": "application/json" },
-          body: JSON.stringify(batch),
-        });
-        const out = await res.json();
-        const tickets: { status?: string; details?: { error?: string } }[] = out?.data ?? [];
-        for (let k = 0; k < batch.length; k++) {
-          const t = tickets[k];
-          if (t?.status === "ok") {
-            expoSent++;
-          } else {
-            failed++;
-            if (t?.details?.error === "DeviceNotRegistered") {
-              await supabase.from("expo_push_tokens").delete().eq("token", batch[k].to);
-            }
-          }
-        }
-      } catch (e) {
-        console.error("Expo push batch failed:", e);
-        failed += batch.length;
-      }
-    }
-  }
-  return { webSent, expoSent, failed };
-}
-
 async function insertInApp(
   supabase: Sb, userIds: string[], title: string, body: string, link: string, type: string,
   data: Record<string, unknown>,
@@ -248,6 +174,7 @@ Deno.serve(async (req) => {
           source: "admin", title, body, audience: String(p.audience),
           audience_role: p.audience === "role" ? p.role : null, deep_link: dest.key,
           target_users: users.length, web_sent: r.webSent, expo_sent: r.expoSent, failed: r.failed,
+          error_summary: { ...r.reasons, removed: r.removed },
           created_by: admin.id,
         });
         return json({ ok: true, targetUsers: users.length, ...r });
