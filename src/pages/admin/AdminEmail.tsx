@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Eye, History, Loader2, Mail, Monitor, Send, Smartphone, TestTube2, Users } from "lucide-react";
+import { Eye, History, Loader2, Mail, Monitor, PlayCircle, Send, Smartphone, TestTube2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import AdminDashboardLayout from "@/components/dashboard/AdminDashboardLayout";
@@ -69,6 +69,11 @@ const AdminEmail = () => {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState<{ sent: number; failed: number; skipped: number; total: number } | null>(null);
+  // Why the last run stopped short — quota used up, rate limited, or an error.
+  // Kept on screen rather than in a toast, since it is the whole explanation for
+  // a half-finished campaign.
+  const [stopReason, setStopReason] = useState<string | null>(null);
+  const [resumingId, setResumingId] = useState<string | null>(null);
   const cancelRef = useRef<string | null>(null);
   const [history, setHistory] = useState<Campaign[]>([]);
   const [editorKey, setEditorKey] = useState(0);
@@ -94,6 +99,15 @@ const AdminEmail = () => {
   }, []);
 
   useEffect(() => { void loadHistory(); }, [loadHistory]);
+
+  // The send loop runs in this tab. Closing it mid-campaign leaves the rest
+  // queued (resumable from History), but the admin should know before it happens.
+  useEffect(() => {
+    if (!sending) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [sending]);
 
   useEffect(() => {
     setCount(null);
@@ -137,9 +151,36 @@ const AdminEmail = () => {
     }
   };
 
+  /**
+   * Drain a campaign's queue.
+   *
+   * The server clears as many 100-message batches as it can per call, so this
+   * usually finishes in a couple of round trips. It stops early when the server
+   * reports `paused` — Resend quota gone or rate limiting — leaving the rest
+   * queued for a later Resume rather than spinning.
+   */
+  const drainCampaign = useCallback(async (campaignId: string, total: number) => {
+    let done = false;
+    for (let guard = 0; !done && guard < 10000; guard++) {
+      if (cancelRef.current === null) break;
+      const r = await callAdminFunction<{
+        done: boolean; paused?: string | null; sent: number; failed: number; skipped: number;
+      }>("admin-email-campaign", { action: "send_batch", campaignId });
+      setProgress({ sent: r.sent, failed: r.failed, skipped: r.skipped, total });
+      done = r.done;
+      if (r.paused) {
+        setStopReason(r.paused);
+        return { done: r.done, paused: r.paused };
+      }
+      if (!done) await sleep(250);
+    }
+    return { done, paused: null as string | null };
+  }, []);
+
   const runCampaign = async () => {
     setConfirmOpen(false);
     setSending(true);
+    setStopReason(null);
     try {
       const created = await callAdminFunction<{ campaignId: string; total: number; skipped: number }>(
         "admin-email-campaign", { action: "create", ...content(), ...audiencePayload() },
@@ -147,27 +188,48 @@ const AdminEmail = () => {
       cancelRef.current = created.campaignId;
       setProgress({ sent: 0, failed: 0, skipped: created.skipped, total: created.total });
 
-      let done = false;
-      for (let guard = 0; !done && guard < 10000; guard++) {
-        if (cancelRef.current === null) break;
-        const r = await callAdminFunction<{ done: boolean; sent: number; failed: number; skipped: number; rateLimited?: boolean; retryAfterMs?: number }>(
-          "admin-email-campaign", { action: "send_batch", campaignId: created.campaignId },
-        );
-        setProgress({ sent: r.sent, failed: r.failed, skipped: r.skipped, total: created.total });
-        done = r.done;
-        if (!done) await sleep(r.rateLimited ? r.retryAfterMs ?? 2000 : 350);
-      }
+      const { done, paused } = await drainCampaign(created.campaignId, created.total);
 
-      if (done) {
+      if (paused) {
+        toast.warning("Sending paused — see the reason below");
+      } else if (done) {
         toast.success("Campaign sent");
         localStorage.removeItem(DRAFT_KEY);
       } else {
-        toast.message("Sending stopped");
+        toast.message("Sending stopped — the rest are still queued, you can resume from History");
       }
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Sending failed");
+      const msg = e instanceof Error ? e.message : "Sending failed";
+      setStopReason(`${msg} — the rest are still queued. Resume this campaign from History.`);
+      toast.error(msg);
     } finally {
       setSending(false);
+      cancelRef.current = null;
+      void loadHistory();
+    }
+  };
+
+  /**
+   * Pick a campaign back up. A run that died with the browser tab — the usual
+   * reason a send stops part-way — leaves its rows pending and the campaign
+   * `sending`, so this just drains what is left.
+   */
+  const resumeCampaign = async (c: Campaign) => {
+    setResumingId(c.id);
+    setSending(true);
+    setStopReason(null);
+    cancelRef.current = c.id;
+    setProgress({ sent: c.sent_count, failed: c.failed_count, skipped: c.skipped_count, total: c.total_recipients });
+    try {
+      const { done } = await drainCampaign(c.id, c.total_recipients);
+      if (done) toast.success("Campaign finished");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Could not resume";
+      setStopReason(msg);
+      toast.error(msg);
+    } finally {
+      setSending(false);
+      setResumingId(null);
       cancelRef.current = null;
       void loadHistory();
     }
@@ -295,6 +357,11 @@ const AdminEmail = () => {
                     <Button className="w-full gap-2" size="lg" disabled={!canSend} onClick={() => setConfirmOpen(true)}>
                       <Send className="h-4 w-4" /> Send campaign
                     </Button>
+                    <p className="text-xs text-muted-foreground">
+                      Sent in batches of 100 (the limit per Resend call), not in one go. Keep this tab
+                      open until it finishes — if it stops early, the rest stay queued and you can
+                      resume from History.
+                    </p>
                   </CardContent>
                 </Card>
 
@@ -308,6 +375,18 @@ const AdminEmail = () => {
                         <div><p className="text-lg font-semibold text-red-600">{progress.failed}</p>failed</div>
                         <div><p className="text-lg font-semibold text-muted-foreground">{progress.skipped}</p>skipped</div>
                       </div>
+                      {stopReason && (
+                        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+                          <p className="font-semibold">Stopped before the end</p>
+                          <p className="mt-1">{stopReason}</p>
+                          {progress.total - progress.sent - progress.failed - progress.skipped > 0 && (
+                            <p className="mt-1">
+                              {(progress.total - progress.sent - progress.failed - progress.skipped).toLocaleString()} still
+                              queued — resume from the History tab.
+                            </p>
+                          )}
+                        </div>
+                      )}
                       {sending && <Button variant="outline" size="sm" className="w-full" onClick={stopSending}>Stop sending</Button>}
                     </CardContent>
                   </Card>
@@ -335,6 +414,20 @@ const AdminEmail = () => {
                       {c.skipped_count > 0 && <> · {c.skipped_count} skipped</>}
                     </div>
                     <Badge className={`capitalize ${statusStyle[c.status] ?? ""}`} variant="secondary">{c.status}</Badge>
+                    {c.status === "sending" && c.sent_count + c.failed_count + c.skipped_count < c.total_recipients && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1"
+                        disabled={sending}
+                        onClick={() => resumeCampaign(c)}
+                      >
+                        {resumingId === c.id
+                          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          : <PlayCircle className="h-3.5 w-3.5" />}
+                        Resume {(c.total_recipients - c.sent_count - c.failed_count - c.skipped_count).toLocaleString()}
+                      </Button>
+                    )}
                   </div>
                 ))}
               </CardContent>

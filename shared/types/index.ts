@@ -547,6 +547,8 @@ export const SHOPPING_UNITS = [
   { value: "carton", label: "Carton" },
   { value: "sachet", label: "Sachet" },
   { value: "bunch", label: "Bunch" },
+  { value: "basket", label: "Basket" },
+  { value: "tuber", label: "Tuber" },
   { value: "dozen", label: "Dozen" },
   { value: "kg", label: "Kg (Kilogram)" },
   { value: "g", label: "g (Gram)" },

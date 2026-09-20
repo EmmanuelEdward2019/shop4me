@@ -2,9 +2,18 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 // Admin email campaigns via Resend.
 // Actions (POST, admin JWT): preview | count | test | create | send_batch | cancel
-// Sends are chunked (<=100 per Resend batch call) and resumable: the admin UI
-// calls send_batch repeatedly until done, so large audiences never hit a
-// function timeout.
+//
+// Resend's batch endpoint takes at most 100 messages per call, so a send is
+// chunked. `send_batch` keeps chunking inside ONE invocation until its time
+// budget runs out, then reports back — the admin UI only has to call it again
+// while `done` is false. Progress lives in email_campaign_recipients, so a
+// campaign is resumable: if the browser tab dies mid-send, calling send_batch
+// again later picks up exactly where it stopped.
+//
+// Resend 429s come in two flavours and must NOT be treated alike:
+//   - a per-second rate limit  → wait and retry inside this invocation
+//   - the plan's daily/monthly quota → nothing will succeed until it resets, so
+//     stop and say so instead of spinning
 
 const FROM_EMAIL = "Shop4Me <Support@shop4meng.com>";
 const BRAND = "#16a34a";
@@ -24,6 +33,12 @@ const SOCIALS: [string, string][] = [
   ["TikTok", "https://www.tiktok.com/@shop4memarkets"],
 ];
 const BATCH_SIZE = 100;
+// Stay well inside the edge function wall clock while still clearing several
+// batches per call.
+const BUDGET_MS = 50_000;
+// A transient 429 is worth waiting out; a wall of them is not.
+const MAX_RATE_LIMIT_WAITS = 4;
+const MAX_RATE_LIMIT_WAIT_MS = 10_000;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -272,6 +287,32 @@ async function requireAdmin(req: Request, supabase: Sb) {
   return row ? user : null;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Tell a per-second rate limit apart from the plan quota being used up.
+ *
+ * Resend answers both with 429. Retrying the first clears in a second or two;
+ * retrying the second just burns the whole time budget and leaves the admin
+ * staring at a stalled progress bar, so it has to surface as a real message.
+ */
+function classifyResendFailure(status: number, body: unknown): "quota" | "retry" | "fatal" {
+  const blob = JSON.stringify(body ?? {}).toLowerCase();
+  if (/daily_quota|monthly_quota|quota[_ ]exceeded|exceeded your .*(daily|monthly)|plan limit|upgrade your plan/.test(blob)) {
+    return "quota";
+  }
+  if (status === 429 || status >= 500) return "retry";
+  return "fatal";
+}
+
+/** Seconds Resend asks us to wait, clamped so one bad header can't stall the call. */
+function retryDelayMs(res: Response): number {
+  const raw = res.headers.get("retry-after") ?? res.headers.get("ratelimit-reset") ?? "";
+  const secs = Number(raw);
+  const ms = Number.isFinite(secs) && secs > 0 ? secs * 1000 : 1500;
+  return Math.min(ms, MAX_RATE_LIMIT_WAIT_MS);
+}
+
 function unsubHeaders(unsub: string) {
   return {
     "List-Unsubscribe": `<${unsub}>, <mailto:${CONTACT.email}?subject=unsubscribe>`,
@@ -383,74 +424,105 @@ Deno.serve(async (req) => {
         }
 
         // Rows claimed by an invocation that died mid-send go back in the queue.
+        // This is what makes a campaign resumable after a closed tab.
         await supabase.from("email_campaign_recipients")
           .update({ status: "pending", claimed_at: null })
           .eq("campaign_id", campaignId).eq("status", "sending")
           .lt("claimed_at", new Date(Date.now() - 5 * 60 * 1000).toISOString());
 
-        const { data: pending } = await supabase.from("email_campaign_recipients")
-          .select("user_id").eq("campaign_id", campaignId).eq("status", "pending").limit(BATCH_SIZE);
-
+        const body = transformBody(camp.body_html);
+        const deadline = Date.now() + BUDGET_MS;
         let batchSent = 0;
         let batchFailed = 0;
-        if (pending && pending.length) {
+        let rateLimitWaits = 0;
+        // Set when nothing more can be sent right now — quota gone, or Resend
+        // rate limiting us harder than we are willing to wait out.
+        let paused: string | null = null;
+
+        // Keep clearing 100-message batches until the audience is done or we
+        // run out of budget. Anything left is still `pending`, so the next call
+        // continues from here.
+        while (!paused && Date.now() < deadline) {
+          const { data: pending } = await supabase.from("email_campaign_recipients")
+            .select("user_id").eq("campaign_id", campaignId).eq("status", "pending").limit(BATCH_SIZE);
+          if (!pending || !pending.length) break;
+
           const { data: claimed, error: claimErr } = await supabase.from("email_campaign_recipients")
             .update({ status: "sending", claimed_at: new Date().toISOString() })
             .eq("campaign_id", campaignId).eq("status", "pending")
             .in("user_id", pending.map((r: { user_id: string }) => r.user_id))
             .select("user_id, email, full_name");
           if (claimErr) throw claimErr;
+          if (!claimed || !claimed.length) break;
 
-          if (claimed && claimed.length) {
-            const body = transformBody(camp.body_html);
-            const messages = await Promise.all(claimed.map(async (r: Recipient) => {
-              const unsub = await unsubscribeUrl(supabaseUrl, SECRET, r.email);
-              const subj = personalize(camp.subject, r.full_name, false);
+          const messages = await Promise.all(claimed.map(async (r: Recipient) => {
+            const unsub = await unsubscribeUrl(supabaseUrl, SECRET, r.email);
+            const subj = personalize(camp.subject, r.full_name, false);
+            return {
+              from: FROM_EMAIL, to: [r.email], subject: subj,
+              html: buildEmail(subj, camp.preheader ?? "", personalize(body, r.full_name, true), unsub),
+              headers: unsubHeaders(unsub),
+              tags: [{ name: "campaign_id", value: campaignId }],
+            };
+          }));
+
+          const res = await fetch("https://api.resend.com/emails/batch", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+            body: JSON.stringify(messages),
+          });
+          const result = await res.json().catch(() => ({}));
+          const now = new Date().toISOString();
+
+          // ── Success ──
+          if (res.ok && Array.isArray(result?.data)) {
+            const updates = claimed.map((r: Recipient, i: number) => {
+              const id = result.data[i]?.id ?? null;
               return {
-                from: FROM_EMAIL, to: [r.email], subject: subj,
-                html: buildEmail(subj, camp.preheader ?? "", personalize(body, r.full_name, true), unsub),
-                headers: unsubHeaders(unsub),
-                tags: [{ name: "campaign_id", value: campaignId }],
-              };
-            }));
-
-            const res = await fetch("https://api.resend.com/emails/batch", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
-              body: JSON.stringify(messages),
-            });
-            const result = await res.json().catch(() => ({}));
-            const now = new Date().toISOString();
-
-            let updates: Record<string, unknown>[];
-            if (res.ok && Array.isArray(result?.data)) {
-              updates = claimed.map((r: Recipient, i: number) => {
-                const id = result.data[i]?.id ?? null;
-                return {
-                  campaign_id: campaignId, user_id: r.user_id, email: r.email, full_name: r.full_name,
-                  status: id ? "sent" : "failed", resend_id: id, error: id ? null : "No message id returned",
-                  sent_at: id ? now : null, claimed_at: null,
-                };
-              });
-            } else {
-              const msg = `Resend ${res.status}: ${JSON.stringify(result).slice(0, 300)}`;
-              const retryable = res.status === 429 || res.status >= 500;
-              updates = claimed.map((r: Recipient) => ({
                 campaign_id: campaignId, user_id: r.user_id, email: r.email, full_name: r.full_name,
-                status: retryable ? "pending" : "failed", error: retryable ? null : msg, claimed_at: null,
-              }));
-              await supabase.from("email_campaigns").update({ last_error: msg }).eq("id", campaignId);
-              if (retryable) {
-                await supabase.from("email_campaign_recipients").upsert(updates, { onConflict: "campaign_id,user_id" });
-                return json({ done: false, rateLimited: true, retryAfterMs: 2000, ...(await refreshCounts(supabase, campaignId)) });
-              }
-            }
+                status: id ? "sent" : "failed", resend_id: id, error: id ? null : "No message id returned",
+                sent_at: id ? now : null, claimed_at: null,
+              };
+            });
             const { error: upErr } = await supabase.from("email_campaign_recipients")
               .upsert(updates, { onConflict: "campaign_id,user_id" });
             if (upErr) throw upErr;
-            batchSent = updates.filter((u) => u.status === "sent").length;
-            batchFailed = updates.filter((u) => u.status === "failed").length;
+            batchSent += updates.filter((u) => u.status === "sent").length;
+            batchFailed += updates.filter((u) => u.status === "failed").length;
+            continue;
           }
+
+          // ── Failure ──
+          const msg = `Resend ${res.status}: ${JSON.stringify(result).slice(0, 300)}`;
+          const kind = classifyResendFailure(res.status, result);
+          const requeue = claimed.map((r: Recipient) => ({
+            campaign_id: campaignId, user_id: r.user_id, email: r.email, full_name: r.full_name,
+            status: kind === "fatal" ? "failed" : "pending",
+            error: kind === "fatal" ? msg : null,
+            claimed_at: null,
+          }));
+          const { error: upErr } = await supabase.from("email_campaign_recipients")
+            .upsert(requeue, { onConflict: "campaign_id,user_id" });
+          if (upErr) throw upErr;
+          await supabase.from("email_campaigns").update({ last_error: msg }).eq("id", campaignId);
+
+          if (kind === "fatal") {
+            batchFailed += requeue.length;
+            paused = msg;
+            break;
+          }
+          if (kind === "quota") {
+            // Nothing will go out until the plan's window resets. Leave the rest
+            // pending so the admin can resume, and say why it stopped.
+            paused = "Resend says this account's sending quota is used up. The rest are still queued — "
+              + "resume this campaign once the quota resets, or raise the plan limit.";
+            break;
+          }
+          if (++rateLimitWaits > MAX_RATE_LIMIT_WAITS) {
+            paused = "Resend is rate limiting this account. The rest are still queued — resume in a moment.";
+            break;
+          }
+          await sleep(retryDelayMs(res));
         }
 
         const c = await refreshCounts(supabase, campaignId);
@@ -461,7 +533,9 @@ Deno.serve(async (req) => {
             completed_at: new Date().toISOString(),
           }).eq("id", campaignId);
         }
-        return json({ done, batchSent, batchFailed, ...c });
+        // `paused` tells the UI to stop looping and show the reason; the
+        // campaign stays `sending` so it can be resumed later.
+        return json({ done, paused, batchSent, batchFailed, ...c });
       }
 
       case "cancel": {

@@ -33,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Pencil, Trash2, Store, Tag, Loader2, Upload, Image } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import StoreInventoryManager from "@/components/admin/StoreInventoryManager";
 
 interface StoreCategory {
   id: string;
@@ -287,13 +288,14 @@ const AdminStores = () => {
       <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-display font-bold text-foreground">Stores & Categories</h1>
-          <p className="text-muted-foreground">Manage shopping locations and their categories</p>
+          <p className="text-muted-foreground">Manage shopping locations, their categories and what they sell</p>
         </div>
 
         <Tabs defaultValue="stores">
           <TabsList>
             <TabsTrigger value="stores">Stores ({stores.length})</TabsTrigger>
             <TabsTrigger value="categories">Categories ({categories.length})</TabsTrigger>
+            <TabsTrigger value="inventory">Inventory</TabsTrigger>
           </TabsList>
 
           {/* Stores Tab */}
@@ -427,6 +429,16 @@ const AdminStores = () => {
                 </Table>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Inventory Tab */}
+          <TabsContent value="inventory" className="space-y-4">
+            <StoreInventoryManager
+              categories={categories.map(c => ({ id: c.id, name: c.name, slug: c.slug }))}
+              stores={stores.map(s => ({
+                id: s.id, name: s.name, branch_name: s.branch_name, category_id: s.category_id,
+              }))}
+            />
           </TabsContent>
         </Tabs>
       </div>
