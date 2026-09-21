@@ -666,13 +666,28 @@ export default function StoreInventoryManager({
               <Label>Photo</Label>
               <div className="flex items-center gap-3">
                 {form.image_url && (
-                  <img src={form.image_url} alt="" className="w-14 h-14 rounded object-cover border" />
+                  <div className="relative shrink-0">
+                    <img src={form.image_url} alt="" className="w-14 h-14 rounded object-cover border" />
+                    {/* Clearing the photo is how an admin falls back to the
+                        themed stock image for this item. */}
+                    <button
+                      type="button"
+                      aria-label="Remove photo"
+                      title="Remove photo — the app falls back to a stock image"
+                      onClick={() => setForm((p) => ({ ...p, image_url: "" }))}
+                      className="absolute -right-1.5 -top-1.5 rounded-full bg-destructive p-0.5 text-destructive-foreground shadow ring-2 ring-background hover:opacity-90"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
                 )}
                 <Input type="file" accept="image/*" onChange={uploadImage} disabled={uploading} />
                 {uploading && <Loader2 className="w-4 h-4 animate-spin" />}
               </div>
               <p className="text-xs text-muted-foreground">
-                Optional. Without one the app shows a themed stock photo for the item.
+                {form.image_url
+                  ? "Remove the photo to fall back to a themed stock image."
+                  : "Optional. Without one the app shows a themed stock photo for the item."}
               </p>
             </div>
 
